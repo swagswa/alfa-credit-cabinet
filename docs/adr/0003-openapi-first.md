@@ -14,8 +14,8 @@
 
 Единственный источник контракта: `api/openapi.yaml`.
 
-- Сервер, типы и валидация запросов генерируются oapi-codegen в режиме strict server (`internal/httpapi/api.gen.go`). Руками пишем только тела методов `StrictServerInterface`.
-- Валидация входа по той же спеке через middleware kin-openapi. Повторно в хендлерах её не делаем.
+- Сервер, типы и валидация запросов генерируются oapi-codegen в режиме strict server под echo (`internal/httpapi/api.gen.go`, ADR 0013). Руками пишем только тела методов `StrictServerInterface`.
+- Валидация входа по той же спеке через `oapi-codegen/echo-middleware` (kin-openapi внутри). Повторно в хендлерах её не делаем.
 - Фронт генерирует типы через openapi-typescript (`web/src/api/schema.d.ts`) и ходит в API через openapi-fetch.
 - В спеке описана схема входа через cookie (`securitySchemes`). Права ролей на операции лежат в политике casbin (ADR 0011), а не в спеке.
 - Swagger UI в compose отдаёт тот же файл.

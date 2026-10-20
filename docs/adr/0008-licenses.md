@@ -12,17 +12,16 @@
 
 ## Решение
 
-Берём только бесплатные компоненты под лицензиями, одобренными OSI (MIT, BSD, Apache-2.0, MPL-2.0, PostgreSQL), для шрифтов SIL OFL. MPL-2.0 (River) используем без модификации исходников. GPL допустима только у инструментов разработки, которые не попадают в образ (golangci-lint).
+Берём только бесплатные компоненты под лицензиями, одобренными OSI (MIT, BSD, Apache-2.0, MPL-2.0, PostgreSQL), для шрифтов SIL OFL. MPL-2.0 (например, OpenBao) используем без модификации исходников. GPL допустима только у инструментов разработки, которые не попадают в образ (golangci-lint).
 
 Не берём:
 
 | Что | Почему | Вместо |
 |---|---|---|
-| Camunda 8 | Camunda License 1.0 с версии 8.6 | своя машина состояний (ADR 0004) |
+| Camunda 8 | Camunda License 1.0 с версии 8.6 | Temporal (MIT, ADR 0012) |
 | HashiCorp Vault | BSL | `.env`, если понадобится, OpenBao (MPL-2.0) |
 | Liquibase 5 | FSL | golang-migrate (MIT) |
 | Redpanda | BSL | Kafka 4 в KRaft, если понадобится |
-| River Pro | платный | River (MPL-2.0) |
 | Qwen2.5-3B, Qwen2.5-72B | собственные лицензии Qwen, не Apache | Qwen3 (Apache-2.0) |
 | Фирменные шрифты Альфы | коммерческие | Inter (OFL) |
 
