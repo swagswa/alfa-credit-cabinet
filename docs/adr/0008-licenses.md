@@ -20,7 +20,7 @@
 |---|---|---|
 | Camunda 8 | Camunda License 1.0 с версии 8.6 | своя машина состояний (ADR 0004) |
 | HashiCorp Vault | BSL | `.env`, если понадобится, OpenBao (MPL-2.0) |
-| Liquibase 5 | FSL | goose (MIT) |
+| Liquibase 5 | FSL | golang-migrate (MIT) |
 | Redpanda | BSL | Kafka 4 в KRaft, если понадобится |
 | River Pro | платный | River (MPL-2.0) |
 | Qwen2.5-3B, Qwen2.5-72B | собственные лицензии Qwen, не Apache | Qwen3 (Apache-2.0) |
