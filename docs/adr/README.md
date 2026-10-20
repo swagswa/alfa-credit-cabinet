@@ -13,5 +13,5 @@
 | [0007](0007-ui-core-components.md) | Интерфейс на @alfalab/core-components | Принято |
 | [0008](0008-licenses.md) | Политика лицензий | Принято |
 | [0009](0009-scoring-rules.md) | Балльный скоринг на правилах в YAML | Принято |
-| [0010](0010-db-access-pgx.md) | Доступ к БД: pgx и SQL руками, миграции golang-migrate | Принято |
+| [0010](0010-db-access-pgx.md) | Доступ к БД: pgx + sqlc, миграции golang-migrate | Принято |
 | [0011](0011-auth-casbin.md) | Свой вход на JWT и роли через casbin вместо Keycloak | Принято |
