@@ -1,0 +1,40 @@
+package main
+
+import (
+	"context"
+	"log"
+
+	sdkworker "go.temporal.io/sdk/worker"
+	"go.uber.org/zap"
+
+	"github.com/swagswa/alfa-credit-cabinet/internal/config"
+	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/logger"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/svc"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
+)
+
+func main() {
+	ctx := context.Background()
+
+	cfg, err := config.Load[config.Worker]()
+	if err != nil {
+		log.Fatal(err)
+	}
+	lg, err := logger.New(cfg.Level)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// миграции накатывает api, воркер только читает и пишет
+	db := postgres.New(lg.Zap, cfg.Postgres.Client())
+	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
+	w := temporalsvc.NewWorker(tc, workflow.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {
+		r.RegisterWorkflow(workflow.ApplicationWorkflow)
+	})
+
+	if err := svc.Run(ctx, lg.Zap, lg, db, tc, w); err != nil {
+		lg.Zap.Fatal("worker stopped", zap.Error(err))
+	}
+}

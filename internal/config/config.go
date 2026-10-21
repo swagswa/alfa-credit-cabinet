@@ -55,8 +55,6 @@ func (h HTTP) Server() httpserver.Config {
 type JWT struct {
 	Secret string        `env:"JWT_SECRET,required"`
 	TTL    time.Duration `env:"JWT_TTL"             envDefault:"12h"`
-	// Secure false только для локального http, на стенде за https включаем
-	SecureCookie bool `env:"JWT_SECURE_COOKIE" envDefault:"true"`
 }
 
 type API struct {
