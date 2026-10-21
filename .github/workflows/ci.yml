@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: сгенерированный код совпадает с контрактом и sql
+        run: go generate ./... && git diff --exit-code
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.15.0
+      - name: workflowcheck
+        run: go tool workflowcheck ./internal/worker/...
+      - name: тесты
+        run: go test ./...
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: типы совпадают с контрактом
+        run: npm run gen:api && git diff --exit-code src/api/schema.gen.ts
+      - run: npm run lint
+      - run: npm run build
+
+  images:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose --profile ai build
