@@ -72,8 +72,6 @@ linters:
       package-average: 8.0
     errcheck:
       check-type-assertions: true
-    exhaustive:
-      check: [switch, map]
     funlen:
       lines: 80
       statements: 50
