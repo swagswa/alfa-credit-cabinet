@@ -1,0 +1,90 @@
+version: 2026-10-21.1
+
+# нагрузка после выдачи: (платежи по БКИ + новый платёж) / M; для овердрафта не считается
+dsr_max: {A: 0.30, B: 0.30, C: 0.25, D: 0.25}
+rate_premium_pp: {A: 0, B: 1.5, C: 3.5, D: 6}
+
+# D всегда ручное, но рекомендация считается по тем же строкам
+products:
+  working_capital:
+    auto_limit_rub: 5000000
+    grades:
+      A: {action: auto, revenue_mult: 4, max_term: 36}
+      B: {action: auto, revenue_mult: 3, max_term: 36}
+      C: {action: auto, revenue_mult: 2, max_term: 24, guarantor_over_rub: 1500000}
+      D: {action: manual, revenue_mult: 1, max_term: 12, guarantor_over_rub: 0}
+      E: {action: reject}
+  overdraft:
+    auto_limit_rub: 3000000
+    grades:
+      A: {action: auto, turnover_share: 0.5}
+      B: {action: auto, turnover_share: 0.4}
+      C: {action: auto, turnover_share: 0.3}
+      D: {action: manual, turnover_share: 0.2}
+      E: {action: reject}
+  equipment:
+    auto_limit_rub: 10000000
+    grades:
+      A: {action: auto, revenue_mult: 6, max_term: 60}
+      B: {action: auto, revenue_mult: 5, max_term: 60}
+      C: {action: auto, revenue_mult: 3, max_term: 48}
+      D: {action: manual, revenue_mult: 2, max_term: 36}
+      E: {action: reject}
+
+# переключение молодого бизнеса на овердрафт, если он даёт хоть такую долю запрошенного
+switch_age_min_share: 0.3
+
+# сумма лимита округляется вниз
+limit_round_rub: 10000
+
+# операторы только gt|lt|eq|ne; если сработало несколько, reject сильнее need_info, need_info сильнее manual_review
+stop_factors:
+  - {code: SF_STATUS_INACTIVE, input: egrul_status, ne: active, outcome: reject}
+  - {code: SF_BANKRUPTCY, input: bankruptcy, eq: true, outcome: reject} # процедура сейчас или банкротство за 5 лет
+  - {code: SF_AGE_MIN, input: business_age_months, lt: 6, outcome: reject}
+  - {code: SF_OVERDUE_90_ACTIVE, input: current_dpd_max, gt: 89, outcome: reject} # компания или собственник
+  - {code: SF_DISQUALIFIED, input: disqualified_director, eq: true, outcome: reject}
+  - {code: SF_TAX_BLOCK, input: tax_block_collection, eq: true, outcome: reject}
+  - {code: SF_TAX_ARREARS, input: arrears_to_monthly_revenue, gt: 0.1, outcome: reject}
+  - {code: SF_TAX_BLOCK_DECL, input: tax_block_declaration, eq: true, outcome: need_info}
+  - {code: SF_REVENUE_MISMATCH, input: revenue_mismatch, gt: 0.3, outcome: need_info}
+  - {code: SF_DOCS_MISSING, input: missing_documents, gt: 0, outcome: need_info}
+  - {code: SF_NOT_FOUND, input: egrul_found, eq: false, outcome: need_info}
+  - {code: SF_UNRELIABLE, input: unreliable_records, gt: 0, outcome: manual_review}
+  - {code: SF_MASS_ADDRESS, input: mass_address, eq: true, outcome: manual_review}
+  - {code: SF_MASS_DIRECTOR, input: mass_director, eq: true, outcome: manual_review}
+  - {code: SF_FOREIGN_SHARE, input: foreign_share_pct, gt: 25, outcome: manual_review}
+  - {code: SF_OWNER_OVERDUE, input: owner_worst_dpd_12m, gt: 29, outcome: manual_review}
+  - {code: SF_AML_FLAG, input: aml_high_risk, eq: true, outcome: manual_review}
+  - {code: SF_DOC_MISMATCH, input: doc_revenue_mismatch, gt: 0.2, outcome: manual_review}
+  - {code: SF_SOURCE_UNAVAILABLE, input: sources_unavailable, gt: 0, outcome: manual_review}
+
+# тексты клиенту, шаблоны с подстановкой; у мягких стоп-факторов, кроме SF_DOC_MISMATCH, текста нет:
+# клиент видит R_MANUAL_RISK, причину видит только банк
+reasons:
+  R_APPROVED: Заявка одобрена на запрошенных условиях
+  R_AMOUNT_DSR: 'Сумма снижена: платежи по всем кредитам не должны превышать {dsr}% среднемесячной выручки'
+  R_AMOUNT_MULT: 'Сумма снижена: при вашем уровне риска лимит до {mult} среднемесячных выручек'
+  R_TERM_EXTENDED: Срок увеличен до {term} мес, чтобы ежемесячный платёж был посильным
+  R_SWITCH_AGE: 'Кредит на срок выдаём компаниям старше 12 месяцев. Сейчас доступен овердрафт: он работает с 6 месяцев'
+  R_SWITCH_TO_LOAN: Овердрафт ограничен вашим оборотом по счёту. На нужную сумму подойдёт оборотный кредит
+  R_GUARANTOR: 'Нужно поручительство собственника: без залога так выдаём суммы от {amount} ₽'
+  R_PLEDGE: Покупаемое оборудование будет в залоге до погашения кредита
+  R_RATE_PREMIUM: 'Ставка {rate}%: базовая ставка продукта плюс надбавка за уровень риска'
+  R_MANUAL_AMOUNT: Сумма больше лимита автоматического решения, заявку смотрит специалист
+  R_MANUAL_RISK: Нужна дополнительная проверка специалиста, это обычная процедура
+  R_GRADE_E: 'Сейчас не можем выдать кредит: высокая долговая нагрузка и нестабильная выручка. Подать снова можно через 3 месяца'
+  R_LIMIT_TOO_LOW: Доступный лимит меньше минимальной суммы продукта
+  R_AGE_PRODUCT: Бизнесу меньше 12 месяцев, а овердрафт по оборотам пока недоступен
+  SF_STATUS_INACTIVE: По данным ЕГРЮЛ компания не действует (ликвидация или реорганизация)
+  SF_BANKRUPTCY: По данным реестров у компании есть процедура банкротства или банкротство за последние 5 лет
+  SF_AGE_MIN: Бизнесу меньше 6 месяцев. Подать заявку можно будет позже
+  SF_OVERDUE_90_ACTIVE: Есть текущая просрочка больше 90 дней. После погашения можно подать заявку снова
+  SF_DISQUALIFIED: По данным налоговой руководитель компании дисквалифицирован
+  SF_TAX_BLOCK: По счёту есть блокировка налоговой из-за долга. После снятия подайте заявку снова
+  SF_TAX_ARREARS: Есть налоговая задолженность. Погасите её и подайте заявку снова
+  SF_TAX_BLOCK_DECL: Налоговая приостановила операции из-за несданной декларации. Загрузите квитанцию о сдаче
+  SF_REVENUE_MISMATCH: Выручка в анкете отличается от данных налоговой. Загрузите выписку по счёту или поясните разницу
+  SF_DOCS_MISSING: 'Не хватает документа: {doc}'
+  SF_NOT_FOUND: Не нашли компанию с таким ИНН в ЕГРЮЛ. Проверьте ИНН
+  SF_DOC_MISMATCH: Цифры в документе отличаются от данных налоговой, заявку посмотрит специалист

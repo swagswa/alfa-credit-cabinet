@@ -1,0 +1,114 @@
+version: 2026-10-21.1
+
+# шкала 0-100, баллы складываются, больше балл ниже риск
+# у бина только верхняя граница lt, сверху вниз, первый подходящий; без lt это "всё остальное"
+factors:
+  - code: F1
+    name: Возраст бизнеса
+    input: business_age_months
+    bins:
+      - {lt: 12, points: 0, reason: SC_AGE_YOUNG}
+      - {lt: 24, points: 6}
+      - {lt: 60, points: 12}
+      - {points: 16, reason: SC_AGE_MATURE}
+
+  - code: F2
+    name: Тренд выручки
+    input: revenue_trend # последние 6 мес к предыдущим 6
+    bins:
+      - {lt: 0.7, points: 0, reason: SC_REVENUE_DROP}
+      - {lt: 0.9, points: 5}
+      - {lt: 1.1, points: 10}
+      - {points: 14, reason: SC_REVENUE_GROWTH}
+
+  - code: F3
+    name: Волатильность оборотов
+    input: turnover_cv # коэффициент вариации за 12 мес
+    bins:
+      - {lt: 0.3, points: 10, reason: SC_TURNOVER_STABLE}
+      - {lt: 0.5, points: 5}
+      - {points: 0, reason: SC_TURNOVER_VOLATILE}
+
+  - code: F4
+    name: Текущая долговая нагрузка
+    input: current_dsr # платежи по БКИ к среднемесячной выручке
+    bins:
+      - {lt: 0.1, points: 14, reason: SC_DSR_LOW}
+      - {lt: 0.2, points: 10}
+      - {lt: 0.3, points: 5}
+      - {points: 0, reason: SC_DSR_HIGH}
+
+  - code: F5
+    name: Худшая просрочка за 24 мес
+    input: worst_dpd_24m # дни
+    bins:
+      - {lt: 1, points: 16, reason: SC_NO_OVERDUE}
+      - {lt: 30, points: 9}
+      - {lt: 60, points: 3}
+      - {points: 0, reason: SC_OVERDUE_HISTORY}
+
+  - code: F6
+    name: Запросы кредитной истории за 90 дней
+    input: inquiries_90d
+    bins:
+      - {lt: 3, points: 8, reason: SC_INQUIRIES_FEW}
+      - {lt: 6, points: 4}
+      - {points: 0, reason: SC_INQUIRIES_MANY}
+
+  - code: F7
+    name: Налоговая дисциплина
+    input: tax_arrears_rub
+    bins:
+      - {lt: 1, points: 8, reason: SC_TAX_CLEAN}
+      - {lt: 50000, points: 4}
+      - {points: 0, reason: SC_TAX_ARREARS}
+
+  - code: F8
+    name: История с банком
+    # 0: счёта нет или младше 3 мес, 1: счёт 3-11 мес, 2: счёт 12+ мес,
+    # 3: счёт 12+ мес и погашенный у нас кредит без просрочек
+    input: bank_history_level
+    bins:
+      - {lt: 1, points: 0, reason: SC_NO_BANK_HISTORY}
+      - {lt: 2, points: 3}
+      - {lt: 3, points: 6}
+      - {points: 8, reason: SC_BANK_HISTORY}
+
+  - code: F9
+    name: Отраслевой риск
+    input: okved_group # две первые цифры ОКВЭД
+    groups: # первая группа, где есть код; без okved это "всё остальное"
+      - {okved: ['41', '42', '43', '68', '64', '65', '66', '92'], points: 0, reason: SC_INDUSTRY_HIGH}
+      - {okved: ['47', '62', '63', '85', '86'], points: 6, reason: SC_INDUSTRY_LOW}
+      - {points: 3}
+
+# мастер-шкала наша, PD не откалиброван на дефолтах
+grades:
+  - {grade: A, min: 80, pd: 'до 1,5%'}
+  - {grade: B, min: 65, pd: '1,5-4%'}
+  - {grade: C, min: 50, pd: '4-8%'}
+  - {grade: D, min: 35, pd: '8-15%'}
+  - {grade: E, min: 0, pd: 'больше 15%'}
+
+# в объяснение клиенту идут до трёх плюсов и трёх минусов
+top_reasons: 3
+
+reasons:
+  SC_AGE_YOUNG: {sign: minus, text: Бизнесу меньше года}
+  SC_AGE_MATURE: {sign: plus, text: Бизнес работает больше 5 лет}
+  SC_REVENUE_DROP: {sign: minus, text: Выручка за полгода снизилась больше чем на 30%}
+  SC_REVENUE_GROWTH: {sign: plus, text: Выручка за полгода выросла больше чем на 10%}
+  SC_TURNOVER_STABLE: {sign: plus, text: Обороты по счёту стабильные}
+  SC_TURNOVER_VOLATILE: {sign: minus, text: Обороты по счёту сильно скачут от месяца к месяцу}
+  SC_DSR_LOW: {sign: plus, text: Платежи по текущим кредитам небольшие относительно выручки}
+  SC_DSR_HIGH: {sign: minus, text: Платежи по текущим кредитам забирают больше 30% выручки}
+  SC_NO_OVERDUE: {sign: plus, text: Просрочек по кредитам нет}
+  SC_OVERDUE_HISTORY: {sign: minus, text: За последние 2 года была просрочка больше 60 дней}
+  SC_INQUIRIES_FEW: {sign: plus, text: Мало обращений за кредитами в последние 3 месяца}
+  SC_INQUIRIES_MANY: {sign: minus, text: За 3 месяца было 6 и больше обращений за кредитами в разные банки}
+  SC_TAX_CLEAN: {sign: plus, text: Налоговых долгов нет}
+  SC_TAX_ARREARS: {sign: minus, text: Есть налоговый долг от 50 тыс. руб.}
+  SC_NO_BANK_HISTORY: {sign: minus, text: У компании пока нет истории с нашим банком}
+  SC_BANK_HISTORY: {sign: plus, text: Счёт у нас больше года и кредит погашен без просрочек}
+  SC_INDUSTRY_HIGH: {sign: minus, text: Отрасль с повышенным риском}
+  SC_INDUSTRY_LOW: {sign: plus, text: Отрасль с низким риском}
