@@ -13,8 +13,10 @@
 | [0007](0007-ui-core-components.md) | Интерфейс на @alfalab/core-components | Принято |
 | [0008](0008-licenses.md) | Политика лицензий | Принято |
 | [0009](0009-scoring-rules.md) | Балльный скоринг на правилах в YAML | Принято |
-| [0010](0010-db-access-pgx.md) | Доступ к БД: pgx + sqlc, миграции golang-migrate | Принято |
+| [0010](0010-db-access-pgx.md) | Доступ к БД: pgx + sqlc, миграции golang-migrate | Принято, частично заменено [0015](0015-layers.md) |
 | [0011](0011-auth-casbin.md) | Свой вход на JWT и роли через casbin вместо Keycloak | Принято |
 | [0012](0012-temporal.md) | Процесс заявки на Temporal | Принято |
 | [0013](0013-echo.md) | HTTP на echo | Принято |
 | [0014](0014-ai-usage.md) | LLM только для распознавания документов, решение без LLM | Принято |
+| [0015](0015-layers.md) | Слои: handler, usecase, repo, domain | Принято |
+| [0016](0016-zap.md) | Логи на zap | Принято |
