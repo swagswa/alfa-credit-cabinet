@@ -1,0 +1,8 @@
+# Без этого файла сервер 1.32 не стартует. Значения для стенда, не для прода.
+limit.maxIDLength:
+  - value: 255
+    constraints: {}
+# новые search attributes видны сразу, а не через минуту кеша
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}

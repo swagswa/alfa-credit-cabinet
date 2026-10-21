@@ -1,0 +1,14 @@
+package: oapi
+output: api.gen.go
+generate:
+  models: true
+  echo-server: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  # SSE живёт обычным хендлером echo, strict server стримить не умеет
+  exclude-operation-ids:
+    - streamEvents
+compatibility:
+  # без этого enum-константы разных схем (Approved, Other) сталкиваются в одном пакете
+  always-prefix-enum-values: true

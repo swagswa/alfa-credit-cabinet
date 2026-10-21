@@ -1,0 +1,12 @@
+p, anonymous, /api/login, POST
+p, anonymous, /api/health, GET
+p, anonymous, /api/samples/:inn, GET
+
+p, client, /api/me, GET
+p, client, /api/logout, POST
+p, manager, /api/me, GET
+p, manager, /api/logout, POST
+p, underwriter, /api/me, GET
+p, underwriter, /api/logout, POST
+p, admin, /api/me, GET
+p, admin, /api/logout, POST

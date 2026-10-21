@@ -1,0 +1,191 @@
+name: credit-cabinet
+
+x-backend-env: &backend-env
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://${POSTGRES_USER:-credit}:${POSTGRES_PASSWORD:-credit}@db:5432/credit?sslmode=disable
+  TEMPORAL_HOSTPORT: temporal:7233
+
+x-temporal-db-env: &temporal-db-env
+  DB: postgres12
+  DB_PORT: 5432
+  POSTGRES_SEEDS: db
+  POSTGRES_USER: ${POSTGRES_USER:-credit}
+  POSTGRES_PWD: ${POSTGRES_PASSWORD:-credit}
+
+services:
+  db:
+    image: postgres:18.6
+    environment:
+      POSTGRES_DB: credit
+      POSTGRES_USER: ${POSTGRES_USER:-credit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-credit}
+    volumes:
+      - db:/var/lib/postgresql
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      # по TCP, а не по сокету: во время init-скриптов временный сервер слушает только сокет
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d credit"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  temporal-setup:
+    image: temporalio/admin-tools:1.32.1
+    environment:
+      <<: *temporal-db-env
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        tool="temporal-sql-tool --plugin postgres12 --ep db -p 5432 -u $$POSTGRES_USER --pw $$POSTGRES_PWD"
+        schema=/etc/temporal/schema/postgresql/v12
+        $$tool --db temporal setup-schema -v 0.0
+        $$tool --db temporal update-schema -d $$schema/temporal/versioned
+        $$tool --db temporal_visibility setup-schema -v 0.0
+        $$tool --db temporal_visibility update-schema -d $$schema/visibility/versioned
+    depends_on:
+      db:
+        condition: service_healthy
+
+  temporal:
+    image: temporalio/server:1.32.1
+    environment:
+      <<: *temporal-db-env
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      BIND_ON_IP: 0.0.0.0
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/dynamicconfig.yaml
+    volumes:
+      - ./docker/temporal/dynamicconfig.yaml:/etc/temporal/dynamicconfig.yaml:ro
+    ports:
+      - "7233:7233"
+    depends_on:
+      temporal-setup:
+        condition: service_completed_successfully
+
+  temporal-namespace:
+    image: temporalio/admin-tools:1.32.1
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    entrypoint: ["sh", "-c"]
+    # сервер принимает соединения не сразу после старта контейнера, ждём его здесь
+    command:
+      - |
+        until temporal operator cluster health >/dev/null 2>&1; do sleep 1; done
+        temporal operator namespace describe -n default >/dev/null 2>&1 \
+          || temporal operator namespace create -n default --retention 72h
+    depends_on:
+      - temporal
+
+  temporal-ui:
+    image: temporalio/ui:2.56.0
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "8233:8080"
+    depends_on:
+      - temporal
+
+  api:
+    build:
+      context: .
+      target: app
+    command: ["/app/api"]
+    environment:
+      <<: *backend-env
+      HTTP_ADDR: :8080
+      # секрет для стенда; на внешнем сервере задаётся в .env
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      AI_ENABLED: ${AI_ENABLED:-false}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "/app/api", "-healthcheck", "http://localhost:8080/api/health"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    depends_on:
+      db:
+        condition: service_healthy
+      temporal-namespace:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: .
+      target: app
+    command: ["/app/worker"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      api:
+        condition: service_healthy
+
+  docs-worker:
+    profiles: [ai]
+    build:
+      context: .
+      target: docs-worker
+    environment:
+      <<: *backend-env
+    depends_on:
+      api:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+
+  mocks:
+    build:
+      context: .
+      target: app
+    command: ["/app/mocks"]
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      HTTP_ADDR: :8081
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "/app/mocks", "-healthcheck", "http://localhost:8081/health"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  web:
+    build: ./web
+    ports:
+      - "${WEB_PORT:-8000}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  swagger:
+    image: swaggerapi/swagger-ui:v5.34.0
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+    volumes:
+      - ./api/openapi.yaml:/spec/openapi.yaml:ro
+    ports:
+      - "8082:8080"
+
+  ollama:
+    profiles: [ai]
+    image: ollama/ollama:0.40.7
+    volumes:
+      - ollama:/root/.ollama
+
+  ollama-pull:
+    profiles: [ai]
+    image: ollama/ollama:0.40.7
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["sh", "-c"]
+    command:
+      - until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull qwen3:4b-instruct-2507-q4_K_M
+    depends_on:
+      - ollama
+
+volumes:
+  db:
+  ollama:
