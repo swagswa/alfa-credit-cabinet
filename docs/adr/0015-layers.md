@@ -17,7 +17,7 @@
 Раскладка бэкенда:
 
 ```
-cmd/api, cmd/worker, cmd/mocks, cmd/docgen   сборка зависимостей: config, logger, db -> repo -> usecase -> handler или worker
+cmd/api, cmd/worker, cmd/docs-worker, cmd/mocks, cmd/docgen   сборка зависимостей: config, logger, db -> repo -> usecase -> handler или worker
 internal/
   config/          одна структура, caarlos0/env
   domain/          сущности, статусы, роли, таблица переходов, коды причин, sentinel-ошибки
