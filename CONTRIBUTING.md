@@ -28,17 +28,39 @@ api: перегенерил сервер и клиент
 
 Главное, подробности и обоснования в [docs/adr](docs/adr/README.md).
 
-- Минимум кода. Сервер, типы и валидацию генерируем из `api/openapi.yaml`. Процесс заявки, ретраи и таймеры берём у Temporal, middleware у echo, миграции у golang-migrate, права ролей у casbin. Свои структуры поверх сгенерированных не пишем.
-- SQL пишем руками в `internal/db/queries/*.sql`, Go-код из него генерирует sqlc (pgx v5) в пакет `internal/db`. Домен вызывает `*db.Queries` напрямую, в транзакции через `db.New(tx)` внутри `pgx.BeginFunc`. Без ORM и слоя repository поверх `Queries`.
+### Слои
+
+Раскладка и правила в [ADR 0015](docs/adr/0015-layers.md). Коротко:
+
+```
+internal/domain       сущности, статусы, роли, таблица переходов, ошибки; без I/O
+internal/repo         доступ к данным поверх sqlc, наружу только доменные типы
+internal/usecase      бизнес-логика и транзакции
+internal/api/handler  реализация StrictServerInterface, перевод типов oapi <-> domain
+internal/worker       workflow и activities Temporal, activities зовут usecase
+internal/integration  клиенты к внешним системам
+pkg/                  переиспользуемая инфраструктура без предметной области: logger, postgres, testenv
+```
+
+Процессы ([ADR 0017](docs/adr/0017-docs-worker.md)): `cmd/api`, `cmd/worker` (очередь `credit`), `cmd/docs-worker` (очередь `docs`, профиль `ai`), `cmd/mocks`. Код у них общий, `main` только собирает зависимости и регистрирует своё.
+
+Зависимости только сверху вниз: handler и activity -> usecase -> repo -> db, `domain` нужен всем и сам ничего не импортирует. Сгенерированные типы sqlc не выходят из `repo`, типы oapi не выходят из `api`.
+
+У `repo` и `usecase` на каждую область интерфейс и неэкспортируемая реализация в одном файле, конструктор возвращает интерфейс: `repo.NewApplication(q) repo.ApplicationRepository`. Внутри слоя новых интерфейсов без второй реализации не заводим.
+
+### Правила
+
+- Минимум кода. Сервер, типы и валидацию генерируем из `api/openapi.yaml`. Процесс заявки, ретраи и таймеры берём у Temporal, middleware у echo, миграции у golang-migrate, права ролей у casbin. Свои структуры поверх сгенерированных oapi-типов в хендлерах не пишем, переводим сразу в доменные.
+- SQL пишем руками в `internal/db/queries/*.sql`, Go-код из него генерирует sqlc (pgx v5) в пакет `internal/db`. `*db.Queries` вызывает только `internal/repo`. Транзакцию открывает usecase через `postgres.WithTx`, репозитории внутри берёт через `WithTx(tx)`. Без ORM.
 - Миграции: новый файл `migrations/NNNNNN_name.up.sql` и парный `.down.sql`. Применённую миграцию не правим, пишем следующую.
-- Права ролей на эндпоинты в `internal/auth/policy.csv` (casbin). Владение заявкой проверяется в SQL-запросе, не в политике.
-- Правила в конфиг, логика в код. Веса, пороги, продукты лежат в `rules/*.yaml`. В YAML только данные: числа, списки, фиксированный набор операторов, без выражений.
-- Статус заявки меняется только через `credit.Transition`, процесс вызывает его из activity. Прямой `UPDATE applications SET status` не пишем.
+- Права ролей на эндпоинты в `internal/rbac/policy.csv` (casbin). Владение заявкой проверяется в SQL-запросе, не в политике.
+- Правила в конфиг, логика в код. Веса, пороги, продукты лежат в `rules/*.yaml`, читает их `internal/rules`. В YAML только данные: числа, списки, фиксированный набор операторов, без выражений.
+- Статус заявки меняется только через `Transition` в `internal/usecase/application.go`, процесс вызывает его из activity. Прямой `UPDATE applications SET status` мимо него не пишем.
 - Код workflow детерминированный: без `time.Now`, `rand`, горутин и I/O. Время `workflow.Now`, ожидание `workflow.NewTimer`, всё внешнее через activity.
-- Имена по-гошному: пакет уже часть имени. `scoring.Score(app)`, `bki.Client`, `credit.Application`. Без `Get` у геттеров, без суффиксов `Service`, `Manager`, `Impl`, `Factory`.
-- Без пакетов `utils`, `common`, без слоёв `service/repository/dto`, без интерфейсов с одной реализацией. Интерфейс объявляет потребитель, когда он действительно нужен.
-- Ошибки: обрабатываем один раз. Контекст в `fmt.Errorf` только полезный, доменные sentinel-ошибки (`credit.ErrNotFound`, `credit.ErrIllegalTransition`) маппятся в HTTP-коды одной функцией в `internal/httpapi`.
-- Все внешние вызовы с таймаутом от входящего `ctx`. Конфиг через `caarlos0/env`, секреты `required`, без дефолтов. Логгер передаётся аргументом, без глобальных переменных и `init()`.
+- Имена по-гошному: пакет уже часть имени. `repo.ApplicationRepository`, `usecase.ScoringUseCase`, `domain.Application`, `bki.Client`. Без `Get` у геттеров, без суффиксов `Manager`, `Impl`, `Factory`.
+- Переиспользуемый код без предметной области (логгер, Postgres, тестовое окружение) в `pkg/<что делает>`, `pkg` не импортирует `internal`. Пакетов-свалок `utils`, `common`, `helpers` нет ни в `pkg`, ни в `internal`.
+- Ошибки: обрабатываем один раз. Контекст в `fmt.Errorf` только полезный, sentinel-ошибки в `internal/domain` (`domain.ErrNotFound`, `domain.ErrIllegalTransition`) маппятся в HTTP-коды одной функцией в `internal/api/server`.
+- Все внешние вызовы с таймаутом от входящего `ctx`. Конфиг через `caarlos0/env`, секреты `required`, без дефолтов. Логгер zap ([ADR 0016](docs/adr/0016-zap.md)) передаётся конструкторам, без глобальных переменных и `init()`.
 - Деньги в копейках `int64`, ставки в базисных пунктах, время с таймзоной.
 - Комментарии на русском и только про «почему». Пересказ кода не пишем.
 
@@ -46,7 +68,7 @@ api: перегенерил сервер и клиент
 
 - Ядро пишем через TDD: переходы статусов, скоринг, кредитная политика. Сначала падающий тест на поведение, потом минимум кода, потом чистка.
 - Тесты table-driven с `t.Run` и `testify/require`. Ожидания пишем руками, а не выводим из той же таблицы, которую проверяем.
-- Postgres через `testcontainers-go`, внешние сервисы через `httptest.Server`.
+- `domain`: юнит. `usecase`: юнит, репозитории и клиенты подменяем фейками, написанными руками в `_test.go`, генераторы моков не используем. `repo`: интеграционные на `testcontainers-go`. Клиенты `integration`: через `httptest.Server`.
 - Workflow тестируем в `testsuite.TestWorkflowEnvironment` с подменёнными activities, сценарии таблицей (это же демо-сценарии). Activities тестируем как обычные функции.
 - E2E (Playwright) на сквозной путь, когда экраны устоялись.
 
@@ -65,40 +87,41 @@ api: перегенерил сервер и клиент
 
 ## Как добавить статус заявки
 
-1. Тест в `internal/credit/transitions_test.go`: какие переходы в новый статус и из него разрешены, каким ролям, и какие запрещены.
-2. Статус и переходы в таблице `internal/credit/transitions.go`.
+1. Тест в `internal/domain/transition_test.go`: какие переходы в новый статус и из него разрешены, каким ролям, и какие запрещены.
+2. Статус и переходы в таблице `internal/domain/transition.go`.
 3. Значение в enum статуса в `api/openapi.yaml`, перегенерить сервер и TS-клиент отдельным коммитом.
 4. Обновить `docs/state-diagram.md`: golden-тест сверяет его с таблицей и упадёт, если забыть.
 
 ## Как добавить правило скоринга
 
 1. Кейс в `testdata/scoring_cases.yaml`: компания, на которой правило должно сработать, и ожидаемый балл.
-2. Фактор в `rules/scoring.yaml`: источник, пороги, баллы. Если нужен новый оператор, добавляется в `internal/scoring` вместе с тестом.
+2. Фактор в `rules/scoring.yaml`: источник, пороги, баллы. Если нужен новый оператор, добавляется в `internal/usecase/scoring.go` вместе с тестом, а его проверка при загрузке в `internal/rules`.
 3. Если фактор берёт новые данные из мока, расширить фикстуру мока и синтетические компании.
 4. Поднять `version` в `rules/scoring.yaml`: решение хранит версию политики, по которой принято.
 
 ## Как добавить шаг процесса
 
-Процесс заявки это `ApplicationWorkflow` в `internal/credit/workflow.go`, activities в `internal/credit/activities.go`.
+Процесс заявки это `ApplicationWorkflow` в `internal/worker/workflow/application.go`, activities в `internal/worker/activity/application.go`.
 
-1. Сценарий в таблицу `internal/credit/workflow_test.go`: что вернули activities, какие сигналы или update пришли, в каком статусе заявка закончила.
-2. Activity: обычный метод на `*Activities`, внешний вызов с таймаутом от `ctx`. Ошибку сети или 5xx просто возвращаем, повторит Temporal. На 4xx `temporal.NewNonRetryableApplicationError`. Своих циклов ретраев не пишем.
+1. Сценарий в таблицу `internal/worker/workflow/application_test.go`: что вернули activities, какие update пришли, в каком статусе заявка закончила.
+2. Activity: метод на `*activity.Activities`, логика в usecase, внешний вызов через клиент из `internal/integration` с таймаутом от `ctx`. Ошибку сети или 5xx просто возвращаем, повторит Temporal. На 4xx `temporal.NewNonRetryableApplicationError`. Своих циклов ретраев не пишем.
 3. В workflow вызвать её через `workflow.ExecuteActivity` с общими `ActivityOptions` (таймаут, `RetryPolicy`). Если ретраи кончились, заявка уходит в ручное рассмотрение с причиной.
-4. Если шаг меняет статус, переход вызывается activity `Transition` и сначала добавляется в таблицу переходов (см. «Как добавить статус заявки»).
-5. Действие человека (клиент дал данные, принял контрпредложение, подписал, андеррайтер решил) это update-хендлер в workflow с валидатором. API вызывает `UpdateWorkflow` и получает ошибку сразу, если действие сейчас не к месту.
+4. Если шаг меняет статус, переход делает activity `Transition`, а сам переход сначала добавляется в таблицу (см. «Как добавить статус заявки»).
+5. Действие человека (клиент дал данные, принял контрпредложение, подписал, андеррайтер решил) это update-хендлер в workflow с валидатором. Usecase вызывает `UpdateWorkflow` и получает ошибку сразу, если действие сейчас не к месту.
 6. Изменение логики workflow ломает реплей уже запущенных заявок. На стенде перед демо поднимаем чистую базу, в остальных случаях ветка через `workflow.GetVersion`.
 
 ## Как добавить эндпоинт
 
 1. Описать операцию в `api/openapi.yaml`: схемы с ограничениями, коды ошибок.
 2. `go generate ./...` и генерация TS-типов, результат отдельным коммитом.
-3. Реализовать метод `StrictServerInterface` в `internal/httpapi`. Если нужен новый запрос, см. «Как добавить запрос». Правило доступа ролей добавить в `internal/auth/policy.csv`.
-4. Добавить запрос в коллекцию запросов. Если тянется новая библиотека, внести её в THIRD_PARTY_NOTICES.
+3. Метод в интерфейсе usecase и его реализацию с тестом на фейках. Если нужны новые данные, см. «Как добавить запрос».
+4. Метод `StrictServerInterface` в `internal/api/handler/<область>.go`: перевести запрос в доменные типы, вызвать usecase, перевести ответ. Правило доступа ролей добавить в `internal/rbac/policy.csv`.
+5. Добавить запрос в коллекцию запросов. Если тянется новая библиотека, внести её в THIRD_PARTY_NOTICES.
 
 ## Как добавить запрос
 
 1. Если нужна новая таблица или колонка, сначала миграция `migrations/NNNNNN_name.up.sql` и `.down.sql`: sqlc берёт схему оттуда.
 2. Запрос в `internal/db/queries/<область>.sql` с аннотацией, например `-- name: ApplicationForClient :one`. Владение проверяем в самом запросе: `WHERE id = $1 AND company_id = $2`.
 3. `go generate ./...` (на Windows без gcc: `docker run --rm -v "$PWD":/src -w /src sqlc/sqlc:1.31.1 generate`). Ошибку в имени колонки или типе генератор покажет сразу.
-4. В доменном коде вызвать типизированный метод: `q.ApplicationForClient(ctx, db.ApplicationForClientParams{...})`, где `q` это `*db.Queries`, а внутри транзакции `db.New(tx)`. `pgx.ErrNoRows` превратить в доменную `ErrNotFound`.
-5. Запрос с логикой (владение, `FOR UPDATE`, переход статуса) покрыть интеграционным тестом на testcontainers-go. Сгенерированный код отдельным коммитом.
+4. Метод в интерфейсе репозитория `internal/repo/<область>.go` и его реализация: вызвать `r.q.ApplicationForClient(ctx, db.ApplicationForClientParams{...})`, перевести строку в доменный тип, `pgx.ErrNoRows` превратить в `domain.ErrNotFound`.
+5. Запрос с логикой (владение, `FOR UPDATE`, переход статуса) покрыть интеграционным тестом репозитория на testcontainers-go. Сгенерированный код отдельным коммитом.
