@@ -1,0 +1,9 @@
+DROP TABLE decisions;
+DROP TABLE check_results;
+DROP TABLE documents;
+DROP TABLE application_events;
+DROP FUNCTION forbid_change();
+DROP TABLE applications;
+DROP TABLE company_members;
+DROP TABLE companies;
+DROP TABLE users;

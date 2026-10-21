@@ -1,0 +1,101 @@
+version: 2026-10-21.1
+
+# суммы в рублях, ставки в процентах: файл правят руками, в копейки и б.п. переводит загрузчик
+key_rate_pct: 14
+amount_step_rub: 10000
+
+products:
+  working_capital:
+    name: Оборотный кредит
+    description: Закупка товара и сырья, сезон, исполнение контракта, ремонт, зарплата до поступления оплаты
+    amount_min_rub: 300000
+    amount_max_rub: 10000000
+    term_min_months: 3
+    term_max_months: 36
+    base_rate_pct: 19
+    max_rate_pct: 25
+    repayment: annuity
+    min_business_age_months: 12
+    guarantor_over_rub: 3000000 # только ООО, ИП и так отвечает своим имуществом
+    requirements:
+      - Без залога
+      - Поручительство собственника, если сумма больше 3 млн руб. (для ООО)
+    documents:
+      - {kind: passport}
+      - {kind: statement, when: no_turnover, months: 12}
+      - {kind: financials, when: amount_over, amount_over_rub: 3000000}
+
+  overdraft:
+    name: Овердрафт
+    description: Кассовые разрывы до 2 месяцев, налоги, аренда, поставщики до прихода выручки
+    amount_min_rub: 100000
+    amount_max_rub: 5000000
+    term_min_months: 12
+    term_max_months: 12
+    tranche_max_days: 60
+    base_rate_pct: 21
+    max_rate_pct: 27
+    repayment: auto_debit
+    min_business_age_months: 6
+    requirements:
+      - Без залога
+      - Договор на 12 месяцев, каждый транш до 60 дней
+      - Погашение автоматически из поступлений на счёт
+    documents:
+      - {kind: passport}
+      - {kind: statement, when: no_turnover, months: 6}
+
+  equipment:
+    name: Кредит на оборудование
+    description: Оборудование, транспорт, спецтехника
+    amount_min_rub: 500000
+    amount_max_rub: 15000000
+    term_min_months: 12
+    term_max_months: 60
+    base_rate_pct: 17
+    max_rate_pct: 23
+    repayment: annuity
+    min_business_age_months: 12
+    pledge: true
+    max_cost_share: 0.9 # собственный взнос от 10% цены
+    requirements:
+      - Залог покупаемого оборудования
+      - Собственный взнос от 10% цены
+    documents:
+      - {kind: passport}
+      - {kind: statement, when: no_turnover, months: 12}
+      - {kind: financials, when: amount_over, amount_over_rub: 3000000}
+      - {kind: supply_contract}
+
+# доверенность нужна при любом продукте, если представитель proxy
+proxy_document: power_of_attorney
+
+# no_turnover: нет счёта у нас или наших оборотов меньше этой доли от заявленной выручки
+own_turnover_min_share: 0.5
+
+goals:
+  - code: cash_gap
+    title: Закрыть кассовый разрыв, налоги, аренда, зарплата
+    pick: # сверху вниз, первый подходящий; без условия это "всё остальное"
+      - {input: term_months, lt: 3, product: overdraft, alternative: working_capital}
+      - {product: working_capital, alternative: overdraft}
+  - code: purchase
+    title: Закупка товара, сырья, подготовка к сезону, контракт
+    pick:
+      - product: working_capital
+        alternative: overdraft
+        alternative_if: {input: amount_to_monthly_revenue, lt: 0.5}
+  - code: renovation
+    title: Ремонт, открытие точки
+    pick:
+      - {product: working_capital}
+  - code: equipment
+    title: Оборудование, транспорт, техника
+    pick:
+      - product: equipment
+        alternative: working_capital
+        alternative_if: {input: amount_rub, lt: 500000}
+  - code: other
+    title: Другое
+    pick:
+      - {product: working_capital}
