@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"net/url"
 	"sync"
@@ -25,15 +26,16 @@ import (
 )
 
 const (
-	image    = "postgres:18.6"
-	template = "template_app"
-	timeout  = 2 * time.Minute
+	image     = "postgres:18.6"
+	template  = "template_app"
+	timeout   = 2 * time.Minute
+	suffixLen = 8
 )
 
 var (
-	once      sync.Once
-	adminURL  string
-	onceError error
+	once     sync.Once
+	adminURL string
+	errStart error
 )
 
 // Postgres отдаёт пул к свежей копии базы с миграциями из migrations.
@@ -41,9 +43,9 @@ var (
 func Postgres(t testing.TB, migrations fs.FS) *pgxpool.Pool {
 	t.Helper()
 
-	once.Do(func() { adminURL, onceError = start(migrations) })
-	if onceError != nil {
-		t.Skipf("postgres container: %v", onceError)
+	once.Do(func() { adminURL, errStart = start(migrations) })
+	if errStart != nil {
+		t.Skipf("postgres container: %v", errStart)
 	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), timeout)
@@ -76,23 +78,23 @@ func start(migrations fs.FS) (string, error) {
 		tcpostgres.BasicWaitStrategies(),
 	)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("run container: %w", err)
 	}
 	tplURL, err := c.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("connection string: %w", err)
 	}
 
 	db := postgres.New(zap.NewNop(), postgres.Config{URL: tplURL}, postgres.Migrate(migrations))
-	if err := db.Init(ctx); err != nil {
-		return "", err
+	if err = db.Init(ctx); err != nil {
+		return "", fmt.Errorf("migrate template: %w", err)
 	}
 	// пока к шаблону есть подключения, копировать его нельзя
 	db.Pool.Close()
 
 	u, err := url.Parse(tplURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse url: %w", err)
 	}
 	u.Path = "/postgres"
 	return u.String(), nil
@@ -104,7 +106,7 @@ func exec(t testing.TB, ctx context.Context, sql string) {
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer conn.Close(context.WithoutCancel(ctx))
+	defer func() { _ = conn.Close(context.WithoutCancel(ctx)) }()
 	if _, err := conn.Exec(ctx, sql); err != nil {
 		t.Fatalf("%s: %v", sql, err)
 	}
@@ -122,7 +124,7 @@ func withDatabase(t testing.TB, raw, name string) string {
 
 func suffix(t testing.TB) string {
 	t.Helper()
-	b := make([]byte, 8)
+	b := make([]byte, suffixLen)
 	if _, err := rand.Read(b); err != nil {
 		t.Fatalf("rand: %v", err)
 	}

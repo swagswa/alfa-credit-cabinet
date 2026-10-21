@@ -25,8 +25,11 @@ func (c *Client) WithTx(ctx context.Context, fn TxFunc) error {
 	var err error
 	for attempt := 1; attempt <= txAttempts; attempt++ {
 		err = pgx.BeginFunc(ctx, c.Pool, func(tx pgx.Tx) error { return fn(ctx, tx) })
-		if err == nil || !retryable(err) {
-			return err
+		if err == nil {
+			return nil
+		}
+		if !retryable(err) {
+			return fmt.Errorf("tx: %w", err)
 		}
 		select {
 		case <-ctx.Done():

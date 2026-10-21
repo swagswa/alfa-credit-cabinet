@@ -4,6 +4,7 @@ package zapadapter
 
 import (
 	"fmt"
+	"slices"
 
 	"go.temporal.io/sdk/log"
 	"go.uber.org/zap"
@@ -38,13 +39,13 @@ func fields(keyvals []any) []zap.Field {
 	if len(keyvals)%2 != 0 {
 		return []zap.Field{zap.Any("keyvals", keyvals)}
 	}
-	out := make([]zap.Field, 0, len(keyvals)/2)
-	for i := 0; i < len(keyvals); i += 2 {
-		key, ok := keyvals[i].(string)
+	var out []zap.Field
+	for pair := range slices.Chunk(keyvals, 2) { //nolint:mnd // пара ключ-значение
+		key, ok := pair[0].(string)
 		if !ok {
-			key = fmt.Sprint(keyvals[i])
+			key = fmt.Sprint(pair[0])
 		}
-		out = append(out, zap.Any(key, keyvals[i+1]))
+		out = append(out, zap.Any(key, pair[1]))
 	}
 	return out
 }

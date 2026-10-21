@@ -18,8 +18,8 @@ type Worker struct {
 	w        worker.Worker
 }
 
-// NewWorker: клиент к моменту Init воркера уже должен пройти свой Init,
-// поэтому в списке сервисов он идёт раньше.
+// NewWorker собирает воркер очереди queue. Клиент к моменту Init воркера
+// уже должен пройти свой Init, поэтому в списке сервисов он идёт раньше.
 func NewWorker(c *Client, queue string, opts worker.Options, register Register) *Worker {
 	return &Worker{client: c, queue: queue, opts: opts, register: register}
 }

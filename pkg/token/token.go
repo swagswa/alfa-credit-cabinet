@@ -29,12 +29,10 @@ func New(secret string, ttl time.Duration) *Issuer {
 func (i *Issuer) Issue(subject, role string) (string, error) {
 	now := i.now()
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		Role: role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   subject,
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(i.ttl)),
-		},
+		Role:      role,
+		Subject:   subject,
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(i.ttl)),
 	})
 	s, err := t.SignedString(i.secret)
 	if err != nil {

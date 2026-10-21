@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const probeTimeout = 3 * time.Second
+
 type Config struct {
 	Addr              string
 	ReadHeaderTimeout time.Duration
@@ -68,10 +70,10 @@ func (s *Server) Stop(ctx context.Context) error {
 // Probe нужен для healthcheck в compose: в distroless нет curl, поэтому
 // бинарник сам стучится в свой health и выходит с кодом.
 func Probe(ctx context.Context, url string) error {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("probe request: %w", err)
 	}
