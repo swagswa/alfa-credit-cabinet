@@ -1,0 +1,19 @@
+# секреты: только .env.example в репо
+.env
+.env.*
+!.env.example
+
+/bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+node_modules/
+web/dist/
+
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
