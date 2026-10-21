@@ -39,6 +39,7 @@ internal/usecase      бизнес-логика и транзакции
 internal/api/handler  реализация StrictServerInterface, перевод типов oapi <-> domain
 internal/worker       workflow и activities Temporal, activities зовут usecase
 internal/integration  клиенты к внешним системам
+pkg/                  переиспользуемая инфраструктура без предметной области: logger, postgres, testenv
 ```
 
 Зависимости только сверху вниз: handler и activity -> usecase -> repo -> db, `domain` нужен всем и сам ничего не импортирует. Сгенерированные типы sqlc не выходят из `repo`, типы oapi не выходят из `api`.
@@ -48,14 +49,14 @@ internal/integration  клиенты к внешним системам
 ### Правила
 
 - Минимум кода. Сервер, типы и валидацию генерируем из `api/openapi.yaml`. Процесс заявки, ретраи и таймеры берём у Temporal, middleware у echo, миграции у golang-migrate, права ролей у casbin. Свои структуры поверх сгенерированных oapi-типов в хендлерах не пишем, переводим сразу в доменные.
-- SQL пишем руками в `internal/db/queries/*.sql`, Go-код из него генерирует sqlc (pgx v5) в пакет `internal/db`. `*db.Queries` вызывает только `internal/repo`. Транзакцию открывает usecase через `db.WithTx`, репозитории внутри берёт через `WithTx(tx)`. Без ORM.
+- SQL пишем руками в `internal/db/queries/*.sql`, Go-код из него генерирует sqlc (pgx v5) в пакет `internal/db`. `*db.Queries` вызывает только `internal/repo`. Транзакцию открывает usecase через `postgres.WithTx`, репозитории внутри берёт через `WithTx(tx)`. Без ORM.
 - Миграции: новый файл `migrations/NNNNNN_name.up.sql` и парный `.down.sql`. Применённую миграцию не правим, пишем следующую.
 - Права ролей на эндпоинты в `internal/rbac/policy.csv` (casbin). Владение заявкой проверяется в SQL-запросе, не в политике.
 - Правила в конфиг, логика в код. Веса, пороги, продукты лежат в `rules/*.yaml`, читает их `internal/rules`. В YAML только данные: числа, списки, фиксированный набор операторов, без выражений.
 - Статус заявки меняется только через `Transition` в `internal/usecase/application.go`, процесс вызывает его из activity. Прямой `UPDATE applications SET status` мимо него не пишем.
 - Код workflow детерминированный: без `time.Now`, `rand`, горутин и I/O. Время `workflow.Now`, ожидание `workflow.NewTimer`, всё внешнее через activity.
 - Имена по-гошному: пакет уже часть имени. `repo.ApplicationRepository`, `usecase.ScoringUseCase`, `domain.Application`, `bki.Client`. Без `Get` у геттеров, без суффиксов `Manager`, `Impl`, `Factory`.
-- Без пакетов `utils`, `common`, `pkg/`.
+- Переиспользуемый код без предметной области (логгер, Postgres, тестовое окружение) в `pkg/<что делает>`, `pkg` не импортирует `internal`. Пакетов-свалок `utils`, `common`, `helpers` нет ни в `pkg`, ни в `internal`.
 - Ошибки: обрабатываем один раз. Контекст в `fmt.Errorf` только полезный, sentinel-ошибки в `internal/domain` (`domain.ErrNotFound`, `domain.ErrIllegalTransition`) маппятся в HTTP-коды одной функцией в `internal/api/server`.
 - Все внешние вызовы с таймаутом от входящего `ctx`. Конфиг через `caarlos0/env`, секреты `required`, без дефолтов. Логгер zap ([ADR 0016](docs/adr/0016-zap.md)) передаётся конструкторам, без глобальных переменных и `init()`.
 - Деньги в копейках `int64`, ставки в базисных пунктах, время с таймзоной.
