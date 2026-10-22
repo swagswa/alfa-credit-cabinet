@@ -12,6 +12,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addCompany = `-- name: AddCompany :one
+INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, address, registered_at, simulated)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id
+`
+
+type AddCompanyParams struct {
+	Inn          string
+	Kind         string
+	Ogrn         string
+	Kpp          pgtype.Text
+	ShortName    string
+	FullName     string
+	Okved        string
+	Address      string
+	RegisteredAt pgtype.Date
+	Simulated    bool
+}
+
+func (q *Queries) AddCompany(ctx context.Context, arg AddCompanyParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, addCompany,
+		arg.Inn,
+		arg.Kind,
+		arg.Ogrn,
+		arg.Kpp,
+		arg.ShortName,
+		arg.FullName,
+		arg.Okved,
+		arg.Address,
+		arg.RegisteredAt,
+		arg.Simulated,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const addTransitionEvent = `-- name: AddTransitionEvent :exec
 INSERT INTO application_events (application_id, from_status, to_status, actor_id, actor_role, reason_codes, comment)
 VALUES ($1, $2, $3, $4, $5,
@@ -39,6 +76,226 @@ func (q *Queries) AddTransitionEvent(ctx context.Context, arg AddTransitionEvent
 		arg.Comment,
 	)
 	return err
+}
+
+const applicationByKey = `-- name: ApplicationByKey :one
+SELECT id, request_hash
+FROM applications
+WHERE created_by = $1 AND idempotency_key = $2
+`
+
+type ApplicationByKeyParams struct {
+	CreatedBy      uuid.UUID
+	IdempotencyKey string
+}
+
+type ApplicationByKeyRow struct {
+	ID          uuid.UUID
+	RequestHash []byte
+}
+
+func (q *Queries) ApplicationByKey(ctx context.Context, arg ApplicationByKeyParams) (ApplicationByKeyRow, error) {
+	row := q.db.QueryRow(ctx, applicationByKey, arg.CreatedBy, arg.IdempotencyKey)
+	var i ApplicationByKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const applicationCard = `-- name: ApplicationCard :one
+SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role
+FROM application_cards v
+WHERE v.id = $1
+  AND ($2::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = $2))
+`
+
+type ApplicationCardParams struct {
+	ID    uuid.UUID
+	Owner pgtype.UUID
+}
+
+// owner задан у клиента: чужая заявка для него просто не находится
+func (q *Queries) ApplicationCard(ctx context.Context, arg ApplicationCardParams) (ApplicationCard, error) {
+	row := q.db.QueryRow(ctx, applicationCard, arg.ID, arg.Owner)
+	var i ApplicationCard
+	err := row.Scan(
+		&i.ID,
+		&i.Number,
+		&i.CompanyID,
+		&i.Status,
+		&i.Version,
+		&i.Product,
+		&i.Purpose,
+		&i.AmountKop,
+		&i.TermMonths,
+		&i.MonthlyRevenueKop,
+		&i.EquipmentCostKop,
+		&i.BkiConsent,
+		&i.Comment,
+		&i.Score,
+		&i.Grade,
+		&i.DueAt,
+		&i.SubmittedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Inn,
+		&i.ShortName,
+		&i.Kind,
+		&i.Simulated,
+		&i.RepresentativeRole,
+	)
+	return i, err
+}
+
+const applicationCards = `-- name: ApplicationCards :many
+SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role, count(*) OVER () AS total
+FROM application_cards v
+WHERE ($1::uuid IS NULL OR EXISTS (
+          SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = $1))
+  AND ($2::text[] IS NULL OR v.status = ANY ($2::text[]))
+  AND ($3::text[] IS NULL OR v.grade = ANY ($3::text[]))
+  AND ($4::text IS NULL OR v.product = $4)
+ORDER BY v.created_at DESC
+LIMIT $6 OFFSET $5
+`
+
+type ApplicationCardsParams struct {
+	Owner    pgtype.UUID
+	Statuses []string
+	Grades   []string
+	Product  pgtype.Text
+	Off      int32
+	Lim      int32
+}
+
+type ApplicationCardsRow struct {
+	ApplicationCard ApplicationCard
+	Total           int64
+}
+
+func (q *Queries) ApplicationCards(ctx context.Context, arg ApplicationCardsParams) ([]ApplicationCardsRow, error) {
+	rows, err := q.db.Query(ctx, applicationCards,
+		arg.Owner,
+		arg.Statuses,
+		arg.Grades,
+		arg.Product,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApplicationCardsRow
+	for rows.Next() {
+		var i ApplicationCardsRow
+		if err := rows.Scan(
+			&i.ApplicationCard.ID,
+			&i.ApplicationCard.Number,
+			&i.ApplicationCard.CompanyID,
+			&i.ApplicationCard.Status,
+			&i.ApplicationCard.Version,
+			&i.ApplicationCard.Product,
+			&i.ApplicationCard.Purpose,
+			&i.ApplicationCard.AmountKop,
+			&i.ApplicationCard.TermMonths,
+			&i.ApplicationCard.MonthlyRevenueKop,
+			&i.ApplicationCard.EquipmentCostKop,
+			&i.ApplicationCard.BkiConsent,
+			&i.ApplicationCard.Comment,
+			&i.ApplicationCard.Score,
+			&i.ApplicationCard.Grade,
+			&i.ApplicationCard.DueAt,
+			&i.ApplicationCard.SubmittedAt,
+			&i.ApplicationCard.CreatedAt,
+			&i.ApplicationCard.UpdatedAt,
+			&i.ApplicationCard.Inn,
+			&i.ApplicationCard.ShortName,
+			&i.ApplicationCard.Kind,
+			&i.ApplicationCard.Simulated,
+			&i.ApplicationCard.RepresentativeRole,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const companyByINN = `-- name: CompanyByINN :one
+SELECT c.id, EXISTS (
+    SELECT 1 FROM company_members m WHERE m.company_id = c.id AND m.user_id = $1
+) AS member
+FROM companies c
+WHERE c.inn = $2
+`
+
+type CompanyByINNParams struct {
+	UserID uuid.UUID
+	Inn    string
+}
+
+type CompanyByINNRow struct {
+	ID     uuid.UUID
+	Member bool
+}
+
+func (q *Queries) CompanyByINN(ctx context.Context, arg CompanyByINNParams) (CompanyByINNRow, error) {
+	row := q.db.QueryRow(ctx, companyByINN, arg.UserID, arg.Inn)
+	var i CompanyByINNRow
+	err := row.Scan(&i.ID, &i.Member)
+	return i, err
+}
+
+const createApplication = `-- name: CreateApplication :one
+INSERT INTO applications (company_id, created_by, idempotency_key, request_hash, product, purpose,
+                          amount_kop, term_months, monthly_revenue_kop, equipment_cost_kop, bki_consent_at, comment)
+VALUES ($1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10,
+        CASE WHEN $11::boolean THEN now() END, $12)
+ON CONFLICT (created_by, idempotency_key) DO NOTHING
+RETURNING id
+`
+
+type CreateApplicationParams struct {
+	CompanyID         uuid.UUID
+	CreatedBy         uuid.UUID
+	IdempotencyKey    string
+	RequestHash       []byte
+	Product           string
+	Purpose           string
+	AmountKop         int64
+	TermMonths        int32
+	MonthlyRevenueKop pgtype.Int8
+	EquipmentCostKop  pgtype.Int8
+	BkiConsent        bool
+	Comment           pgtype.Text
+}
+
+// Повтор с тем же ключом ничего не вставляет и не возвращает, тогда заявку
+// достаёт ApplicationByKey отдельным запросом: в снимке этого её может не быть.
+func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createApplication,
+		arg.CompanyID,
+		arg.CreatedBy,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.Product,
+		arg.Purpose,
+		arg.AmountKop,
+		arg.TermMonths,
+		arg.MonthlyRevenueKop,
+		arg.EquipmentCostKop,
+		arg.BkiConsent,
+		arg.Comment,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const lockApplication = `-- name: LockApplication :one
@@ -115,4 +372,69 @@ func (q *Queries) SetApplicationStatus(ctx context.Context, arg SetApplicationSt
 	var version int32
 	err := row.Scan(&version)
 	return version, err
+}
+
+const setMember = `-- name: SetMember :exec
+INSERT INTO company_members (user_id, company_id, representative_role)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, company_id) DO UPDATE SET representative_role = excluded.representative_role
+`
+
+type SetMemberParams struct {
+	UserID             uuid.UUID
+	CompanyID          uuid.UUID
+	RepresentativeRole string
+}
+
+func (q *Queries) SetMember(ctx context.Context, arg SetMemberParams) error {
+	_, err := q.db.Exec(ctx, setMember, arg.UserID, arg.CompanyID, arg.RepresentativeRole)
+	return err
+}
+
+const updateDraft = `-- name: UpdateDraft :execrows
+UPDATE applications
+SET product             = $1,
+    purpose             = $2,
+    amount_kop          = $3,
+    term_months         = $4,
+    monthly_revenue_kop = $5,
+    equipment_cost_kop  = $6,
+    bki_consent_at      = CASE WHEN $7::boolean THEN coalesce(bki_consent_at, now()) END,
+    comment             = $8,
+    version             = version + 1,
+    updated_at          = now()
+WHERE id = $9 AND version = $10 AND status = 'draft'
+`
+
+type UpdateDraftParams struct {
+	Product           string
+	Purpose           string
+	AmountKop         int64
+	TermMonths        int32
+	MonthlyRevenueKop pgtype.Int8
+	EquipmentCostKop  pgtype.Int8
+	BkiConsent        bool
+	Comment           pgtype.Text
+	ID                uuid.UUID
+	Version           int32
+}
+
+// версия и статус в WHERE: между чтением и записью заявку могли подать или поправить в другой вкладке
+func (q *Queries) UpdateDraft(ctx context.Context, arg UpdateDraftParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateDraft,
+		arg.Product,
+		arg.Purpose,
+		arg.AmountKop,
+		arg.TermMonths,
+		arg.MonthlyRevenueKop,
+		arg.EquipmentCostKop,
+		arg.BkiConsent,
+		arg.Comment,
+		arg.ID,
+		arg.Version,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

@@ -43,12 +43,47 @@ func (s Status) Final() bool {
 	return true
 }
 
-// Application пока только то, что нужно переходу, остальные поля добавятся с заявками.
+// Application это заявка. Lock для перехода заполняет только первые четыре поля.
 type Application struct {
 	ID        uuid.UUID
 	CompanyID uuid.UUID
 	Status    Status
 	Version   int
+
+	Number int64
+	// Company из ЕГРЮЛ, в карточке только реквизиты для шапки
+	Company Company
+	Draft
+	Score       *int
+	Grade       string
+	DueAt       *time.Time
+	SubmittedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// Draft это анкета, клиент правит её, пока заявка в draft. Нули значат «не заполнено»,
+// полноту проверяет подача. Role пишется в company_members: это роль человека в компании.
+type Draft struct {
+	Role              RepresentativeRole
+	Product           ProductCode
+	Purpose           Goal
+	AmountKop         int64
+	TermMonths        int
+	MonthlyRevenueKop int64
+	EquipmentCostKop  int64
+	BKIConsent        bool
+	Comment           string
+}
+
+// ApplicationFilter для списка. Owner задан у клиента, у сотрудника банка nil.
+type ApplicationFilter struct {
+	Owner    *uuid.UUID
+	Statuses []Status
+	Grades   []string
+	Product  ProductCode
+	Limit    int
+	Offset   int
 }
 
 // Actor двигает заявку. У RoleSystem ID нулевой.

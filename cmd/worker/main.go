@@ -34,7 +34,7 @@ func main() {
 	// миграции накатывает api, воркер только читает и пишет
 	db := postgres.New(lg.Zap, cfg.Postgres.Client())
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
-	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), tc)
+	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), nil, tc)
 	appActs := activity.NewApplicationActivities(apps)
 
 	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {

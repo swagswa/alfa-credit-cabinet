@@ -52,8 +52,10 @@ func main() {
 	tokens := token.New(cfg.Secret, cfg.TTL)
 	limit := usecase.LoginLimit{Attempts: cfg.LoginAttempts, Window: cfg.LoginWindow}
 	auth := usecase.NewAuth(repo.NewUser(dbq.New(db)), repo.NewSession(rdb), tokens, limit)
+	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
+	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc)
 
-	e, err := newServer(&cfg, lg.Zap, health, auth)
+	e, err := newServer(&cfg, lg.Zap, health, auth, companies, apps)
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -69,6 +71,8 @@ func newServer(
 	lg *zap.Logger,
 	health usecase.HealthUseCase,
 	auth usecase.AuthUseCase,
+	companies usecase.CompanyUseCase,
+	apps usecase.ApplicationUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -79,7 +83,6 @@ func newServer(
 		return nil, err
 	}
 	products := usecase.NewProduct(catalog)
-	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 
 	return server.New(server.Deps{
 		Log: lg,
@@ -87,6 +90,7 @@ func newServer(
 			Health:       health,
 			Products:     products,
 			Companies:    companies,
+			Applications: apps,
 			Auth:         auth,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,

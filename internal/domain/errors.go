@@ -16,4 +16,6 @@ var (
 	// ErrUnauthorized: нет действующей сессии или неверный логин и пароль, без уточнения, что именно
 	ErrUnauthorized    = errors.New("unauthorized")
 	ErrTooManyRequests = errors.New("too many requests")
+	// ErrKeyReused: тот же Idempotency-Key пришёл с другим телом
+	ErrKeyReused = errors.New("idempotency key reused")
 )

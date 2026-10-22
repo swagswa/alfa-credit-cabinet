@@ -43,6 +43,34 @@ type Application struct {
 	SubmittedAt       pgtype.Timestamptz
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	RequestHash       []byte
+}
+
+type ApplicationCard struct {
+	ID                 uuid.UUID
+	Number             int64
+	CompanyID          uuid.UUID
+	Status             string
+	Version            int32
+	Product            string
+	Purpose            string
+	AmountKop          int64
+	TermMonths         int32
+	MonthlyRevenueKop  pgtype.Int8
+	EquipmentCostKop   pgtype.Int8
+	BkiConsent         bool
+	Comment            pgtype.Text
+	Score              pgtype.Int2
+	Grade              pgtype.Text
+	DueAt              pgtype.Timestamptz
+	SubmittedAt        pgtype.Timestamptz
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Inn                string
+	ShortName          string
+	Kind               string
+	Simulated          bool
+	RepresentativeRole string
 }
 
 type ApplicationEvent struct {

@@ -9,42 +9,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
 )
 
-func (h *Handler) ListApplications(
-	context.Context,
-	oapi.ListApplicationsRequestObject,
-) (oapi.ListApplicationsResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) CreateApplication(
-	context.Context,
-	oapi.CreateApplicationRequestObject,
-) (oapi.CreateApplicationResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) GetApplication(
-	context.Context,
-	oapi.GetApplicationRequestObject,
-) (oapi.GetApplicationResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) UpdateApplication(
-	context.Context,
-	oapi.UpdateApplicationRequestObject,
-) (oapi.UpdateApplicationResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) AcceptOffer(context.Context, oapi.AcceptOfferRequestObject) (oapi.AcceptOfferResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) CancelApplication(
-	context.Context,
-	oapi.CancelApplicationRequestObject,
-) (oapi.CancelApplicationResponseObject, error) {
 	return nil, errNotImplemented
 }
 

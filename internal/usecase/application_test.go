@@ -28,6 +28,7 @@ var system = domain.Actor{Role: domain.RoleSystem}
 type appEnv struct {
 	t      *testing.T
 	pool   *pgxpool.Pool
+	egrul  *fakeEGRUL
 	uc     usecase.ApplicationUseCase
 	client domain.Actor
 }
@@ -35,11 +36,9 @@ type appEnv struct {
 func newAppEnv(t *testing.T) *appEnv {
 	pool := testenv.Postgres(t, migrations.FS)
 	require.NoError(t, postgres.Exec(migrations.SeedDemo)(t.Context(), pool))
-	e := &appEnv{
-		t:    t,
-		pool: pool,
-		uc:   usecase.NewApplication(&postgres.Client{Pool: pool}, repo.NewApplication(db.New(pool)), nil),
-	}
+	e := &appEnv{t: t, pool: pool, egrul: &fakeEGRUL{}}
+	e.uc = usecase.NewApplication(&postgres.Client{Pool: pool}, repo.NewApplication(db.New(pool)),
+		usecase.NewCompany(e.egrul), nil)
 	e.client = e.user("coffee")
 	return e
 }
@@ -239,7 +238,7 @@ func TestStartProcess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wf := &fakeWorkflows{err: tt.err}
-			err := usecase.NewApplication(nil, nil, wf).StartProcess(t.Context(), id)
+			err := usecase.NewApplication(nil, nil, nil, wf).StartProcess(t.Context(), id)
 			require.ErrorIs(t, err, tt.want)
 			require.Equal(t, []any{"credit", id.String(), "ApplicationWorkflow", id}, wf.args)
 		})

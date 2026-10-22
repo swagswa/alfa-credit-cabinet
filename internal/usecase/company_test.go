@@ -13,11 +13,14 @@ import (
 type fakeEGRUL struct {
 	calls int
 	err   error
+	c     domain.Company
 }
 
 func (f *fakeEGRUL) Company(_ context.Context, inn string) (domain.Company, error) {
 	f.calls++
-	return domain.Company{INN: inn}, f.err
+	c := f.c
+	c.INN = inn
+	return c, f.err
 }
 
 func TestLookup(t *testing.T) {
