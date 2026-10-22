@@ -20,8 +20,14 @@ const keepAlive = 20 * time.Second
 func (h *Handler) Events(c echo.Context) error {
 	ctx := c.Request().Context()
 	s, _ := middleware.ActorFrom(ctx)
-	// формат uuid уже проверил валидатор по спеке
-	appID, _ := uuid.Parse(c.QueryParam("application_id"))
+	var appID uuid.UUID
+	if v := c.QueryParam("application_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "application_id: нужен uuid")
+		}
+		appID = id
+	}
 
 	events, cancel, err := h.events.Subscribe(ctx, s, appID)
 	if err != nil {
