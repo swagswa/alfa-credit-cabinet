@@ -1,5 +1,8 @@
 package domain
 
+// KopInRub для перевода: суммы храним в копейках, в правилах и у клиента они в рублях
+const KopInRub = 100
+
 type ProductCode string
 
 const (

@@ -13,10 +13,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
 
-const (
-	kopInRub = 100
-	bpInPct  = 100
-)
+const bpInPct = 100
 
 type productsFile struct {
 	Version             string                 `yaml:"version"`
@@ -101,7 +98,7 @@ func (f *productsFile) catalog() (domain.Catalog, error) {
 	c := domain.Catalog{
 		Version:             f.Version,
 		KeyRateBP:           bp(f.KeyRatePct),
-		AmountStepKop:       f.AmountStepRub * kopInRub,
+		AmountStepKop:       f.AmountStepRub * domain.KopInRub,
 		ProxyDocument:       f.ProxyDocument,
 		OwnTurnoverMinShare: f.OwnTurnoverMinShare,
 	}
@@ -162,8 +159,8 @@ func (p *productYAML) product(code domain.ProductCode) (domain.Product, error) {
 		Code:                 code,
 		Name:                 p.Name,
 		Description:          p.Description,
-		AmountMinKop:         p.AmountMinRub * kopInRub,
-		AmountMaxKop:         p.AmountMaxRub * kopInRub,
+		AmountMinKop:         p.AmountMinRub * domain.KopInRub,
+		AmountMaxKop:         p.AmountMaxRub * domain.KopInRub,
 		TermMinMonths:        p.TermMinMonths,
 		TermMaxMonths:        p.TermMaxMonths,
 		TrancheMaxDays:       p.TrancheMaxDays,
@@ -171,7 +168,7 @@ func (p *productYAML) product(code domain.ProductCode) (domain.Product, error) {
 		MaxRateBP:            bp(p.MaxRatePct),
 		Repayment:            domain.Repayment(p.Repayment),
 		MinBusinessAgeMonths: p.MinBusinessAgeMonths,
-		GuarantorOverKop:     p.GuarantorOverRub * kopInRub,
+		GuarantorOverKop:     p.GuarantorOverRub * domain.KopInRub,
 		Pledge:               p.Pledge,
 		MaxCostShare:         p.MaxCostShare,
 		Requirements:         p.Requirements,
@@ -181,7 +178,7 @@ func (p *productYAML) product(code domain.ProductCode) (domain.Product, error) {
 			Kind:          d.Kind,
 			When:          d.When,
 			Months:        d.Months,
-			AmountOverKop: d.AmountOverRub * kopInRub,
+			AmountOverKop: d.AmountOverRub * domain.KopInRub,
 		})
 	}
 	return dp, nil
