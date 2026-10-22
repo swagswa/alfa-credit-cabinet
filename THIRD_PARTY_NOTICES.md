@@ -13,6 +13,7 @@
 | github.com/jackc/pgx/v5 | 5.11.0 | MIT |
 | github.com/golang-migrate/migrate/v4 | 4.20.1 | MIT |
 | go.temporal.io/sdk | 1.50.0 | MIT |
+| go.temporal.io/api | 1.63.5 | MIT |
 | github.com/casbin/casbin/v3 | 3.10.0 | Apache-2.0 |
 | github.com/golang-jwt/jwt/v5 | 5.3.1 | MIT |
 | github.com/redis/go-redis/v9 | 9.23.0 | BSD-2-Clause |
