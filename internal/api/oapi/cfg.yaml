@@ -9,6 +9,8 @@ output-options:
   # SSE живёт обычным хендлером echo, strict server стримить не умеет
   exclude-operation-ids:
     - streamEvents
+  # иначе вместе с операцией вырезается и схема StreamEvent, а она нужна хендлеру SSE
+  skip-prune: true
 compatibility:
   # без этого enum-константы разных схем (Approved, Other) сталкиваются в одном пакете
   always-prefix-enum-values: true
