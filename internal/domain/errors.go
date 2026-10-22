@@ -10,7 +10,7 @@ var (
 	ErrConflict          = errors.New("conflict")
 	ErrIllegalTransition = errors.New("illegal transition")
 	// ErrInvalid: запрос прошёл схему, но не прошёл проверку по смыслу (контрольные цифры ИНН и т.п.)
-	ErrInvalid = errors.New("invalid")
+	ErrInvalid = errors.New("неверные данные")
 	// ErrUnavailable: внешний источник не ответил или ответил 5xx
 	ErrUnavailable = errors.New("source unavailable")
 )
