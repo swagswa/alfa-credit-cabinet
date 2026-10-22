@@ -214,9 +214,10 @@ paths:
             $ref: '#/components/schemas/ProductCode'
         - name: sort
           in: query
+          description: Минус значит по убыванию. due_at ставит ближайший срок сверху, score рискованные сверху; без срока и без балла в конце
           schema:
             type: string
-            enum: [created_at, -created_at, updated_at, -updated_at, amount_kop, -amount_kop, due_at]
+            enum: [created_at, -created_at, updated_at, -updated_at, amount_kop, -amount_kop, due_at, score, -score]
             default: -created_at
         - name: limit
           in: query
