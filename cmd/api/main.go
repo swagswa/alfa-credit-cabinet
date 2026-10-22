@@ -11,14 +11,17 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/handler"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/server"
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
+	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
+	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rules"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/migrations"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/httpserver"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/logger"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/redisdb"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/svc"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/token"
@@ -43,35 +46,52 @@ func main() {
 	}
 	db := postgres.New(lg.Zap, cfg.Postgres.Client(), hooks...)
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
+	rdb := redisdb.New(cfg.Redis.Client())
 
-	health := usecase.NewHealth(map[string]usecase.Check{"db": db.Ping, "temporal": tc.Ping})
-	e, err := newServer(&cfg, lg.Zap, health)
+	health := usecase.NewHealth(map[string]usecase.Check{"db": db.Ping, "temporal": tc.Ping, "redis": rdb.Check})
+	tokens := token.New(cfg.Secret, cfg.TTL)
+	limit := usecase.LoginLimit{Attempts: cfg.LoginAttempts, Window: cfg.LoginWindow}
+	auth := usecase.NewAuth(repo.NewUser(dbq.New(db)), repo.NewSession(rdb), tokens, limit)
+
+	e, err := newServer(&cfg, lg.Zap, health, auth)
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
 
-	err = svc.Run(ctx, lg.Zap, lg, db, tc, httpserver.New("http", cfg.Server(), e))
+	err = svc.Run(ctx, lg.Zap, lg, db, rdb, tc, httpserver.New("http", cfg.Server(), e))
 	if err != nil {
 		lg.Zap.Fatal("api stopped", zap.Error(err))
 	}
 }
 
-func newServer(cfg *config.API, lg *zap.Logger, health usecase.HealthUseCase) (*echo.Echo, error) {
+func newServer(
+	cfg *config.API,
+	lg *zap.Logger,
+	health usecase.HealthUseCase,
+	auth usecase.AuthUseCase,
+) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
-		return nil, err //nolint:wrapcheck // rbac уже подписал ошибку
+		return nil, err
 	}
 	catalog, err := rules.Products(filepath.Join(cfg.RulesDir, "products.yaml"))
 	if err != nil {
-		return nil, err //nolint:wrapcheck // в ошибке уже путь к файлу
+		return nil, err
 	}
 	products := usecase.NewProduct(catalog)
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 
-	return server.New(server.Deps{ //nolint:wrapcheck // там же собирается сервер, контекст не нужен
-		Log:        lg,
-		Handler:    handler.New(health, products, companies),
-		Tokens:     token.New(cfg.Secret, cfg.TTL),
+	return server.New(server.Deps{
+		Log: lg,
+		Handler: handler.New(handler.Deps{
+			Health:       health,
+			Products:     products,
+			Companies:    companies,
+			Auth:         auth,
+			SessionTTL:   cfg.TTL,
+			CookieSecure: cfg.CookieSecure,
+		}),
+		Auth:       auth,
 		RBAC:       enf,
 		CORSOrigin: cfg.CORSOrigin,
 	})

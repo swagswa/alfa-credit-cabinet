@@ -124,18 +124,6 @@ func (h *Handler) ListFeed(context.Context, oapi.ListFeedRequestObject) (oapi.Li
 	return nil, errNotImplemented
 }
 
-func (h *Handler) Login(context.Context, oapi.LoginRequestObject) (oapi.LoginResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) Logout(context.Context, oapi.LogoutRequestObject) (oapi.LogoutResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) Me(context.Context, oapi.MeRequestObject) (oapi.MeResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) GetSampleDocument(
 	context.Context,
 	oapi.GetSampleDocumentRequestObject,

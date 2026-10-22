@@ -3,64 +3,89 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
-	"github.com/swagswa/alfa-credit-cabinet/pkg/token"
+	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 )
 
 const SessionCookie = "session"
 
-type Actor struct {
-	UserID string
-	Role   string
-}
-
 type actorKey struct{}
 
-// ActorFrom достаёт пользователя в хендлере. Strict-хендлеры получают
-// context.Context, а не echo.Context, поэтому пользователь лежит в контексте запроса.
-func ActorFrom(ctx context.Context) (Actor, bool) {
-	a, ok := ctx.Value(actorKey{}).(Actor)
-	return a, ok
+type ipKey struct{}
+
+// ActorFrom достаёт сессию в хендлере. Strict-хендлеры получают
+// context.Context, а не echo.Context, поэтому всё нужное лежит в контексте запроса.
+func ActorFrom(ctx context.Context) (domain.Session, bool) {
+	s, ok := ctx.Value(actorKey{}).(domain.Session)
+	return s, ok
 }
 
-// Auth разбирает cookie сессии и проверяет право роли на путь и метод.
-// Запрос без сессии идёт с ролью anonymous: публичные операции описаны в той же политике.
-func Auth(tokens *token.Issuer, enf *rbac.Enforcer) echo.MiddlewareFunc {
+// ClientIP отдаёт адрес клиента с учётом X-Forwarded-For от nginx.
+func ClientIP(ctx context.Context) string {
+	ip, _ := ctx.Value(ipKey{}).(string)
+	return ip
+}
+
+// Auth находит сессию по cookie и проверяет право роли на путь и метод.
+// Запрос без действующей сессии идёт с ролью anonymous: публичные операции
+// описаны в той же политике.
+func Auth(auth usecase.AuthUseCase, enf *rbac.Enforcer) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			actor := session(c, tokens)
 			req := c.Request()
-			ok, err := enf.Allowed(actor.Role, req.URL.Path, req.Method)
+			s, err := session(c, auth)
 			if err != nil {
-				return fmt.Errorf("rbac: %w", err)
+				return err
 			}
-			if !ok {
-				if actor.Role == rbac.Anonymous {
-					return echo.NewHTTPError(http.StatusUnauthorized)
-				}
-				return echo.NewHTTPError(http.StatusForbidden)
+			if err := allow(enf, s, req); err != nil {
+				return err
 			}
 
-			c.SetRequest(req.WithContext(context.WithValue(req.Context(), actorKey{}, actor)))
+			ctx := context.WithValue(req.Context(), ipKey{}, c.RealIP())
+			if s.ID != "" {
+				ctx = context.WithValue(ctx, actorKey{}, s)
+			}
+			c.SetRequest(req.WithContext(ctx))
 			return next(c)
 		}
 	}
 }
 
-// session: битая или истёкшая сессия это то же, что её отсутствие
-func session(c echo.Context, tokens *token.Issuer) Actor {
+func allow(enf *rbac.Enforcer, s domain.Session, req *http.Request) error {
+	role := string(s.Role)
+	if role == "" {
+		role = rbac.Anonymous
+	}
+	ok, err := enf.Allowed(role, req.URL.Path, req.Method)
+	switch {
+	case err != nil:
+		return fmt.Errorf("rbac: %w", err)
+	case ok:
+		return nil
+	case role == rbac.Anonymous:
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	default:
+		return echo.NewHTTPError(http.StatusForbidden)
+	}
+}
+
+// session: нет cookie, битая подпись, истёкший срок или отозванная сессия
+// это одно и то же, аноним. Недоступный Redis так не маскируем, это 500.
+func session(c echo.Context, auth usecase.AuthUseCase) (domain.Session, error) {
 	ck, err := c.Cookie(SessionCookie)
-	if err != nil {
-		return Actor{Role: rbac.Anonymous}
+	if errors.Is(err, http.ErrNoCookie) {
+		return domain.Session{}, nil
 	}
-	claims, err := tokens.Parse(ck.Value)
-	if err != nil {
-		return Actor{Role: rbac.Anonymous}
+	s, err := auth.Resolve(c.Request().Context(), ck.Value)
+	if errors.Is(err, domain.ErrUnauthorized) {
+		return domain.Session{}, nil
 	}
-	return Actor{UserID: claims.Subject, Role: claims.Role}
+	return s, err
 }
