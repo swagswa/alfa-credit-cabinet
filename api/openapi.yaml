@@ -135,8 +135,12 @@ paths:
         - name: term_months
           in: query
           required: true
+          description: Сколько клиенту нужны деньги. Короче 3 мес бывает у кассового разрыва, это повод для овердрафта
           schema:
-            $ref: '#/components/schemas/TermMonths'
+            type: integer
+            minimum: 1
+            maximum: 60
+            example: 2
         - name: monthly_revenue_kop
           in: query
           description: Если известна. Без неё альтернатива с условием по обороту показывается всегда
