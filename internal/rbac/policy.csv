@@ -30,3 +30,12 @@ p, client, /api/applications/:id/cancel, POST
 p, client, /api/applications/:id/submit, POST
 p, client, /api/applications/:id/documents, POST
 p, client, /api/documents/:id/confirm, POST
+p, client, /api/applications/:id/history, GET
+
+# очередь банка и карточка; чьи заявки видны, решает usecase
+p, manager, /api/applications, GET
+p, manager, /api/applications/:id, GET
+p, manager, /api/applications/:id/history, GET
+p, underwriter, /api/applications, GET
+p, underwriter, /api/applications/:id, GET
+p, underwriter, /api/applications/:id/history, GET

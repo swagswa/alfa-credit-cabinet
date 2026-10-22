@@ -62,6 +62,20 @@ type Application struct {
 	UpdatedAt   time.Time
 	// Documents только в карточке и только id, вид, статус и имя файла
 	Documents []Document
+	// Checks только для сотрудников банка, последний ответ по каждому источнику
+	Checks []CheckResult
+}
+
+// AuditEntry это строка журнала заявки. ActorName пустой у системы.
+type AuditEntry struct {
+	ID        int64
+	Kind      string
+	From, To  Status
+	ActorRole Role
+	ActorName string
+	Codes     []string
+	Comment   string
+	At        time.Time
 }
 
 // Draft это анкета, клиент правит её, пока заявка в draft. Нули значат «не заполнено»,
@@ -85,8 +99,10 @@ type ApplicationFilter struct {
 	Statuses []Status
 	Grades   []string
 	Product  ProductCode
-	Limit    int
-	Offset   int
+	// Sort как в openapi: created_at, -amount_kop, due_at и т.д., пустой значит новые сверху
+	Sort   string
+	Limit  int
+	Offset int
 }
 
 // Actor двигает заявку. У RoleSystem ID нулевой.

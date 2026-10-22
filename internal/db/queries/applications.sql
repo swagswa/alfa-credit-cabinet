@@ -78,8 +78,32 @@ WHERE (sqlc.narg(owner)::uuid IS NULL OR EXISTS (
   AND (sqlc.narg(statuses)::text[] IS NULL OR v.status = ANY (sqlc.narg(statuses)::text[]))
   AND (sqlc.narg(grades)::text[] IS NULL OR v.grade = ANY (sqlc.narg(grades)::text[]))
   AND (sqlc.narg(product)::text IS NULL OR v.product = sqlc.narg(product))
-ORDER BY v.created_at DESC
+-- порядок из параметра sort, по одной строке на вариант: у столбцов разные типы,
+-- один CASE на всех не собрать. Без срока и без балла всегда в конце
+ORDER BY CASE WHEN @sort::text = 'created_at' THEN v.created_at END,
+         CASE WHEN @sort::text = 'updated_at' THEN v.updated_at END,
+         CASE WHEN @sort::text = '-updated_at' THEN v.updated_at END DESC,
+         CASE WHEN @sort::text = 'amount_kop' THEN v.amount_kop END,
+         CASE WHEN @sort::text = '-amount_kop' THEN v.amount_kop END DESC,
+         CASE WHEN @sort::text = 'due_at' THEN v.due_at END,
+         CASE WHEN @sort::text = 'score' THEN v.score END,
+         CASE WHEN @sort::text = '-score' THEN v.score END DESC NULLS LAST,
+         v.created_at DESC, v.id DESC
 LIMIT @lim OFFSET @off;
+
+-- после need_info источники опрашиваются заново, в карточку идёт последний ответ
+-- name: LatestChecks :many
+SELECT DISTINCT ON (source) source, status, payload, error, created_at
+FROM check_results
+WHERE application_id = @application_id
+ORDER BY source, id DESC;
+
+-- name: ApplicationEvents :many
+SELECT e.id, e.kind, e.from_status, e.to_status, e.actor_role, u.full_name, e.reason_codes, e.comment, e.created_at
+FROM application_events e
+LEFT JOIN users u ON u.id = e.actor_id
+WHERE e.application_id = @application_id
+ORDER BY e.id;
 
 -- версия и статус в WHERE: между чтением и записью заявку могли подать или поправить в другой вкладке
 -- name: UpdateDraft :execrows

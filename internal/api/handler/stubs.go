@@ -20,13 +20,6 @@ func (h *Handler) DecideApplication(
 	return nil, errNotImplemented
 }
 
-func (h *Handler) ListApplicationEvents(
-	context.Context,
-	oapi.ListApplicationEventsRequestObject,
-) (oapi.ListApplicationEventsResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) ProvideInfo(context.Context, oapi.ProvideInfoRequestObject) (oapi.ProvideInfoResponseObject, error) {
 	return nil, errNotImplemented
 }
