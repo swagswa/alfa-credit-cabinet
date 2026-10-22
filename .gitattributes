@@ -9,8 +9,8 @@
 
 *.sql linguist-language=SQL
 
-internal/httpapi/api.gen.go linguist-generated=true
-web/src/api/schema.d.ts     linguist-generated=true
-internal/db/db.go           linguist-generated=true
-internal/db/models.go       linguist-generated=true
-internal/db/*.sql.go        linguist-generated=true
+internal/api/oapi/api.gen.go linguist-generated=true
+web/src/api/schema.gen.ts    linguist-generated=true
+internal/db/db.go            linguist-generated=true
+internal/db/models.go        linguist-generated=true
+internal/db/*.sql.go         linguist-generated=true
