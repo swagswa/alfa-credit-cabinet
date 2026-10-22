@@ -41,6 +41,7 @@ paths:
       tags: [auth]
       operationId: login
       summary: Вход
+      description: Попытки входа ограничены по адресу клиента, при превышении 429.
       security: []
       requestBody:
         required: true
@@ -63,6 +64,8 @@ paths:
         '400':
           $ref: '#/components/responses/Problem'
         '401':
+          $ref: '#/components/responses/Problem'
+        '429':
           $ref: '#/components/responses/Problem'
 
   /logout:
@@ -1099,7 +1102,7 @@ components:
         code:
           type: string
           description: Машинный код для фронта
-          enum: [validation, unauthorized, forbidden, not_found, illegal_transition, version_conflict, idempotency_conflict, incomplete, wrong_code, too_large, unavailable]
+          enum: [validation, unauthorized, forbidden, not_found, illegal_transition, version_conflict, idempotency_conflict, incomplete, wrong_code, too_large, too_many_requests, unavailable]
           example: illegal_transition
         errors:
           type: array
