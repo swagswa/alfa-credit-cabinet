@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log"
-	"os"
 
 	"go.uber.org/zap"
 
@@ -16,17 +14,8 @@ import (
 )
 
 func main() {
-	probe := flag.String("healthcheck", "", "проверить health по адресу и выйти, для healthcheck в compose")
-	flag.Parse()
 	ctx := context.Background()
-
-	if *probe != "" {
-		if err := httpserver.Probe(ctx, *probe); err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-		return
-	}
+	httpserver.ProbeMode(ctx)
 
 	cfg, err := config.Load[config.Mocks]()
 	if err != nil {

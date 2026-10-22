@@ -40,3 +40,14 @@ func Migrate(fsys fs.FS) Hook {
 		return nil
 	}
 }
+
+// Exec выполняет SQL целиком при подключении: сид и прочие скрипты, которые
+// сами следят за повторным запуском.
+func Exec(sql string) Hook {
+	return func(ctx context.Context, pool *pgxpool.Pool) error {
+		if _, err := pool.Exec(ctx, sql); err != nil {
+			return fmt.Errorf("exec: %w", err)
+		}
+		return nil
+	}
+}

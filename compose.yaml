@@ -99,6 +99,7 @@ services:
       # секрет для стенда; на внешнем сервере задаётся в .env
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
       AI_ENABLED: ${AI_ENABLED:-false}
+      SEED_DEMO: ${SEED_DEMO:-true}
     ports:
       - "8080:8080"
     healthcheck:
