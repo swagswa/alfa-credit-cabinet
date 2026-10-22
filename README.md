@@ -56,6 +56,8 @@ AI_ENABLED=true docker compose --profile ai up -d --build --wait
 
 Код разложен по слоям: `internal/domain` (сущности и правила без I/O), `internal/repo` (SQL через sqlc), `internal/usecase` (логика и транзакции), `internal/api` и `internal/worker` (вход снаружи). Переиспользуемая инфраструктура в `pkg/`. Контракт API в `api/openapi.yaml`, статусы заявки в `docs/state-diagram.md`, модель данных в `docs/data-model.md`.
 
+Почему продукт устроен так, а не иначе: боли клиентов и банка, источники и границы MVP в [docs/research.md](docs/research.md).
+
 ## Разработка
 
 Go 1.27, Node 24, Docker.
