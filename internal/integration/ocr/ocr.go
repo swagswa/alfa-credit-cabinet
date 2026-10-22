@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ const (
 	minPageText = 200
 	maxPages    = 5
 )
+
+var columns = regexp.MustCompile(` {2,}`)
 
 type Client struct {
 	bin     string
@@ -72,8 +75,10 @@ func (c *Client) image(ctx context.Context, img []byte) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	// psm 6: страница одним блоком, на таблицах выписки это лучше автоматической разметки
-	args := []string{"stdin", "stdout", "-l", "rus+eng", "--psm", "6"}
+	// psm 6: страница одним блоком, на таблицах выписки это лучше автоматической
+	// разметки. Без preserve_interword_spaces колонки и разряды внутри суммы
+	// разделены одинаковым пробелом, и модель режет «3586 208,56» не там.
+	args := []string{"stdin", "stdout", "-l", "rus+eng", "--psm", "6", "-c", "preserve_interword_spaces=1"}
 	cmd := exec.CommandContext(ctx, c.bin, args...) //nolint:gosec // путь из конфига, аргументы наши
 	cmd.Stdin = bytes.NewReader(img)
 	var stderr bytes.Buffer
@@ -82,7 +87,8 @@ func (c *Client) image(ctx context.Context, img []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("tesseract: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	s := strings.TrimSpace(string(out))
+	// колонки сводим к трём пробелам, как в строках текстового PDF
+	s := strings.TrimSpace(columns.ReplaceAllString(string(out), "   "))
 	if s == "" {
 		return "", fmt.Errorf("%w: на картинке не нашлось текста", domain.ErrInvalid)
 	}
