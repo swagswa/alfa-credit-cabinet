@@ -154,19 +154,25 @@ func TestGenerateErrors(t *testing.T) {
 	}
 }
 
-func TestRubJSON(t *testing.T) {
+func TestRub(t *testing.T) {
 	tests := []struct {
 		v    docgen.Rub
-		json string
+		json string // он же формат B
+		a    string
 	}{
-		{0, "0.00"},
-		{5, "0.05"},
-		{-150, "-1.50"},
-		{123456789, "1234567.89"},
-		{-4583868_00, "-4583868.00"},
+		{0, "0.00", "0,00"},
+		{5, "0.05", "0,05"},
+		{-1, "-0.01", "-0,01"},
+		{-50, "-0.50", "-0,50"},
+		{-99, "-0.99", "-0,99"},
+		{-150, "-1.50", "-1,50"},
+		{123456789, "1234567.89", "1 234 567,89"},
+		{-4583868_00, "-4583868.00", "-4 583 868,00"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.json, func(t *testing.T) {
+			require.Equal(t, tt.json, tt.v.Text("", "."))
+			require.Equal(t, tt.a, tt.v.Text(" ", ","))
 			b, err := json.Marshal(tt.v)
 			require.NoError(t, err)
 			require.JSONEq(t, tt.json, string(b))

@@ -3,7 +3,6 @@ package docgen
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/mocks/synth"
 )
@@ -215,16 +214,10 @@ func account(c synth.Company) string {
 	return prefix + "0000" + c.INN[len(c.INN)-8:]
 }
 
-// moneyA: 1 234 567,89
-func moneyA(kop int64) string { return groups(kop/100) + fmt.Sprintf(",%02d", abs(kop%100)) }
-
-// moneyB: 1234567.89
-func moneyB(kop int64) string {
-	return strconv.FormatInt(kop/100, 10) + fmt.Sprintf(".%02d", abs(kop%100))
-}
-
-// rubA для отчётности, там целые рубли
-func rubA(kop int64) string { return groups(kop / 100) }
+// суммы на странице: A 1 234 567,89, B 1234567.89, в отчётности целые рубли
+func moneyA(kop int64) string { return Rub(kop).Text(" ", ",") }
+func moneyB(kop int64) string { return Rub(kop).Text("", ".") }
+func rubA(kop int64) string   { return Rub(kop).Text(" ", "") }
 
 // signed: убыток в отчётности пишут в скобках
 func signed(kop int64) string {
@@ -232,26 +225,4 @@ func signed(kop int64) string {
 		return "(" + rubA(-kop) + ")"
 	}
 	return rubA(kop)
-}
-
-func groups(v int64) string {
-	s := strconv.FormatInt(abs(v), 10)
-	var b strings.Builder
-	if v < 0 {
-		b.WriteByte('-')
-	}
-	for i, r := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			b.WriteByte(' ')
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
-func abs(v int64) int64 {
-	if v < 0 {
-		return -v
-	}
-	return v
 }

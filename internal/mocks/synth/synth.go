@@ -103,15 +103,15 @@ func New(inn string) (Company, error) {
 	for i, v := range series(rng, p) {
 		in := rub(p.avg * v)
 		// списываем 93-100% поступившего, остаток на счёте не уходит в минус
-		out := kop(float64(in) / 100 * (0.93 + 0.07*rng.Float64()))
+		out := kop(float64(in) / domain.KopInRub * (0.93 + 0.07*rng.Float64()))
 		c.Months = append(c.Months, Month{start.AddDate(0, i, 0), in, out})
 	}
 
-	revenue := float64(c.Income() / 100)
+	revenue := float64(c.Income() / domain.KopInRub)
 	c.NetProfit = rub(revenue * (0.15*q - 0.03))
 	c.LiabilitiesShort = rub(revenue * (0.08 + 0.1*rng.Float64()))
 	c.LiabilitiesLong = rub(revenue * 0.3 * (1 - q) * rng.Float64())
-	c.BalanceTotal = rub(float64(c.LiabilitiesShort+c.LiabilitiesLong) / 100 / (0.4 + 0.4*q))
+	c.BalanceTotal = rub(float64(c.LiabilitiesShort+c.LiabilitiesLong) / domain.KopInRub / (0.4 + 0.4*q))
 	return c, nil
 }
 
@@ -167,9 +167,8 @@ func name(rng *rand.Rand, ip bool) string {
 	return "ООО «" + a[rng.IntN(len(a))] + " " + b[rng.IntN(len(b))] + "»"
 }
 
-// rub округляет до целых рублей и переводит в копейки
-func rub(x float64) int64 { return int64(math.Round(x)) * 100 }
-
-func kop(x float64) int64 { return int64(math.Round(x * 100)) }
+// kop переводит рубли в копейки, rub ещё и округляет до целых рублей
+func kop(x float64) int64 { return int64(math.Round(x * domain.KopInRub)) }
+func rub(x float64) int64 { return kop(math.Round(x)) }
 
 func clamp(x, lo, hi float64) float64 { return math.Min(hi, math.Max(lo, x)) }
