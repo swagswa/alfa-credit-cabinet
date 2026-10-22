@@ -147,6 +147,7 @@ func (r *applicationRepo) Create(
 		MonthlyRevenueKop: kop(d.MonthlyRevenueKop),
 		EquipmentCostKop:  kop(d.EquipmentCostKop),
 		BkiConsent:        d.BKIConsent,
+		PdConsent:         d.PDConsent,
 		Comment:           text(d.Comment),
 	})
 	if err == nil {
@@ -202,6 +203,7 @@ func (r *applicationRepo) SaveDraft(ctx context.Context, id uuid.UUID, version i
 		MonthlyRevenueKop: kop(d.MonthlyRevenueKop),
 		EquipmentCostKop:  kop(d.EquipmentCostKop),
 		BkiConsent:        d.BKIConsent,
+		PdConsent:         d.PDConsent,
 		Comment:           text(d.Comment),
 	})
 	if err != nil {
@@ -234,6 +236,7 @@ func card(row *db.ApplicationCard) domain.Application {
 		MonthlyRevenueKop: row.MonthlyRevenueKop.Int64,
 		EquipmentCostKop:  row.EquipmentCostKop.Int64,
 		BKIConsent:        row.BkiConsent,
+		PDConsent:         row.PdConsent,
 		Comment:           row.Comment.String,
 		Grade:             row.Grade.String,
 		CreatedAt:         row.CreatedAt,

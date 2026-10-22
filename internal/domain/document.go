@@ -1,9 +1,6 @@
 package domain
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
 type DocKind string
 
@@ -114,7 +111,7 @@ const (
 
 // Check сверяет выписку с заявкой и саму с собой.
 func (s *Statement) Check(inn string, today time.Time) []FieldError {
-	var errs problems
+	var errs FieldErrors
 	add := errs.add
 	if s.INN != inn {
 		add("inn", "ИНН в документе %s, в заявке %s", s.INN, inn)
@@ -164,7 +161,7 @@ func (s *Statement) Check(inn string, today time.Time) []FieldError {
 
 // Check для отчётности: год прошлый или позапрошлый, строки формы не противоречат друг другу.
 func (f *Financials) Check(inn string, today time.Time) []FieldError {
-	var errs problems
+	var errs FieldErrors
 	add := errs.add
 	if f.INN != inn {
 		add("inn", "ИНН в документе %s, в заявке %s", f.INN, inn)
@@ -188,12 +185,6 @@ func (f *Financials) Check(inn string, today time.Time) []FieldError {
 		add("balance_total_kop", "валюта баланса меньше суммы обязательств")
 	}
 	return errs
-}
-
-type problems []FieldError
-
-func (p *problems) add(field, format string, args ...any) {
-	*p = append(*p, FieldError{field, fmt.Sprintf(format, args...)})
 }
 
 // months считает календарные месяцы периода включительно: 01.10-30.09 это 12

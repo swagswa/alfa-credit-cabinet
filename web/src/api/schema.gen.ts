@@ -180,7 +180,9 @@ export interface paths {
         /**
          * Подать заявку
          * @description `draft -> submitted`, стартует workflow с id заявки, поэтому повторная подача вторую не создаёт.
-         *     422, если анкета неполная, нет согласия на запрос в БКИ или полномочий.
+         *     Повтор по уже поданной заявке отвечает 200 и дозапускает процесс, если в прошлый раз не вышло (503).
+         *     422 `incomplete`, если анкета не проходит условия продукта или нет согласий на ПДн и запрос в БКИ,
+         *     что не так, в `errors` по полям.
          */
         post: operations["submitApplication"];
         delete?: never;
@@ -688,12 +690,13 @@ export interface components {
              */
             code?: "validation" | "unauthorized" | "forbidden" | "not_found" | "illegal_transition" | "version_conflict" | "idempotency_conflict" | "incomplete" | "wrong_code" | "too_large" | "too_many_requests" | "unavailable";
             /** @description Ошибки по полям, если есть */
-            errors?: {
-                /** @example amount_kop */
-                field: string;
-                /** @example сумма вне диапазона продукта */
-                message: string;
-            }[];
+            errors?: components["schemas"]["FieldError"][];
+        };
+        FieldError: {
+            /** @example amount_kop */
+            field: string;
+            /** @example сумма вне диапазона продукта */
+            message: string;
         };
         LoginRequest: {
             /** @example anna */
@@ -885,6 +888,11 @@ export interface components {
              * @example true
              */
             bki_consent?: boolean;
+            /**
+             * @description Согласие на обработку персональных данных (152-ФЗ), отдельно от БКИ, без него подать нельзя
+             * @example true
+             */
+            pd_consent?: boolean;
             /** @example Закупка зерна и сиропов к зимнему сезону */
             comment?: string;
         };
@@ -908,6 +916,8 @@ export interface components {
             equipment_cost_kop?: number;
             /** @example true */
             bki_consent?: boolean;
+            /** @example true */
+            pd_consent?: boolean;
             /** @example Закупка зерна и сиропов к зимнему сезону */
             comment?: string;
         };
@@ -1178,6 +1188,8 @@ export interface components {
             equipment_cost_kop?: number;
             /** @example true */
             bki_consent: boolean;
+            /** @example true */
+            pd_consent: boolean;
             /** @example Закупка зерна и сиропов к зимнему сезону */
             comment?: string;
             /**
@@ -1768,6 +1780,7 @@ export interface operations {
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     cancelApplication: {

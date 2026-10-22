@@ -102,7 +102,7 @@ func (q *Queries) ApplicationByKey(ctx context.Context, arg ApplicationByKeyPara
 }
 
 const applicationCard = `-- name: ApplicationCard :one
-SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role
+SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role, v.pd_consent
 FROM application_cards v
 WHERE v.id = $1
   AND ($2::uuid IS NULL OR EXISTS (
@@ -143,12 +143,13 @@ func (q *Queries) ApplicationCard(ctx context.Context, arg ApplicationCardParams
 		&i.Kind,
 		&i.Simulated,
 		&i.RepresentativeRole,
+		&i.PdConsent,
 	)
 	return i, err
 }
 
 const applicationCards = `-- name: ApplicationCards :many
-SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role, count(*) OVER () AS total
+SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role, v.pd_consent, count(*) OVER () AS total
 FROM application_cards v
 WHERE ($1::uuid IS NULL OR EXISTS (
           SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = $1))
@@ -214,6 +215,7 @@ func (q *Queries) ApplicationCards(ctx context.Context, arg ApplicationCardsPara
 			&i.ApplicationCard.Kind,
 			&i.ApplicationCard.Simulated,
 			&i.ApplicationCard.RepresentativeRole,
+			&i.ApplicationCard.PdConsent,
 			&i.Total,
 		); err != nil {
 			return nil, err
@@ -253,10 +255,12 @@ func (q *Queries) CompanyByINN(ctx context.Context, arg CompanyByINNParams) (Com
 
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO applications (company_id, created_by, idempotency_key, request_hash, product, purpose,
-                          amount_kop, term_months, monthly_revenue_kop, equipment_cost_kop, bki_consent_at, comment)
+                          amount_kop, term_months, monthly_revenue_kop, equipment_cost_kop, bki_consent_at,
+                          pd_consent_at, comment)
 VALUES ($1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10,
-        CASE WHEN $11::boolean THEN now() END, $12)
+        CASE WHEN $11::boolean THEN now() END, CASE WHEN $12::boolean THEN now() END,
+        $13)
 ON CONFLICT (created_by, idempotency_key) DO NOTHING
 RETURNING id
 `
@@ -273,6 +277,7 @@ type CreateApplicationParams struct {
 	MonthlyRevenueKop pgtype.Int8
 	EquipmentCostKop  pgtype.Int8
 	BkiConsent        bool
+	PdConsent         bool
 	Comment           pgtype.Text
 }
 
@@ -291,6 +296,7 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		arg.MonthlyRevenueKop,
 		arg.EquipmentCostKop,
 		arg.BkiConsent,
+		arg.PdConsent,
 		arg.Comment,
 	)
 	var id uuid.UUID
@@ -400,10 +406,11 @@ SET product             = $1,
     monthly_revenue_kop = $5,
     equipment_cost_kop  = $6,
     bki_consent_at      = CASE WHEN $7::boolean THEN coalesce(bki_consent_at, now()) END,
-    comment             = $8,
+    pd_consent_at       = CASE WHEN $8::boolean THEN coalesce(pd_consent_at, now()) END,
+    comment             = $9,
     version             = version + 1,
     updated_at          = now()
-WHERE id = $9 AND version = $10 AND status = 'draft'
+WHERE id = $10 AND version = $11 AND status = 'draft'
 `
 
 type UpdateDraftParams struct {
@@ -414,6 +421,7 @@ type UpdateDraftParams struct {
 	MonthlyRevenueKop pgtype.Int8
 	EquipmentCostKop  pgtype.Int8
 	BkiConsent        bool
+	PdConsent         bool
 	Comment           pgtype.Text
 	ID                uuid.UUID
 	Version           int32
@@ -429,6 +437,7 @@ func (q *Queries) UpdateDraft(ctx context.Context, arg UpdateDraftParams) (int64
 		arg.MonthlyRevenueKop,
 		arg.EquipmentCostKop,
 		arg.BkiConsent,
+		arg.PdConsent,
 		arg.Comment,
 		arg.ID,
 		arg.Version,

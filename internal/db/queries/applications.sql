@@ -48,10 +48,12 @@ ON CONFLICT (user_id, company_id) DO UPDATE SET representative_role = excluded.r
 -- достаёт ApplicationByKey отдельным запросом: в снимке этого её может не быть.
 -- name: CreateApplication :one
 INSERT INTO applications (company_id, created_by, idempotency_key, request_hash, product, purpose,
-                          amount_kop, term_months, monthly_revenue_kop, equipment_cost_kop, bki_consent_at, comment)
+                          amount_kop, term_months, monthly_revenue_kop, equipment_cost_kop, bki_consent_at,
+                          pd_consent_at, comment)
 VALUES (@company_id, @created_by, @idempotency_key, @request_hash, @product, @purpose,
         @amount_kop, @term_months, sqlc.narg(monthly_revenue_kop), sqlc.narg(equipment_cost_kop),
-        CASE WHEN @bki_consent::boolean THEN now() END, sqlc.narg(comment))
+        CASE WHEN @bki_consent::boolean THEN now() END, CASE WHEN @pd_consent::boolean THEN now() END,
+        sqlc.narg(comment))
 ON CONFLICT (created_by, idempotency_key) DO NOTHING
 RETURNING id;
 
@@ -89,6 +91,7 @@ SET product             = @product,
     monthly_revenue_kop = sqlc.narg(monthly_revenue_kop),
     equipment_cost_kop  = sqlc.narg(equipment_cost_kop),
     bki_consent_at      = CASE WHEN @bki_consent::boolean THEN coalesce(bki_consent_at, now()) END,
+    pd_consent_at       = CASE WHEN @pd_consent::boolean THEN coalesce(pd_consent_at, now()) END,
     comment             = sqlc.narg(comment),
     version             = version + 1,
     updated_at          = now()

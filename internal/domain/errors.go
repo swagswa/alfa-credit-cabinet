@@ -2,7 +2,10 @@
 // Без I/O и без импортов из internal, его используют все слои.
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrNotFound          = errors.New("not found")
@@ -18,4 +21,17 @@ var (
 	ErrTooManyRequests = errors.New("too many requests")
 	// ErrKeyReused: тот же Idempotency-Key пришёл с другим телом
 	ErrKeyReused = errors.New("idempotency key reused")
+	// ErrIncomplete: анкету нельзя подать, что именно не так, в FieldErrors
+	ErrIncomplete = errors.New("анкета заполнена не полностью")
 )
+
+// FieldErrors копит ошибки по полям. Как error это неполная анкета при подаче.
+type FieldErrors []FieldError
+
+func (e *FieldErrors) add(field, format string, args ...any) {
+	*e = append(*e, FieldError{field, fmt.Sprintf(format, args...)})
+}
+
+func (e FieldErrors) Error() string { return fmt.Sprintf("%s: %v", ErrIncomplete, []FieldError(e)) }
+
+func (FieldErrors) Unwrap() error { return ErrIncomplete }

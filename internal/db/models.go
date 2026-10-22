@@ -44,6 +44,7 @@ type Application struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	RequestHash       []byte
+	PdConsentAt       pgtype.Timestamptz
 }
 
 type ApplicationCard struct {
@@ -71,6 +72,7 @@ type ApplicationCard struct {
 	Kind               string
 	Simulated          bool
 	RepresentativeRole string
+	PdConsent          bool
 }
 
 type ApplicationEvent struct {

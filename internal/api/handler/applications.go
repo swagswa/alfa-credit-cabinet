@@ -29,6 +29,7 @@ func (h *Handler) CreateApplication(
 	set(&d.MonthlyRevenueKop, b.MonthlyRevenueKop)
 	set(&d.EquipmentCostKop, b.EquipmentCostKop)
 	set(&d.BKIConsent, b.BkiConsent)
+	set(&d.PDConsent, b.PdConsent)
 	set(&d.Comment, b.Comment)
 	app, err := h.apps.Create(ctx, a, req.Params.IdempotencyKey, b.Inn, d)
 	if err != nil {
@@ -110,6 +111,7 @@ func (h *Handler) UpdateApplication(
 		set(&d.MonthlyRevenueKop, b.MonthlyRevenueKop)
 		set(&d.EquipmentCostKop, b.EquipmentCostKop)
 		set(&d.BKIConsent, b.BkiConsent)
+		set(&d.PDConsent, b.PdConsent)
 		set(&d.Comment, b.Comment)
 	})
 	if err != nil {
@@ -135,6 +137,21 @@ func (h *Handler) CancelApplication(
 		return nil, err
 	}
 	return oapi.CancelApplication200JSONResponse(toView(&app, a.Role)), nil
+}
+
+func (h *Handler) SubmitApplication(
+	ctx context.Context,
+	req oapi.SubmitApplicationRequestObject,
+) (oapi.SubmitApplicationResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	app, err := h.apps.Submit(ctx, a, req.Id)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.SubmitApplication200JSONResponse(toView(&app, a.Role)), nil
 }
 
 func actor(ctx context.Context) (domain.Actor, error) {
@@ -171,6 +188,7 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		MonthlyRevenueKop:  opt(app.MonthlyRevenueKop),
 		EquipmentCostKop:   opt(app.EquipmentCostKop),
 		BkiConsent:         app.BKIConsent,
+		PdConsent:          app.PDConsent,
 		Comment:            opt(app.Comment),
 		Score:              app.Score,
 		DueAt:              app.DueAt,

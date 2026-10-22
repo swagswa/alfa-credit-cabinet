@@ -9,6 +9,7 @@ import (
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
 	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
+	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/activity"
@@ -34,7 +35,7 @@ func main() {
 	// миграции накатывает api, воркер только читает и пишет
 	db := postgres.New(lg.Zap, cfg.Postgres.Client())
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
-	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), nil, tc)
+	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), nil, tc, domain.Catalog{})
 	appActs := activity.NewApplicationActivities(apps)
 
 	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {

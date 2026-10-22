@@ -73,6 +73,7 @@ type Draft struct {
 	MonthlyRevenueKop int64
 	EquipmentCostKop  int64
 	BKIConsent        bool
+	PDConsent         bool
 	Comment           string
 }
 

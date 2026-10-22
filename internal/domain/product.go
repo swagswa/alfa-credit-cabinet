@@ -110,6 +110,38 @@ func (c Catalog) Product(code ProductCode) (Product, bool) {
 	return Product{}, false
 }
 
+// Ready проверяет анкету перед подачей по условиям продукта, nil значит можно подавать.
+// Выручку тут не требуем: нужна ли она, видно только по нашим оборотам, это шаг проверки.
+func (c Catalog) Ready(d *Draft) FieldErrors {
+	p, ok := c.Product(d.Product)
+	if !ok {
+		return FieldErrors{{"product", "такого продукта сейчас нет"}}
+	}
+	var errs FieldErrors
+	if d.AmountKop < p.AmountMinKop || d.AmountKop > p.AmountMaxKop || d.AmountKop%c.AmountStepKop != 0 {
+		errs.add("amount_kop", "сумма от %d до %d руб., кратно %d руб.",
+			p.AmountMinKop/KopInRub, p.AmountMaxKop/KopInRub, c.AmountStepKop/KopInRub)
+	}
+	if d.TermMonths < p.TermMinMonths || d.TermMonths > p.TermMaxMonths {
+		errs.add("term_months", "срок от %d до %d мес.", p.TermMinMonths, p.TermMaxMonths)
+	}
+	switch {
+	case p.MaxCostShare == 0:
+	case d.EquipmentCostKop == 0:
+		errs.add("equipment_cost_kop", "укажите стоимость оборудования")
+	case float64(d.AmountKop) > p.MaxCostShare*float64(d.EquipmentCostKop):
+		errs.add("amount_kop", "при такой стоимости оборудования кредит до %d руб., остальное собственный взнос",
+			int64(p.MaxCostShare*float64(d.EquipmentCostKop))/KopInRub)
+	}
+	if !d.BKIConsent {
+		errs.add("bki_consent", "без согласия на запрос в бюро кредитных историй подать нельзя")
+	}
+	if !d.PDConsent {
+		errs.add("pd_consent", "без согласия на обработку персональных данных подать нельзя")
+	}
+	return errs
+}
+
 func (c Catalog) Goal(g Goal) (GoalRule, bool) {
 	for _, r := range c.Goals {
 		if r.Goal == g {

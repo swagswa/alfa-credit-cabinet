@@ -60,13 +60,6 @@ func (h *Handler) RequestSigningCode(
 	return nil, errNotImplemented
 }
 
-func (h *Handler) SubmitApplication(
-	context.Context,
-	oapi.SubmitApplicationRequestObject,
-) (oapi.SubmitApplicationResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) GetDocument(context.Context, oapi.GetDocumentRequestObject) (oapi.GetDocumentResponseObject, error) {
 	return nil, errNotImplemented
 }

@@ -331,7 +331,9 @@ paths:
       summary: Подать заявку
       description: |
         `draft -> submitted`, стартует workflow с id заявки, поэтому повторная подача вторую не создаёт.
-        422, если анкета неполная, нет согласия на запрос в БКИ или полномочий.
+        Повтор по уже поданной заявке отвечает 200 и дозапускает процесс, если в прошлый раз не вышло (503).
+        422 `incomplete`, если анкета не проходит условия продукта или нет согласий на ПДн и запрос в БКИ,
+        что не так, в `errors` по полям.
       responses:
         '200':
           description: Заявка подана
@@ -346,6 +348,8 @@ paths:
         '409':
           $ref: '#/components/responses/Problem'
         '422':
+          $ref: '#/components/responses/Problem'
+        '503':
           $ref: '#/components/responses/Problem'
 
   /applications/{id}/cancel:
@@ -1108,15 +1112,18 @@ components:
           type: array
           description: Ошибки по полям, если есть
           items:
-            type: object
-            required: [field, message]
-            properties:
-              field:
-                type: string
-                example: amount_kop
-              message:
-                type: string
-                example: сумма вне диапазона продукта
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          example: amount_kop
+        message:
+          type: string
+          example: сумма вне диапазона продукта
 
     LoginRequest:
       type: object
@@ -1395,6 +1402,10 @@ components:
           type: boolean
           description: Согласие на запрос в БКИ (218-ФЗ), без него подать нельзя
           example: true
+        pd_consent:
+          type: boolean
+          description: Согласие на обработку персональных данных (152-ФЗ), отдельно от БКИ, без него подать нельзя
+          example: true
         comment:
           type: string
           maxLength: 1000
@@ -1429,6 +1440,9 @@ components:
           minimum: 1
           example: 670000000
         bki_consent:
+          type: boolean
+          example: true
+        pd_consent:
           type: boolean
           example: true
         comment:
@@ -1768,7 +1782,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApplicationSummary'
         - type: object
-          required: [version, representative_role, purpose, bki_consent, allowed_next, reasons, documents]
+          required: [version, representative_role, purpose, bki_consent, pd_consent, allowed_next, reasons, documents]
           properties:
             version:
               type: integer
@@ -1787,6 +1801,9 @@ components:
               format: int64
               example: 670000000
             bki_consent:
+              type: boolean
+              example: true
+            pd_consent:
               type: boolean
               example: true
             comment:

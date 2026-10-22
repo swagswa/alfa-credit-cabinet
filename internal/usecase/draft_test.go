@@ -23,6 +23,7 @@ var draft = domain.Draft{
 	AmountKop:  250000000,
 	TermMonths: 24,
 	BKIConsent: true,
+	PDConsent:  true,
 	Comment:    "закупка к зиме",
 }
 
@@ -205,7 +206,7 @@ func TestEdit(t *testing.T) {
 			edit: func(d *domain.Draft) { d.AmountKop, d.TermMonths, d.Role = 100000000, 12, "proxy" },
 			want: domain.Draft{
 				Role: "proxy", Product: domain.WorkingCapital, Purpose: domain.GoalPurchase,
-				AmountKop: 100000000, TermMonths: 12, BKIConsent: true, Comment: "закупка к зиме",
+				AmountKop: 100000000, TermMonths: 12, BKIConsent: true, PDConsent: true, Comment: "закупка к зиме",
 			},
 		},
 		{
@@ -216,7 +217,7 @@ func TestEdit(t *testing.T) {
 			},
 			want: domain.Draft{
 				Role: "director", Product: domain.Equipment, Purpose: domain.GoalEquipment,
-				AmountKop: 250000000, TermMonths: 24, EquipmentCostKop: 670000000,
+				AmountKop: 250000000, TermMonths: 24, EquipmentCostKop: 670000000, PDConsent: true,
 			},
 		},
 		{name: "карточка устарела", from: domain.StatusDraft, version: 7, err: domain.ErrConflict},

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
+	"github.com/swagswa/alfa-credit-cabinet/internal/rules"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/migrations"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
@@ -29,6 +31,7 @@ type appEnv struct {
 	t      *testing.T
 	pool   *pgxpool.Pool
 	egrul  *fakeEGRUL
+	wf     *fakeWorkflows
 	uc     usecase.ApplicationUseCase
 	client domain.Actor
 }
@@ -36,9 +39,11 @@ type appEnv struct {
 func newAppEnv(t *testing.T) *appEnv {
 	pool := testenv.Postgres(t, migrations.FS)
 	require.NoError(t, postgres.Exec(migrations.SeedDemo)(t.Context(), pool))
-	e := &appEnv{t: t, pool: pool, egrul: &fakeEGRUL{}}
+	catalog, err := rules.Products("../../rules/products.yaml")
+	require.NoError(t, err)
+	e := &appEnv{t: t, pool: pool, egrul: &fakeEGRUL{}, wf: &fakeWorkflows{}}
 	e.uc = usecase.NewApplication(&postgres.Client{Pool: pool}, repo.NewApplication(db.New(pool)),
-		usecase.NewCompany(e.egrul), nil)
+		usecase.NewCompany(e.egrul), e.wf, catalog)
 	e.client = e.user("coffee")
 	return e
 }
@@ -55,10 +60,10 @@ func (e *appEnv) app(status domain.Status) uuid.UUID {
 	var id uuid.UUID
 	err := e.pool.QueryRow(e.t.Context(), `
 		INSERT INTO applications (company_id, created_by, idempotency_key, status, product, purpose,
-			amount_kop, term_months, bki_consent_at, submitted_at,
+			amount_kop, term_months, bki_consent_at, pd_consent_at, submitted_at,
 			offer_product, offer_amount_kop, offer_term_months, offer_rate_bp)
 		SELECT m.company_id, m.user_id, gen_random_uuid()::text, $1, 'working_capital', 'purchase',
-			100000000, 12, now(), CASE WHEN $1 <> 'draft' THEN now() END,
+			100000000, 12, now(), now(), CASE WHEN $1 <> 'draft' THEN now() END,
 			'working_capital', 100000000, 12, 1800
 		FROM company_members m WHERE m.user_id = $2
 		RETURNING id`, status, e.client.ID).Scan(&id)
@@ -108,7 +113,8 @@ func TestTransition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			id := e.app(tt.from)
 			if tt.noConsent {
-				_, err := e.pool.Exec(t.Context(), "UPDATE applications SET bki_consent_at = NULL WHERE id = $1", id)
+				_, err := e.pool.Exec(t.Context(),
+					"UPDATE applications SET bki_consent_at = NULL, pd_consent_at = NULL WHERE id = $1", id)
 				require.NoError(t, err)
 			}
 			err := e.uc.Transition(t.Context(), id, tt.m)
@@ -213,14 +219,23 @@ func TestTransitionNotify(t *testing.T) {
 	}, got)
 }
 
+// fakeWorkflows ведёт себя как Temporal с REJECT_DUPLICATE: второй старт с тем же id отклоняется
 type fakeWorkflows struct {
-	err  error
-	args []any
+	err     error
+	args    []any
+	started []string
 }
 
 func (f *fakeWorkflows) Start(_ context.Context, queue, id, workflow string, args ...any) error {
 	f.args = append([]any{queue, id, workflow}, args...)
-	return f.err
+	switch {
+	case f.err != nil:
+		return f.err
+	case slices.Contains(f.started, id):
+		return fmt.Errorf("start %s: %w", id, temporalsvc.ErrAlreadyStarted)
+	}
+	f.started = append(f.started, id)
+	return nil
 }
 
 func TestStartProcess(t *testing.T) {
@@ -238,7 +253,7 @@ func TestStartProcess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wf := &fakeWorkflows{err: tt.err}
-			err := usecase.NewApplication(nil, nil, nil, wf).StartProcess(t.Context(), id)
+			err := usecase.NewApplication(nil, nil, nil, wf, domain.Catalog{}).StartProcess(t.Context(), id)
 			require.ErrorIs(t, err, tt.want)
 			require.Equal(t, []any{"credit", id.String(), "ApplicationWorkflow", id}, wf.args)
 		})
