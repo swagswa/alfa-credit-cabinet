@@ -57,12 +57,22 @@ type JWT struct {
 	TTL    time.Duration `env:"JWT_TTL"             envDefault:"12h"`
 }
 
+// Sources это адреса внешних систем, на стенде все они в mocks.
+type Sources struct {
+	EGRULURL string        `env:"EGRUL_URL"       envDefault:"http://localhost:8081"`
+	Timeout  time.Duration `env:"SOURCES_TIMEOUT" envDefault:"3s"`
+}
+
 type API struct {
 	Logger
 	Postgres
 	Temporal
 	HTTP
 	JWT
+	Sources
+
+	// RulesDir относительно рабочей папки: в образе /app/rules, локально rules в корне репо
+	RulesDir string `env:"RULES_DIR" envDefault:"rules"`
 
 	// CORSOrigin нужен только dev-серверу Vite, в compose фронт ходит через nginx
 	CORSOrigin string `env:"CORS_ORIGIN"`
