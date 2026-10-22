@@ -60,7 +60,9 @@ func New(d Deps) (*echo.Echo, error) {
 		// права проверяет Auth, валидатору остаются только схемы
 		Options: openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
 	})
-	api := e.Group(basePath, middleware.Auth(d.Auth, d.RBAC), validate)
+	// валидатор читает тело целиком в память, поэтому лимит раньше него: файл до 10 МБ
+	// плюс multipart-обвязка, на большее сразу 413
+	api := e.Group(basePath, middleware.Auth(d.Auth, d.RBAC), echomw.BodyLimit("11M"), validate)
 	oapi.RegisterHandlers(api, oapi.NewStrictHandler(d.Handler, nil))
 	api.GET("/events", d.Handler.Events)
 

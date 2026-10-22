@@ -6,9 +6,11 @@ generate:
   strict-server: true
   embedded-spec: true
 output-options:
-  # SSE живёт обычным хендлером echo, strict server стримить не умеет
+  # SSE живёт обычным хендлером echo, strict server стримить не умеет;
+  # примеры документов отдаёт mocks, в api их нет
   exclude-operation-ids:
     - streamEvents
+    - getSampleDocument
   # иначе вместе с операцией вырезается и схема StreamEvent, а она нужна хендлеру SSE
   skip-prune: true
 compatibility:

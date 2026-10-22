@@ -1,4 +1,4 @@
-# Наследование: вошедший может всё, что аноним (вход, health, примеры документов),
+# Наследование: вошедший может всё, что аноним (вход, health),
 # у всех вошедших общая роль user, админ может всё, что сотрудники банка.
 g, user, anonymous
 g, client, user
@@ -10,13 +10,15 @@ g, admin, underwriter
 
 p, anonymous, /api/login, POST
 p, anonymous, /api/health, GET
-p, anonymous, /api/samples/:inn, GET
 
 p, user, /api/me, GET
 p, user, /api/logout, POST
 p, user, /api/products, GET
 # что кому видно в потоке, решает usecase: клиенту только свои компании
 p, user, /api/events, GET
+# документ видит владелец заявки и банк, это проверяет SQL
+p, user, /api/documents/:id, GET
+p, user, /api/documents/:id/file, GET
 
 p, client, /api/products/recommendation, GET
 p, client, /api/companies/:inn, GET
@@ -26,3 +28,5 @@ p, client, /api/applications/:id, GET
 p, client, /api/applications/:id, PATCH
 p, client, /api/applications/:id/cancel, POST
 p, client, /api/applications/:id/submit, POST
+p, client, /api/applications/:id/documents, POST
+p, client, /api/documents/:id/confirm, POST

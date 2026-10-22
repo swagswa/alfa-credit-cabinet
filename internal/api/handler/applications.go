@@ -162,7 +162,7 @@ func actor(ctx context.Context) (domain.Actor, error) {
 	return domain.Actor{ID: s.UserID, Role: s.Role}, nil
 }
 
-// toView: документы, причины и условия появятся в карточке вместе с подачей и решением
+// toView: причины и условия появятся в карточке вместе с подачей и решением
 func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 	next := []oapi.ApplicationStatus{}
 	for _, s := range domain.AllowedNext(app.Status, role) {
@@ -198,6 +198,12 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		AllowedNext:        next,
 		Reasons:            []oapi.Reason{},
 		Documents:          []oapi.DocumentRef{},
+	}
+	for i := range app.Documents {
+		d := &app.Documents[i]
+		v.Documents = append(v.Documents, oapi.DocumentRef{
+			Id: d.ID, Kind: oapi.DocumentKind(d.Kind), Status: oapi.DocumentStatus(d.Status), FileName: d.FileName,
+		})
 	}
 	if app.Grade != "" {
 		g := oapi.Grade(app.Grade)

@@ -595,6 +595,12 @@ paths:
       responses:
         '200':
           description: Файл как загружен
+          headers:
+            Content-Disposition:
+              description: Имя файла, как его загрузил клиент
+              schema:
+                type: string
+                example: attachment; filename*=UTF-8''vypiska_2025.pdf
           content:
             application/pdf:
               schema:
@@ -2032,16 +2038,9 @@ components:
           example: [closing_balance_kop]
         validation_errors:
           type: array
+          description: Что в распознанных цифрах не сошлось
           items:
-            type: object
-            required: [field, message]
-            properties:
-              field:
-                type: string
-                example: closing_balance_kop
-              message:
-                type: string
-                example: остаток на начало плюс приход минус расход не равен остатку на конец
+            $ref: '#/components/schemas/FieldError'
         error:
           type: string
           description: Почему failed, текст для клиента

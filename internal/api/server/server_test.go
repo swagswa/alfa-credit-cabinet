@@ -1,10 +1,15 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -115,6 +120,7 @@ func newServer(t *testing.T, auth usecase.AuthUseCase, dbErr error) http.Handler
 			Products:   usecase.NewProduct(catalog),
 			Companies:  usecase.NewCompany(egrulDown{}),
 			Auth:       auth,
+			Documents:  &fakeDocs{},
 			SessionTTL: time.Hour,
 		}),
 		Auth: auth,
@@ -229,4 +235,85 @@ func TestLoginLimit(t *testing.T) {
 	rec := call(t, h, "POST", "/api/login", `{"login":"coffee","password":"demo12345"}`, "")
 	require.Equal(t, http.StatusTooManyRequests, rec.Code)
 	require.Contains(t, rec.Body.String(), "too_many_requests")
+}
+
+type fakeDocs struct {
+	usecase.DocumentUseCase
+}
+
+func (f *fakeDocs) Upload(
+	_ context.Context, _ domain.Actor, app uuid.UUID, kind domain.DocKind, name string, file []byte,
+) (domain.Document, error) {
+	return domain.Document{ID: uuid.New(), ApplicationID: app, Kind: kind, Status: domain.DocSkipped,
+		FileName: name, ContentType: "application/pdf", Size: len(file), SHA256: make([]byte, 32)}, nil
+}
+
+func (f *fakeDocs) Confirm(context.Context, domain.Actor, uuid.UUID, domain.DocValues) (domain.Document, error) {
+	return domain.Document{}, domain.FieldErrors{{Field: "inn", Message: "ИНН в документе другой"}}
+}
+
+func multipartBody(t *testing.T, kind string, file []byte) (body *bytes.Buffer, contentType string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	require.NoError(t, w.WriteField("kind", kind))
+	h := textproto.MIMEHeader{}
+	h.Set("Content-Disposition", `form-data; name="file"; filename="vypiska.pdf"`)
+	h.Set("Content-Type", "application/pdf")
+	part, err := w.CreatePart(h)
+	require.NoError(t, err)
+	_, err = part.Write(file)
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	return &buf, w.FormDataContentType()
+}
+
+func TestDocumentsHTTP(t *testing.T) {
+	auth := newAuth(t)
+	_, client, err := auth.Login(t.Context(), "coffee", "demo12345", "10.0.0.1")
+	require.NoError(t, err)
+	const upload = "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/documents"
+	pdf := []byte("%PDF-1.4 выписка")
+
+	tests := []struct {
+		name   string
+		kind   string
+		file   []byte
+		status int
+	}{
+		{"выписка", "statement", pdf, http.StatusCreated},
+		{"неизвестный вид", "selfie", pdf, http.StatusBadRequest},
+		{"больше лимита тела", "statement", make([]byte, 11<<20), http.StatusRequestEntityTooLarge},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, ct := multipartBody(t, tt.kind, tt.file)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, upload, body)
+			req.Header.Set("Content-Type", ct)
+			req.AddCookie(&http.Cookie{Name: middleware.SessionCookie, Value: client})
+			rec := httptest.NewRecorder()
+			newServer(t, auth, nil).ServeHTTP(rec, req)
+			require.Equal(t, tt.status, rec.Code, rec.Body.String())
+			if tt.status == http.StatusCreated {
+				require.Equal(t, `"vypiska.pdf"`, field(t, rec.Body.Bytes(), "file_name"))
+				require.Equal(t, `"statement"`, field(t, rec.Body.Bytes(), "kind"))
+				require.Equal(t, strconv.Itoa(len(pdf)), field(t, rec.Body.Bytes(), "size_bytes"))
+			}
+		})
+	}
+
+	// итоги не сошлись: 422 с ошибками по полям, фронт подсветит их в форме
+	rec := call(t, newServer(t, auth, nil), "POST", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/confirm",
+		`{"financials":{"inn":"0000100012","year":2025,"revenue_kop":1,"net_profit_kop":0,`+
+			`"liabilities_long_kop":0,"liabilities_short_kop":0,"balance_total_kop":1}}`, client)
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	require.JSONEq(t, `[{"field":"inn","message":"ИНН в документе другой"}]`,
+		field(t, rec.Body.Bytes(), "errors"))
+}
+
+func field(t *testing.T, b []byte, key string) string {
+	t.Helper()
+	var m map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(b, &m))
+	return string(m[key])
 }
