@@ -1,4 +1,4 @@
-.PHONY: generate lint test check up up-ai down web-gen
+.PHONY: generate lint test check up up-ai down web-gen docgen
 
 # сервер из openapi, код запросов из sql
 generate:
@@ -28,3 +28,7 @@ down:
 
 web-gen:
 	cd web && npm run gen:api
+
+# синтетические выписки и отчётность с эталонами для testdata/documents
+docgen:
+	go run ./cmd/docgen
