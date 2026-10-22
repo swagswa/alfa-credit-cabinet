@@ -3,7 +3,9 @@ name: credit-cabinet
 x-backend-env: &backend-env
   LOG_LEVEL: ${LOG_LEVEL:-info}
   DATABASE_URL: postgres://${POSTGRES_USER:-credit}:${POSTGRES_PASSWORD:-credit}@db:5432/credit?sslmode=disable
-  TEMPORAL_HOSTPORT: temporal:7233
+  # passthrough: без него grpc резолвит имя сам и шлёт SRV/TXT запросы, а в Docker Desktop
+  # они уходят на DNS хоста и висят по 5 с, клиент отваливается по таймауту до подключения
+  TEMPORAL_HOSTPORT: passthrough:///temporal:7233
 
 x-temporal-db-env: &temporal-db-env
   DB: postgres12
@@ -80,7 +82,7 @@ services:
   temporal-namespace:
     image: temporalio/admin-tools:1.32.1
     environment:
-      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_ADDRESS: passthrough:///temporal:7233
     entrypoint: ["sh", "-c"]
     # сервер принимает соединения не сразу после старта контейнера, ждём его здесь
     command:
