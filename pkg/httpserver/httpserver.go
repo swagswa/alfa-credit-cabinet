@@ -4,9 +4,12 @@ package httpserver
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -86,4 +89,19 @@ func Probe(ctx context.Context, url string) error {
 		return fmt.Errorf("probe: status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// ProbeMode обрабатывает запуск бинарника с -healthcheck <url>: проверяет адрес
+// и завершает процесс с кодом 0 или 1. Без флага ничего не делает.
+func ProbeMode(ctx context.Context) {
+	url := flag.String("healthcheck", "", "проверить health по адресу и выйти, для healthcheck в compose")
+	flag.Parse()
+	if *url == "" {
+		return
+	}
+	if err := Probe(ctx, *url); err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
