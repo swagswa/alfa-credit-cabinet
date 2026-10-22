@@ -9,6 +9,8 @@ const (
 	RoleManager     Role = "manager"
 	RoleUnderwriter Role = "underwriter"
 	RoleAdmin       Role = "admin"
+	// RoleSystem это ApplicationWorkflow в таблице переходов и аудите, учёток с ней нет
+	RoleSystem Role = "system"
 )
 
 type User struct {
