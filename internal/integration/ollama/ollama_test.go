@@ -46,22 +46,22 @@ func TestExtract(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "выписка, рубли в копейки",
+			name: "выписка, суммы как в документе",
 			kind: domain.DocStatement,
-			content: `{"inn":"0000100012","period_from":"2026-07-01","period_to":"2026-09-30",
-				"opening_balance":1133359.35,"turnover_in":0.1,"turnover_out":0,"closing_balance":-5.5,
-				"monthly_in":[{"month":"2026-07","amount":0.29}]}`,
+			content: `{"inn":"0000100012","period_from":"01.07.2026","period_to":"2026-09-30",
+				"opening_balance":"1 133 359,35","turnover_in":"0.1","turnover_out":"0","closing_balance":"-5,5",
+				"monthly_in":[{"year":2026,"month":7,"amount":"1234567.89"}]}`,
 			want: domain.DocValues{Statement: &domain.Statement{
 				INN: "0000100012", PeriodFrom: "2026-07-01", PeriodTo: "2026-09-30",
 				OpeningBalance: 113335935, TurnoverIn: 10, ClosingBalance: -550,
-				MonthlyIn: []domain.MonthAmount{{Month: "2026-07", Amount: 29}},
+				MonthlyIn: []domain.MonthAmount{{Month: "2026-07", Amount: 123456789}},
 			}},
 		},
 		{
-			name: "отчётность",
+			name: "отчётность, убыток в скобках",
 			kind: domain.DocFinancials,
-			content: `{"inn":"0000100012","year":2025,"revenue":14399999,"net_profit":-1401903,
-				"liabilities_long":0,"liabilities_short":1958361,"balance_total":2831636}`,
+			content: `{"inn":"0000100012","year":2025,"revenue":"14 399 999","net_profit":"(1 401 903)",
+				"liabilities_long":"0","liabilities_short":"1 958 361","balance_total":"2 831 636"}`,
 			want: domain.DocValues{Financials: &domain.Financials{
 				INN: "0000100012", Year: 2025, Revenue: 1439999900, NetProfit: -140190300,
 				LiabilitiesShort: 195836100, BalanceTotal: 283163600,
@@ -74,9 +74,15 @@ func TestExtract(t *testing.T) {
 			wantErr: domain.ErrInvalid,
 		},
 		{
-			name:    "сумма строкой",
+			name:    "сумма числом",
 			kind:    domain.DocStatement,
-			content: `{"inn":"0000100012","turnover_in":"1 234,00"}`,
+			content: `{"inn":"0000100012","turnover_in":1234}`,
+			wantErr: domain.ErrInvalid,
+		},
+		{
+			name:    "сумма не разбирается",
+			kind:    domain.DocFinancials,
+			content: `{"inn":"0000100012","year":2025,"revenue":"14 399 999,123"}`,
 			wantErr: domain.ErrInvalid,
 		},
 		{name: "не json", kind: domain.DocStatement, content: "Выписка за период", wantErr: domain.ErrInvalid},

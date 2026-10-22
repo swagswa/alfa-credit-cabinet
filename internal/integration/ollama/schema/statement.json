@@ -1,24 +1,28 @@
 {
   "type": "object",
   "properties": {
-    "inn": {"type": "string"},
+    "inn": {"type": "string", "pattern": "^[0-9]{10}([0-9]{2})?$"},
     "period_from": {"type": "string"},
     "period_to": {"type": "string"},
-    "opening_balance": {"type": "number"},
-    "turnover_in": {"type": "number"},
-    "turnover_out": {"type": "number"},
-    "closing_balance": {"type": "number"},
+    "opening_balance": {"$ref": "#/$defs/amount"},
+    "turnover_in": {"$ref": "#/$defs/amount"},
+    "turnover_out": {"$ref": "#/$defs/amount"},
+    "closing_balance": {"$ref": "#/$defs/amount"},
     "monthly_in": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "month": {"type": "string"},
-          "amount": {"type": "number"}
+          "year": {"type": "integer"},
+          "month": {"type": "integer"},
+          "amount": {"$ref": "#/$defs/amount"}
         },
-        "required": ["month", "amount"]
+        "required": ["year", "month", "amount"]
       }
     }
   },
-  "required": ["inn", "period_from", "period_to", "opening_balance", "turnover_in", "turnover_out", "closing_balance", "monthly_in"]
+  "required": ["inn", "period_from", "period_to", "opening_balance", "turnover_in", "turnover_out", "closing_balance", "monthly_in"],
+  "$defs": {
+    "amount": {"type": "string", "pattern": "^-?[(]?[0-9][0-9 ]*([,.][0-9]{1,2})?[)]?$"}
+  }
 }
