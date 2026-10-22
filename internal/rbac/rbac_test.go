@@ -21,6 +21,10 @@ func TestAllowed(t *testing.T) {
 		{rbac.Anonymous, "/api/me", "GET", false},
 		{"client", "/api/me", "GET", true},
 		{"client", "/api/me", "POST", false},
+		{rbac.Anonymous, "/api/products", "GET", false},
+		{"client", "/api/companies/0000100012", "GET", true},
+		{"manager", "/api/products/recommendation", "GET", false},
+		{"underwriter", "/api/products", "GET", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {

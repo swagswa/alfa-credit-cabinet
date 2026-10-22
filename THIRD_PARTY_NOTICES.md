@@ -19,6 +19,7 @@
 | go.uber.org/zap | 1.28.0 | MIT |
 | github.com/google/uuid | 1.6.0 | BSD-3-Clause |
 | golang.org/x/sync | 0.24.0 | BSD-3-Clause |
+| go.yaml.in/yaml/v3 | 3.0.5 | MIT, Apache-2.0 |
 
 Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go 0.44.0 (MIT), golangci-lint (GPL-3.0).
 

@@ -765,21 +765,24 @@ export interface components {
             /** @example г. Москва, ул. Садовая, д. 12 */
             address: string;
             okved_main: components["schemas"]["Okved"];
+            director?: components["schemas"]["Director"];
             /** @description Нет у ИП */
-            director?: {
-                /** @example Смирнова Анна Сергеевна */
-                fio: string;
-                /** @example Генеральный директор */
-                position: string;
-            };
-            founders?: {
-                /** @example Смирнова Анна Сергеевна */
-                name: string;
-                /** @example 100 */
-                share_pct: number;
-            }[];
+            founders?: components["schemas"]["Founder"][];
             /** @example false */
             simulated: boolean;
+        };
+        /** @description Нет у ИП */
+        Director: {
+            /** @example Смирнова Анна Сергеевна */
+            fio: string;
+            /** @example Генеральный директор */
+            position: string;
+        };
+        Founder: {
+            /** @example Смирнова Анна Сергеевна */
+            name: string;
+            /** @example 100 */
+            share_pct: number;
         };
         Okved: {
             /** @example 56.30 */
@@ -1561,7 +1564,8 @@ export interface operations {
             query: {
                 goal: components["schemas"]["Goal"];
                 amount_kop: components["schemas"]["AmountKop"];
-                term_months: components["schemas"]["TermMonths"];
+                /** @description Сколько клиенту нужны деньги. Короче 3 мес бывает у кассового разрыва, это повод для овердрафта */
+                term_months: number;
                 /** @description Если известна. Без неё альтернатива с условием по обороту показывается всегда */
                 monthly_revenue_kop?: number;
             };

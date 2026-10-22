@@ -13,13 +13,15 @@ import (
 )
 
 type Handler struct {
-	health usecase.HealthUseCase
+	health    usecase.HealthUseCase
+	products  usecase.ProductUseCase
+	companies usecase.CompanyUseCase
 }
 
 var _ oapi.StrictServerInterface = (*Handler)(nil)
 
-func New(health usecase.HealthUseCase) *Handler {
-	return &Handler{health: health}
+func New(health usecase.HealthUseCase, products usecase.ProductUseCase, companies usecase.CompanyUseCase) *Handler {
+	return &Handler{health: health, products: products, companies: companies}
 }
 
 func (h *Handler) Health(ctx context.Context, _ oapi.HealthRequestObject) (oapi.HealthResponseObject, error) {

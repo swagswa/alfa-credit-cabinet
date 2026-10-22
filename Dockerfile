@@ -10,7 +10,10 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 # api, worker и mocks: один образ, процесс выбирается командой в compose
 FROM gcr.io/distroless/static-debian12:nonroot AS app
+WORKDIR /app
 COPY --from=build /out/api /out/worker /out/mocks /app/
+# правила файлами рядом с бинарником, а не вшиты: на стенде их легко подменить томом
+COPY rules /app/rules
 USER nonroot
 
 # docs-worker отдельно: ему нужен Tesseract, остальным он только раздувает образ

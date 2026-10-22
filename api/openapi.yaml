@@ -135,8 +135,12 @@ paths:
         - name: term_months
           in: query
           required: true
+          description: Сколько клиенту нужны деньги. Короче 3 мес бывает у кассового разрыва, это повод для овердрафта
           schema:
-            $ref: '#/components/schemas/TermMonths'
+            type: integer
+            minimum: 1
+            maximum: 60
+            example: 2
         - name: monthly_revenue_kop
           in: query
           description: Если известна. Без неё альтернатива с условием по обороту показывается всегда
@@ -1223,31 +1227,38 @@ components:
         okved_main:
           $ref: '#/components/schemas/Okved'
         director:
-          type: object
-          description: Нет у ИП
-          required: [fio, position]
-          properties:
-            fio:
-              type: string
-              example: Смирнова Анна Сергеевна
-            position:
-              type: string
-              example: Генеральный директор
+          $ref: '#/components/schemas/Director'
         founders:
+          description: Нет у ИП
           type: array
           items:
-            type: object
-            required: [name, share_pct]
-            properties:
-              name:
-                type: string
-                example: Смирнова Анна Сергеевна
-              share_pct:
-                type: number
-                example: 100
+            $ref: '#/components/schemas/Founder'
         simulated:
           type: boolean
           example: false
+
+    Director:
+      type: object
+      description: Нет у ИП
+      required: [fio, position]
+      properties:
+        fio:
+          type: string
+          example: Смирнова Анна Сергеевна
+        position:
+          type: string
+          example: Генеральный директор
+
+    Founder:
+      type: object
+      required: [name, share_pct]
+      properties:
+        name:
+          type: string
+          example: Смирнова Анна Сергеевна
+        share_pct:
+          type: number
+          example: 100
 
     Okved:
       type: object

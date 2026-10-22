@@ -45,6 +45,11 @@ func problem(err error) oapi.Problem {
 		return newProblem(http.StatusConflict, oapi.ProblemCodeIllegalTransition, err.Error())
 	case errors.Is(err, domain.ErrConflict):
 		return newProblem(http.StatusConflict, oapi.ProblemCodeVersionConflict, err.Error())
+	case errors.Is(err, domain.ErrInvalid):
+		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation, err.Error())
+	case errors.Is(err, domain.ErrUnavailable):
+		// причину сбоя источника клиенту не показываем, она в логе
+		return newProblem(http.StatusServiceUnavailable, oapi.ProblemCodeUnavailable, "")
 	case errors.As(err, &he):
 		p := newProblem(he.Code, codeOf(he.Code), "")
 		// у валидатора в Message причина, у остальных обычно просто текст статуса
