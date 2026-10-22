@@ -85,8 +85,7 @@ func New(inn string) (Company, error) {
 	if !domain.ValidINN(inn) {
 		return Company{}, fmt.Errorf("инн %q: неверная длина или контрольные цифры", inn)
 	}
-	h := sha256.Sum256([]byte(inn + Version))
-	rng := rand.New(rand.NewPCG(binary.BigEndian.Uint64(h[:8]), binary.BigEndian.Uint64(h[8:16])))
+	rng := RNG(inn + Version)
 	q := rng.Float64() // скрытое качество компании, от него коррелированно всё остальное
 
 	p, ok := demo(inn)
@@ -114,6 +113,12 @@ func New(inn string) (Company, error) {
 	c.LiabilitiesLong = rub(revenue * 0.3 * (1 - q) * rng.Float64())
 	c.BalanceTotal = rub(float64(c.LiabilitiesShort+c.LiabilitiesLong) / 100 / (0.4 + 0.4*q))
 	return c, nil
+}
+
+// RNG даёт генератор от строки: тот же seed, те же числа при каждом запуске
+func RNG(seed string) *rand.Rand {
+	h := sha256.Sum256([]byte(seed))
+	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(h[:8]), binary.BigEndian.Uint64(h[8:16])))
 }
 
 // series даёт 12 множителей к средней выручке: среднее 1, отношение второго
