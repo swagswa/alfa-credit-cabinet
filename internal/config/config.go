@@ -111,6 +111,18 @@ type DocsWorker struct {
 	Logger
 	Postgres
 	Temporal
+	Recognition
+}
+
+// Recognition нужен docs-worker и make eval-docs. Каталог языков tesseract
+// берёт сам из TESSDATA_PREFIX, если он не в стандартном месте.
+type Recognition struct {
+	AIEnabled     bool          `env:"AI_ENABLED"     envDefault:"false"`
+	Tesseract     string        `env:"TESSERACT_PATH" envDefault:"tesseract"`
+	OCRTimeout    time.Duration `env:"OCR_TIMEOUT"    envDefault:"30s"`
+	OllamaURL     string        `env:"OLLAMA_URL"     envDefault:"http://localhost:11434"`
+	OllamaModel   string        `env:"OLLAMA_MODEL"   envDefault:"qwen3:4b-instruct-2507-q4_K_M"`
+	OllamaTimeout time.Duration `env:"OLLAMA_TIMEOUT" envDefault:"150s"`
 }
 
 type Mocks struct {
