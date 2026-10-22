@@ -21,10 +21,16 @@ func TestAllowed(t *testing.T) {
 		{rbac.Anonymous, "/api/me", "GET", false},
 		{"client", "/api/me", "GET", true},
 		{"client", "/api/me", "POST", false},
-		{rbac.Anonymous, "/api/products", "GET", false},
-		{"client", "/api/companies/0000100012", "GET", true},
-		{"manager", "/api/products/recommendation", "GET", false},
-		{"underwriter", "/api/products", "GET", true},
+		// вошедший не теряет того, что может аноним: иначе повторный вход,
+		// health в браузере и «Взять пример выписки» отдают 403
+		{"client", "/api/login", "POST", true},
+		{"client", "/api/health", "GET", true},
+		{"client", "/api/samples/0000100012", "GET", true},
+		{"manager", "/api/login", "POST", true},
+		{"underwriter", "/api/health", "GET", true},
+		{"admin", "/api/samples/0000100012", "GET", true},
+		{"manager", "/api/companies/0000100012", "GET", false},
+		{"admin", "/api/me", "GET", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {

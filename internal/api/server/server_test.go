@@ -160,6 +160,7 @@ func TestServer(t *testing.T) {
 		{name: "закрытая операция без сессии", method: "GET", path: "/api/me", status: 401},
 		{name: "битая сессия как её отсутствие", method: "GET", path: "/api/me", session: "junk", status: 401},
 		{name: "текущий пользователь", method: "GET", path: "/api/me", session: client, status: 200},
+		{name: "health с сессией клиента", method: "GET", path: "/api/health", session: client, status: 200},
 		{name: "роли не положено", method: "GET", path: "/api/applications", session: client, status: 403},
 		{name: "продукты", method: "GET", path: "/api/products", session: client, status: 200},
 		{name: "подбор", method: "GET", path: recommend + "&term_months=2", session: client, status: 200},
