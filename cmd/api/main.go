@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log"
-	"os"
 
 	"go.uber.org/zap"
 
@@ -23,17 +21,8 @@ import (
 )
 
 func main() {
-	probe := flag.String("healthcheck", "", "проверить health по адресу и выйти, для healthcheck в compose")
-	flag.Parse()
 	ctx := context.Background()
-
-	if *probe != "" {
-		if err := httpserver.Probe(ctx, *probe); err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-		return
-	}
+	httpserver.ProbeMode(ctx)
 
 	cfg, err := config.Load[config.API]()
 	if err != nil {
@@ -44,7 +33,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db := postgres.New(lg.Zap, cfg.Postgres.Client(), postgres.Migrate(migrations.FS))
+	hooks := []postgres.Hook{postgres.Migrate(migrations.FS)}
+	if cfg.SeedDemo {
+		hooks = append(hooks, postgres.Exec(migrations.SeedDemo))
+	}
+	db := postgres.New(lg.Zap, cfg.Postgres.Client(), hooks...)
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
 
 	enf, err := rbac.New()
