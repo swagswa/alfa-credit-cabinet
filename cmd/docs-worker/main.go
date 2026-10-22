@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
+	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/logger"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
@@ -31,7 +32,7 @@ func main() {
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
 	// модель на CPU занимает все ядра, две генерации параллельно только мешают друг другу
 	opts := sdkworker.Options{MaxConcurrentActivityExecutionSize: 1}
-	w := temporalsvc.NewWorker(tc, workflow.QueueDocs, opts, func(r sdkworker.Registry) {
+	w := temporalsvc.NewWorker(tc, usecase.QueueDocs, opts, func(r sdkworker.Registry) {
 		r.RegisterWorkflow(workflow.RecognizeWorkflow)
 	})
 
