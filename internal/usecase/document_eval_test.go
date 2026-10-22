@@ -75,7 +75,7 @@ func TestDocsEval(t *testing.T) {
 	if err != nil {
 		t.Skipf("нет модели: %v", err)
 	}
-	uc := usecase.NewDocument(nil, ocr.New(bin, cfg.OCRTimeout), llm, true)
+	uc := usecase.NewDocument(nil, nil, nil, ocr.New(bin, cfg.OCRTimeout), llm, true)
 
 	files, err := filepath.Glob(filepath.Join(docsDir, cmp.Or(os.Getenv("EVAL_GLOB"), "*_*_*.*")))
 	require.NoError(t, err)

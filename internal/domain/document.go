@@ -1,6 +1,17 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"maps"
+	"reflect"
+	"slices"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// MaxDocSize как CHECK в documents.size_bytes
+const MaxDocSize = 10 << 20
 
 type DocKind string
 
@@ -9,6 +20,9 @@ const (
 	DocStatement  DocKind = "statement"
 	DocFinancials DocKind = "financials"
 )
+
+// Recognizable значит, что итоги есть только у выписки и отчётности, их и распознаём, и подтверждаем.
+func (k DocKind) Recognizable() bool { return k == DocStatement || k == DocFinancials }
 
 type DocStatus string
 
@@ -32,9 +46,32 @@ const (
 type DocFile struct {
 	Kind        DocKind
 	Status      DocStatus
+	FileName    string
 	ContentType string
 	Content     []byte
 	INN         string
+}
+
+// Document это карточка документа без самого файла.
+type Document struct {
+	ID            uuid.UUID
+	ApplicationID uuid.UUID
+	Kind          DocKind
+	Status        DocStatus
+	FileName      string
+	ContentType   string
+	Size          int
+	SHA256        []byte
+	INN           string
+	TextSource    TextSource
+	Extracted     *DocValues
+	Confirmed     *DocValues
+	EditedFields  []string
+	Problems      []FieldError
+	Error         string
+	Model         string
+	CreatedAt     time.Time
+	ConfirmedAt   *time.Time
 }
 
 // Statement это итоги выписки, суммы в копейках. JSON такой же, как
@@ -79,6 +116,39 @@ func (v DocValues) Check(inn string, today time.Time) []FieldError {
 		return v.Statement.Check(inn, today)
 	case v.Financials != nil:
 		return v.Financials.Check(inn, today)
+	}
+	return nil
+}
+
+// Fits значит, что заполнен ровно один блок, и он под вид документа.
+func (v DocValues) Fits(k DocKind) bool {
+	return (v.Statement != nil) != (v.Financials != nil) &&
+		(k == DocStatement) == (v.Statement != nil) && k.Recognizable()
+}
+
+// Edited отдаёт поля, которые клиент поменял относительно распознанных.
+// Помесячные поступления сравниваем целиком, это одно поле формы.
+func (v DocValues) Edited(from *DocValues) []string {
+	if from == nil {
+		return nil
+	}
+	a, b := v.fields(), from.fields()
+	var out []string
+	for _, k := range slices.Sorted(maps.Keys(a)) {
+		if !reflect.DeepEqual(a[k], b[k]) {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// fields раскладывает заполненный блок по именам полей из JSON, они же имена в форме
+func (v DocValues) fields() map[string]any {
+	var m map[string]map[string]any
+	b, _ := json.Marshal(v)
+	_ = json.Unmarshal(b, &m)
+	for _, f := range m {
+		return f
 	}
 	return nil
 }
