@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -79,4 +81,18 @@ func (c *Client) Ping(ctx context.Context) error {
 		return fmt.Errorf("postgres ping: %w", err)
 	}
 	return nil
+}
+
+// Exec вместе с Query и QueryRow делает Client подходящим для db.New: репозитории
+// собираются до старта, а пул появляется только в Init.
+func (c *Client) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	return c.Pool.Exec(ctx, sql, args...) //nolint:wrapcheck // обёртка прозрачная, ошибку подпишет вызывающий
+}
+
+func (c *Client) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	return c.Pool.Query(ctx, sql, args...) //nolint:wrapcheck // то же
+}
+
+func (c *Client) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	return c.Pool.QueryRow(ctx, sql, args...)
 }

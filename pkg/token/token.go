@@ -1,4 +1,5 @@
-// Package token выпускает и разбирает JWT сессии (HS256).
+// Package token выпускает и разбирает JWT сессии (HS256). Токен несёт только
+// id серверной сессии и срок, всё остальное лежит в самой сессии.
 package token
 
 import (
@@ -11,11 +12,6 @@ import (
 
 var ErrInvalid = errors.New("invalid token")
 
-type Claims struct {
-	Role string `json:"role"`
-	jwt.RegisteredClaims
-}
-
 type Issuer struct {
 	secret []byte
 	ttl    time.Duration
@@ -26,11 +22,12 @@ func New(secret string, ttl time.Duration) *Issuer {
 	return &Issuer{secret: []byte(secret), ttl: ttl, now: time.Now}
 }
 
-func (i *Issuer) Issue(subject, role string) (string, error) {
+func (i *Issuer) TTL() time.Duration { return i.ttl }
+
+func (i *Issuer) Issue(sessionID string) (string, error) {
 	now := i.now()
-	t := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		Role:      role,
-		Subject:   subject,
+	t := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		Subject:   sessionID,
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(i.ttl)),
 	})
@@ -41,15 +38,17 @@ func (i *Issuer) Issue(subject, role string) (string, error) {
 	return s, nil
 }
 
-func (i *Issuer) Parse(raw string) (*Claims, error) {
-	var c Claims
+// Parse отдаёт id сессии из токена.
+func (i *Issuer) Parse(raw string) (string, error) {
+	var c jwt.RegisteredClaims
 	_, err := jwt.ParseWithClaims(raw, &c, func(*jwt.Token) (any, error) { return i.secret, nil },
 		// без явного списка алгоритмов подписанный "none" или RS-ключом токен прошёл бы разбор
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
 		jwt.WithTimeFunc(i.now),
+		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
+		return "", fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	return &c, nil
+	return c.Subject, nil
 }
