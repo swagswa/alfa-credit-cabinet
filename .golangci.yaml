@@ -104,6 +104,10 @@ linters:
         - (github.com/jackc/pgx/v5.Tx).Commit(
       ignore-sig-regexps:
         - '\.New.*Error\('
+      # свои пакеты подписывают ошибки там, где они возникли; второй слой
+      # обёрток над repo и usecase только удлиняет текст ошибки
+      ignore-package-globs:
+        - github.com/swagswa/alfa-credit-cabinet/*
     staticcheck:
       checks: [all, -ST1000, -ST1016, -QF1008]
     depguard:
