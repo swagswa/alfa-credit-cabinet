@@ -1,6 +1,6 @@
 # Модель данных
 
-Схема в `migrations/000001_init.up.sql`, это первоисточник. Деньги в копейках `bigint`, ставки в базисных пунктах, время `timestamptz` в UTC. Перечисления это `text` с CHECK, значения совпадают с enum в `api/openapi.yaml`. Ключи `uuid` v7 (`uuidv7()` из Postgres 18), чтобы новые строки ложились в конец индекса.
+Схема в `migrations/` (начало в `000001_init.up.sql`), это первоисточник. Деньги в копейках `bigint`, ставки в базисных пунктах, время `timestamptz` в UTC. Перечисления это `text` с CHECK, значения совпадают с enum в `api/openapi.yaml`. Ключи `uuid` v7 (`uuidv7()` из Postgres 18), чтобы новые строки ложились в конец индекса.
 
 ```mermaid
 erDiagram
