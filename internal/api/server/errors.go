@@ -35,8 +35,19 @@ func errorHandler(log *zap.Logger) echo.HTTPErrorHandler {
 }
 
 func problem(err error) oapi.Problem {
-	var he *echo.HTTPError
+	var (
+		he     *echo.HTTPError
+		fields domain.FieldErrors
+	)
 	switch {
+	case errors.As(err, &fields):
+		p := newProblem(http.StatusUnprocessableEntity, oapi.ProblemCodeIncomplete, "")
+		errs := make([]oapi.FieldError, len(fields))
+		for i, f := range fields {
+			errs[i] = oapi.FieldError(f)
+		}
+		p.Errors = &errs
+		return p
 	case errors.Is(err, domain.ErrNotFound):
 		return newProblem(http.StatusNotFound, oapi.ProblemCodeNotFound, "")
 	case errors.Is(err, domain.ErrForbidden):
@@ -79,6 +90,8 @@ func codeOf(status int) oapi.ProblemCode {
 		return oapi.ProblemCodeForbidden
 	case http.StatusNotFound:
 		return oapi.ProblemCodeNotFound
+	case http.StatusUnprocessableEntity:
+		return oapi.ProblemCodeIncomplete
 	case http.StatusRequestEntityTooLarge:
 		return oapi.ProblemCodeTooLarge
 	case http.StatusTooManyRequests:

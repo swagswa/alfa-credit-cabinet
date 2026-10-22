@@ -53,11 +53,16 @@ func main() {
 	limit := usecase.LoginLimit{Attempts: cfg.LoginAttempts, Window: cfg.LoginWindow}
 	users := repo.NewUser(dbq.New(db))
 	auth := usecase.NewAuth(users, repo.NewSession(rdb), tokens, limit)
+	catalog, err := rules.Products(filepath.Join(cfg.RulesDir, "products.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
-	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc)
+	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc, catalog)
 	events := repo.NewEvent(lg.Zap, db)
 
-	e, err := newServer(&cfg, lg.Zap, health, auth, companies, apps, usecase.NewEvent(events, users))
+	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
+		usecase.NewEvent(events, users))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -73,6 +78,7 @@ func newServer(
 	lg *zap.Logger,
 	health usecase.HealthUseCase,
 	auth usecase.AuthUseCase,
+	products usecase.ProductUseCase,
 	companies usecase.CompanyUseCase,
 	apps usecase.ApplicationUseCase,
 	events usecase.EventUseCase,
@@ -81,12 +87,6 @@ func newServer(
 	if err != nil {
 		return nil, err
 	}
-	catalog, err := rules.Products(filepath.Join(cfg.RulesDir, "products.yaml"))
-	if err != nil {
-		return nil, err
-	}
-	products := usecase.NewProduct(catalog)
-
 	return server.New(server.Deps{
 		Log: lg,
 		Handler: handler.New(handler.Deps{

@@ -139,6 +139,21 @@ func (h *Handler) CancelApplication(
 	return oapi.CancelApplication200JSONResponse(toView(&app, a.Role)), nil
 }
 
+func (h *Handler) SubmitApplication(
+	ctx context.Context,
+	req oapi.SubmitApplicationRequestObject,
+) (oapi.SubmitApplicationResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	app, err := h.apps.Submit(ctx, a, req.Id)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.SubmitApplication200JSONResponse(toView(&app, a.Role)), nil
+}
+
 func actor(ctx context.Context) (domain.Actor, error) {
 	s, ok := middleware.ActorFrom(ctx)
 	if !ok {

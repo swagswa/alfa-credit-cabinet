@@ -47,6 +47,9 @@ type ApplicationUseCase interface {
 	// Edit меняет анкету черновика той версии, которую видел клиент.
 	Edit(ctx context.Context, actor domain.Actor, id uuid.UUID, version int, edit func(*domain.Draft)) (
 		domain.Application, error)
+	// Submit подаёт черновик и запускает его процесс. Повтор по уже поданной заявке
+	// только дозапускает процесс, если в прошлый раз Temporal не ответил.
+	Submit(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error)
 	// Cancel пока только для черновика: после подачи отмена идёт через процесс заявки.
 	Cancel(ctx context.Context, actor domain.Actor, id uuid.UUID, reason string) (domain.Application, error)
 }
@@ -56,13 +59,16 @@ type applicationUseCase struct {
 	apps      repo.ApplicationRepository
 	companies CompanyUseCase
 	workflows Workflows
+	catalog   domain.Catalog
 }
 
-// NewApplication собирает usecase заявок. companies нужен только для создания черновика, воркеру можно nil.
+// NewApplication собирает usecase заявок. companies и catalog нужны только черновику и подаче,
+// воркеру можно nil и пустой каталог.
 func NewApplication(
 	db *postgres.Client, apps repo.ApplicationRepository, companies CompanyUseCase, workflows Workflows,
+	catalog domain.Catalog,
 ) ApplicationUseCase {
-	return &applicationUseCase{db: db, apps: apps, companies: companies, workflows: workflows}
+	return &applicationUseCase{db: db, apps: apps, companies: companies, workflows: workflows, catalog: catalog}
 }
 
 func (u *applicationUseCase) StartProcess(ctx context.Context, id uuid.UUID) error {
@@ -189,6 +195,35 @@ func (u *applicationUseCase) Edit(
 	})
 	if err != nil {
 		return domain.Application{}, err
+	}
+	return u.Get(ctx, actor, id)
+}
+
+func (u *applicationUseCase) Submit(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
+	app, err := u.Get(ctx, actor, id)
+	if err != nil {
+		return domain.Application{}, err
+	}
+	switch {
+	case app.Status == domain.StatusDraft:
+		if errs := u.catalog.Ready(&app.Draft); errs != nil {
+			return domain.Application{}, errs
+		}
+		// версия та, что проверяли: поправят анкету между чтением и переходом, будет 409
+		err = u.Transition(ctx, id, domain.Move{To: domain.StatusSubmitted, Actor: actor, Version: app.Version})
+		if err != nil {
+			return domain.Application{}, err
+		}
+	case app.SubmittedAt == nil:
+		return domain.Application{}, fmt.Errorf("%w: заявку не подавали, а черновик уже закрыт",
+			domain.ErrIllegalTransition)
+	}
+	// Старт после коммита, не внутри транзакции: иначе процесс мог бы пойти по заявке,
+	// переход которой откатился. Если Temporal не ответил, заявка остаётся в submitted,
+	// а повторная подача дойдёт сюда же и запустит процесс с тем же id.
+	err = u.StartProcess(ctx, id)
+	if err != nil && !errors.Is(err, domain.ErrConflict) {
+		return domain.Application{}, fmt.Errorf("%w: %w", domain.ErrUnavailable, err)
 	}
 	return u.Get(ctx, actor, id)
 }

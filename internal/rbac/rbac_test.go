@@ -34,6 +34,8 @@ func TestAllowed(t *testing.T) {
 		{"client", "/api/applications", "POST", true},
 		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41", "PATCH", true},
 		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/cancel", "POST", true},
+		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/submit", "POST", true},
+		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/submit", "POST", false},
 		// очередь банка откроется отдельно, пока сотрудник заявок не видит
 		{"manager", "/api/applications", "GET", false},
 		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41", "PATCH", false},
