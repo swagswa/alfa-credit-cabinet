@@ -26,3 +26,70 @@ SELECT pg_notify('applications', json_build_object(
     'company_id', @company_id::uuid,
     'status', @status::text,
     'version', @version::integer)::text);
+
+-- name: CompanyByINN :one
+SELECT c.id, EXISTS (
+    SELECT 1 FROM company_members m WHERE m.company_id = c.id AND m.user_id = @user_id
+) AS member
+FROM companies c
+WHERE c.inn = @inn;
+
+-- name: AddCompany :one
+INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, address, registered_at, simulated)
+VALUES (@inn, @kind, @ogrn, sqlc.narg(kpp), @short_name, @full_name, @okved, @address, @registered_at, @simulated)
+RETURNING id;
+
+-- name: SetMember :exec
+INSERT INTO company_members (user_id, company_id, representative_role)
+VALUES (@user_id, @company_id, @representative_role)
+ON CONFLICT (user_id, company_id) DO UPDATE SET representative_role = excluded.representative_role;
+
+-- Повтор с тем же ключом ничего не вставляет и не возвращает, тогда заявку
+-- достаёт ApplicationByKey отдельным запросом: в снимке этого её может не быть.
+-- name: CreateApplication :one
+INSERT INTO applications (company_id, created_by, idempotency_key, request_hash, product, purpose,
+                          amount_kop, term_months, monthly_revenue_kop, equipment_cost_kop, bki_consent_at, comment)
+VALUES (@company_id, @created_by, @idempotency_key, @request_hash, @product, @purpose,
+        @amount_kop, @term_months, sqlc.narg(monthly_revenue_kop), sqlc.narg(equipment_cost_kop),
+        CASE WHEN @bki_consent::boolean THEN now() END, sqlc.narg(comment))
+ON CONFLICT (created_by, idempotency_key) DO NOTHING
+RETURNING id;
+
+-- name: ApplicationByKey :one
+SELECT id, request_hash
+FROM applications
+WHERE created_by = @created_by AND idempotency_key = @idempotency_key;
+
+-- owner задан у клиента: чужая заявка для него просто не находится
+-- name: ApplicationCard :one
+SELECT v.*
+FROM application_cards v
+WHERE v.id = @id
+  AND (sqlc.narg(owner)::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = sqlc.narg(owner)));
+
+-- name: ApplicationCards :many
+SELECT sqlc.embed(v), count(*) OVER () AS total
+FROM application_cards v
+WHERE (sqlc.narg(owner)::uuid IS NULL OR EXISTS (
+          SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = sqlc.narg(owner)))
+  AND (sqlc.narg(statuses)::text[] IS NULL OR v.status = ANY (sqlc.narg(statuses)::text[]))
+  AND (sqlc.narg(grades)::text[] IS NULL OR v.grade = ANY (sqlc.narg(grades)::text[]))
+  AND (sqlc.narg(product)::text IS NULL OR v.product = sqlc.narg(product))
+ORDER BY v.created_at DESC
+LIMIT @lim OFFSET @off;
+
+-- версия и статус в WHERE: между чтением и записью заявку могли подать или поправить в другой вкладке
+-- name: UpdateDraft :execrows
+UPDATE applications
+SET product             = @product,
+    purpose             = @purpose,
+    amount_kop          = @amount_kop,
+    term_months         = @term_months,
+    monthly_revenue_kop = sqlc.narg(monthly_revenue_kop),
+    equipment_cost_kop  = sqlc.narg(equipment_cost_kop),
+    bki_consent_at      = CASE WHEN @bki_consent::boolean THEN coalesce(bki_consent_at, now()) END,
+    comment             = sqlc.narg(comment),
+    version             = version + 1,
+    updated_at          = now()
+WHERE id = @id AND version = @version AND status = 'draft';
