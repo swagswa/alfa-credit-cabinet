@@ -1561,7 +1561,8 @@ export interface operations {
             query: {
                 goal: components["schemas"]["Goal"];
                 amount_kop: components["schemas"]["AmountKop"];
-                term_months: components["schemas"]["TermMonths"];
+                /** @description Сколько клиенту нужны деньги. Короче 3 мес бывает у кассового разрыва, это повод для овердрафта */
+                term_months: number;
                 /** @description Если известна. Без неё альтернатива с условием по обороту показывается всегда */
                 monthly_revenue_kop?: number;
             };
