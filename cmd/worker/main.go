@@ -8,6 +8,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
+	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
+	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
+	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
+	"github.com/swagswa/alfa-credit-cabinet/internal/worker/activity"
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/logger"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
@@ -30,8 +34,12 @@ func main() {
 	// миграции накатывает api, воркер только читает и пишет
 	db := postgres.New(lg.Zap, cfg.Postgres.Client())
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
-	w := temporalsvc.NewWorker(tc, workflow.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {
+	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), tc)
+	appActs := activity.NewApplicationActivities(apps)
+
+	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {
 		r.RegisterWorkflow(workflow.ApplicationWorkflow)
+		r.RegisterActivity(appActs)
 	})
 
 	if err := svc.Run(ctx, lg.Zap, lg, db, tc, w); err != nil {
