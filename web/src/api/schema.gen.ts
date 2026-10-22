@@ -13,7 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Вход */
+        /**
+         * Вход
+         * @description Попытки входа ограничены по адресу клиента, при превышении 429.
+         */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -683,7 +686,7 @@ export interface components {
              * @example illegal_transition
              * @enum {string}
              */
-            code?: "validation" | "unauthorized" | "forbidden" | "not_found" | "illegal_transition" | "version_conflict" | "idempotency_conflict" | "incomplete" | "wrong_code" | "too_large" | "unavailable";
+            code?: "validation" | "unauthorized" | "forbidden" | "not_found" | "illegal_transition" | "version_conflict" | "idempotency_conflict" | "incomplete" | "wrong_code" | "too_large" | "too_many_requests" | "unavailable";
             /** @description Ошибки по полям, если есть */
             errors?: {
                 /** @example amount_kop */
@@ -1495,6 +1498,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
         };
     };
     logout: {
