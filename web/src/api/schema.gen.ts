@@ -1376,12 +1376,8 @@ export interface components {
              *     ]
              */
             edited_fields?: string[];
-            validation_errors?: {
-                /** @example closing_balance_kop */
-                field: string;
-                /** @example остаток на начало плюс приход минус расход не равен остатку на конец */
-                message: string;
-            }[];
+            /** @description Что в распознанных цифрах не сошлось */
+            validation_errors?: components["schemas"]["FieldError"][];
             /**
              * @description Почему failed, текст для клиента
              * @example
@@ -2036,6 +2032,8 @@ export interface operations {
             /** @description Файл как загружен */
             200: {
                 headers: {
+                    /** @description Имя файла, как его загрузил клиент */
+                    "Content-Disposition"?: string;
                     [name: string]: unknown;
                 };
                 content: {
