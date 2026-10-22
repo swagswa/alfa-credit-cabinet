@@ -1,4 +1,4 @@
-.PHONY: generate lint test check up up-ai down web-gen docgen
+.PHONY: generate lint test check up up-ai down web-gen docgen eval-docs
 
 # сервер из openapi, код запросов из sql
 generate:
@@ -32,3 +32,9 @@ web-gen:
 # синтетические выписки и отчётность с эталонами для testdata/documents
 docgen:
 	go run ./cmd/docgen
+
+# точность распознавания по testdata/documents, пишет docs/ai-eval.md. Нужны tesseract
+# и Ollama с моделью (OLLAMA_URL, TESSERACT_PATH как у docs-worker), иначе тест пропускается.
+# Один файл: EVAL_GLOB=0000300011_statement_c.png make eval-docs
+eval-docs:
+	go test -tags eval -run TestDocsEval -count=1 -timeout 60m -v ./internal/usecase
