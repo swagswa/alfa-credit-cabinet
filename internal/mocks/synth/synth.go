@@ -42,19 +42,20 @@ type Company struct {
 // за 12 месяцев выписки, иначе у IT-компании с трендом 1,4 честная выписка
 // разошлась бы с налоговой больше чем на 20%.
 func (c Company) Income() int64 {
-	var s int64
+	in, _ := c.Turnover()
+	return in
+}
+
+func (c Company) Turnover() (in, out int64) {
 	for _, m := range c.Months {
-		s += m.In
+		in, out = in+m.In, out+m.Out
 	}
-	return s
+	return in, out
 }
 
 func (c Company) Closing() int64 {
-	b := c.Opening
-	for _, m := range c.Months {
-		b += m.In - m.Out
-	}
-	return b
+	in, out := c.Turnover()
+	return c.Opening + in - out
 }
 
 func (c Company) IsIP() bool { return len(c.INN) == 12 }
