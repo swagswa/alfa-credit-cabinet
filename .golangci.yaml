@@ -129,3 +129,10 @@ linters:
     rules:
       - path: '_test\.go'
         linters: [bodyclose, dupl, errcheck, funlen, goconst, gosec, noctx, wrapcheck, gocognit, mnd]
+      # синтетика: числа тут и есть данные (суммы, доли, координаты вёрстки),
+      # а math/rand/v2 с seed от ИНН нужен ради воспроизводимости
+      - path: 'internal/(mocks|docgen)/'
+        linters: [mnd]
+      - path: 'internal/(mocks|docgen)/'
+        text: G404
+        linters: [gosec]
