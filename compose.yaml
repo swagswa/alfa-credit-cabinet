@@ -31,6 +31,18 @@ services:
       timeout: 3s
       retries: 30
 
+  redis:
+    image: redis:8.6.0-alpine
+    # AOF: рестарт стенда не должен разлогинивать всех
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   temporal-setup:
     image: temporalio/admin-tools:1.32.1
     environment:
@@ -100,6 +112,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
       AI_ENABLED: ${AI_ENABLED:-false}
       SEED_DEMO: ${SEED_DEMO:-true}
+      REDIS_ADDR: redis:6379
+      # стенд по http: с Secure браузер cookie не сохранит; за https включить
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       EGRUL_URL: http://mocks:8081
     ports:
       - "8080:8080"
@@ -110,6 +125,8 @@ services:
       retries: 20
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       temporal-namespace:
         condition: service_completed_successfully
@@ -190,4 +207,5 @@ services:
 
 volumes:
   db:
+  redis:
   ollama:

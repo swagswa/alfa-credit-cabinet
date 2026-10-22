@@ -10,6 +10,7 @@ import (
 
 	"github.com/swagswa/alfa-credit-cabinet/pkg/httpserver"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/redisdb"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 )
 
@@ -52,6 +53,23 @@ func (h HTTP) Server() httpserver.Config {
 	}
 }
 
+type Redis struct {
+	Addr     string `env:"REDIS_ADDR"     envDefault:"localhost:6379"`
+	Password string `env:"REDIS_PASSWORD"`
+}
+
+func (r Redis) Client() redisdb.Config {
+	return redisdb.Config{Addr: r.Addr, Password: r.Password}
+}
+
+// Auth настраивает cookie сессии и лимит попыток входа по IP.
+type Auth struct {
+	// CookieSecure выключаем только для стенда по http, иначе браузер не сохранит cookie
+	CookieSecure  bool          `env:"COOKIE_SECURE"  envDefault:"true"`
+	LoginAttempts int64         `env:"LOGIN_ATTEMPTS" envDefault:"10"`
+	LoginWindow   time.Duration `env:"LOGIN_WINDOW"   envDefault:"1m"`
+}
+
 type JWT struct {
 	Secret string        `env:"JWT_SECRET,required"`
 	TTL    time.Duration `env:"JWT_TTL"             envDefault:"12h"`
@@ -69,6 +87,8 @@ type API struct {
 	Temporal
 	HTTP
 	JWT
+	Redis
+	Auth
 	Sources
 
 	// RulesDir относительно рабочей папки: в образе /app/rules, локально rules в корне репо

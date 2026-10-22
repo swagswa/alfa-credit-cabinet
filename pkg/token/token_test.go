@@ -12,13 +12,12 @@ func TestIssuer(t *testing.T) {
 	iss := New("secret", time.Hour)
 	iss.now = func() time.Time { return now }
 
-	raw, err := iss.Issue("u1", "client")
+	raw, err := iss.Issue("s1")
 	require.NoError(t, err)
 
-	c, err := iss.Parse(raw)
+	sid, err := iss.Parse(raw)
 	require.NoError(t, err)
-	require.Equal(t, "u1", c.Subject)
-	require.Equal(t, "client", c.Role)
+	require.Equal(t, "s1", sid)
 
 	tests := []struct {
 		name string

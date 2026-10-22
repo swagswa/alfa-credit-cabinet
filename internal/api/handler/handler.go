@@ -5,6 +5,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -16,12 +17,34 @@ type Handler struct {
 	health    usecase.HealthUseCase
 	products  usecase.ProductUseCase
 	companies usecase.CompanyUseCase
+	auth      usecase.AuthUseCase
+
+	sessionTTL   time.Duration
+	cookieSecure bool
 }
 
 var _ oapi.StrictServerInterface = (*Handler)(nil)
 
-func New(health usecase.HealthUseCase, products usecase.ProductUseCase, companies usecase.CompanyUseCase) *Handler {
-	return &Handler{health: health, products: products, companies: companies}
+type Deps struct {
+	Health    usecase.HealthUseCase
+	Products  usecase.ProductUseCase
+	Companies usecase.CompanyUseCase
+	Auth      usecase.AuthUseCase
+
+	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
+	SessionTTL   time.Duration
+	CookieSecure bool
+}
+
+func New(d Deps) *Handler {
+	return &Handler{
+		health:       d.Health,
+		products:     d.Products,
+		companies:    d.Companies,
+		auth:         d.Auth,
+		sessionTTL:   d.SessionTTL,
+		cookieSecure: d.CookieSecure,
+	}
 }
 
 func (h *Handler) Health(ctx context.Context, _ oapi.HealthRequestObject) (oapi.HealthResponseObject, error) {

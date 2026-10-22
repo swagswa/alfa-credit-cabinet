@@ -13,4 +13,7 @@ var (
 	ErrInvalid = errors.New("неверные данные")
 	// ErrUnavailable: внешний источник не ответил или ответил 5xx
 	ErrUnavailable = errors.New("source unavailable")
+	// ErrUnauthorized: нет действующей сессии или неверный логин и пароль, без уточнения, что именно
+	ErrUnauthorized    = errors.New("unauthorized")
+	ErrTooManyRequests = errors.New("too many requests")
 )

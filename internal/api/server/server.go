@@ -15,7 +15,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/middleware"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
-	"github.com/swagswa/alfa-credit-cabinet/pkg/token"
+	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 )
 
 const basePath = "/api"
@@ -23,7 +23,7 @@ const basePath = "/api"
 type Deps struct {
 	Log     *zap.Logger
 	Handler *handler.Handler
-	Tokens  *token.Issuer
+	Auth    usecase.AuthUseCase
 	RBAC    *rbac.Enforcer
 	// CORSOrigin задаётся только для dev-сервера Vite
 	CORSOrigin string
@@ -39,19 +39,25 @@ func New(d Deps) (*echo.Echo, error) {
 	e.HideBanner = true
 	e.HidePort = true
 	e.HTTPErrorHandler = errorHandler(d.Log)
+	// перед api стоит nginx, адрес клиента берём из X-Forwarded-For, но верим
+	// ему только от приватных сетей, иначе лимит попыток входа обходится заголовком
+	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
 	e.Use(echomw.Recover(), echomw.RequestID(), requestLogger(d.Log))
 	if d.CORSOrigin != "" {
 		e.Use(echomw.CORSWithConfig(echomw.CORSConfig{AllowOrigins: []string{d.CORSOrigin}, AllowCredentials: true}))
 	}
 
+	// Prefix у валидатора не берём: в echo-middleware 1.1.0 он валидирует клон
+	// запроса, вычитывает тело клона, а хендлеру достаётся пустое (на любом POST
+	// с телом 400 EOF). Путь /api сопоставляется через servers из самой спеки,
+	// сервер там относительный, хост не проверяется.
 	validate := oapimw.OapiRequestValidatorWithOptions(spec, &oapimw.Options{
-		Prefix:               basePath,
-		DoNotValidateServers: true,
+		SilenceServersWarning: true,
 		// права проверяет Auth, валидатору остаются только схемы
 		Options: openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
 	})
-	api := e.Group(basePath, middleware.Auth(d.Tokens, d.RBAC), validate)
+	api := e.Group(basePath, middleware.Auth(d.Auth, d.RBAC), validate)
 	oapi.RegisterHandlers(api, oapi.NewStrictHandler(d.Handler, nil))
 	api.GET("/events", d.Handler.Events)
 

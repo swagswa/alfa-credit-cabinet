@@ -48,7 +48,7 @@ func (h *Handler) RecommendProducts(
 	}
 	offers, err := h.products.Recommend(q)
 	if err != nil {
-		return nil, err //nolint:wrapcheck // в HTTP переводит errorHandler
+		return nil, err
 	}
 	res := oapi.RecommendProducts200JSONResponse{
 		Goal:  req.Params.Goal,

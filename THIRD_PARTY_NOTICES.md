@@ -15,6 +15,8 @@
 | go.temporal.io/sdk | 1.50.0 | MIT |
 | github.com/casbin/casbin/v3 | 3.10.0 | Apache-2.0 |
 | github.com/golang-jwt/jwt/v5 | 5.3.1 | MIT |
+| github.com/redis/go-redis/v9 | 9.23.0 | BSD-2-Clause |
+| golang.org/x/crypto (bcrypt) | 0.58.0 | BSD-3-Clause |
 | github.com/caarlos0/env/v11 | 11.4.1 | MIT |
 | go.uber.org/zap | 1.28.0 | MIT |
 | github.com/google/uuid | 1.6.0 | BSD-3-Clause |
@@ -23,7 +25,7 @@
 | codeberg.org/go-pdf/fpdf | 0.12.0 | MIT |
 | golang.org/x/image | 0.47.0 | BSD-3-Clause |
 
-Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go 0.44.0 (MIT), github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e (BSD-3-Clause, пока только в тестах генератора документов), golangci-lint (GPL-3.0).
+Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go и модули postgres и redis 0.44.0 (MIT), github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e (BSD-3-Clause, пока только в тестах генератора документов), golangci-lint (GPL-3.0).
 
 Синтетические документы (`internal/docgen`) набраны шрифтом PT Sans (ParaType, OFL-1.1), файлы шрифта и текст лицензии лежат в `internal/docgen/fonts`.
 
@@ -45,6 +47,7 @@
 | Компонент | Версия | Лицензия |
 |---|---|---|
 | PostgreSQL | 18.6 | PostgreSQL License |
+| Redis | 8.6.0 | AGPL-3.0 (из тройной лицензии RSALv2 / SSPLv1 / AGPLv3 выбрана AGPLv3; официальный образ без изменений, отдельный процесс) |
 | Temporal server, admin-tools | 1.32.1 | MIT |
 | Temporal UI | 2.56.0 | MIT |
 | Swagger UI | 5.34.0 | Apache-2.0 |

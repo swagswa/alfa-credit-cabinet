@@ -14,7 +14,7 @@ func (h *Handler) LookupCompany(
 ) (oapi.LookupCompanyResponseObject, error) {
 	c, err := h.companies.Lookup(ctx, req.Inn)
 	if err != nil {
-		return nil, err //nolint:wrapcheck // в HTTP переводит errorHandler
+		return nil, err
 	}
 	res := oapi.LookupCompany200JSONResponse{
 		Inn:          c.INN,

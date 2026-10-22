@@ -30,5 +30,5 @@ func (u *companyUseCase) Lookup(ctx context.Context, inn string) (domain.Company
 	if !domain.ValidINN(inn) {
 		return domain.Company{}, fmt.Errorf("%w: ИНН %s не проходит проверку контрольных цифр", domain.ErrInvalid, inn)
 	}
-	return u.egrul.Company(ctx, inn) //nolint:wrapcheck // клиент уже добавил контекст
+	return u.egrul.Company(ctx, inn)
 }

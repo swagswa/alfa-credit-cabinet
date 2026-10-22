@@ -47,6 +47,10 @@ func problem(err error) oapi.Problem {
 		return newProblem(http.StatusConflict, oapi.ProblemCodeVersionConflict, err.Error())
 	case errors.Is(err, domain.ErrInvalid):
 		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation, err.Error())
+	case errors.Is(err, domain.ErrUnauthorized):
+		return newProblem(http.StatusUnauthorized, oapi.ProblemCodeUnauthorized, "")
+	case errors.Is(err, domain.ErrTooManyRequests):
+		return newProblem(http.StatusTooManyRequests, oapi.ProblemCodeTooManyRequests, "")
 	case errors.Is(err, domain.ErrUnavailable):
 		// причину сбоя источника клиенту не показываем, она в логе
 		return newProblem(http.StatusServiceUnavailable, oapi.ProblemCodeUnavailable, "")
@@ -75,6 +79,8 @@ func codeOf(status int) oapi.ProblemCode {
 		return oapi.ProblemCodeNotFound
 	case http.StatusRequestEntityTooLarge:
 		return oapi.ProblemCodeTooLarge
+	case http.StatusTooManyRequests:
+		return oapi.ProblemCodeTooManyRequests
 	case http.StatusServiceUnavailable:
 		return oapi.ProblemCodeUnavailable
 	}
