@@ -176,6 +176,9 @@ func TestServer(t *testing.T) {
 		{name: "инн с неверной контрольной", method: "GET", path: "/api/companies/0000100013", session: client,
 			status: 400},
 		{name: "источник лежит", method: "GET", path: "/api/companies/0000500010", session: client, status: 503},
+		{name: "события без сессии", method: "GET", path: "/api/events", status: 401},
+		// валидатор на /events пропущен, параметр проверяет хендлер
+		{name: "события с битым id", method: "GET", path: "/api/events?application_id=1", session: client, status: 400},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

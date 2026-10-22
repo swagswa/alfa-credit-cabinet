@@ -103,3 +103,12 @@ type Move struct {
 	// DueAt срок нового шага, его считает workflow вместе с таймером. nil снимает срок.
 	DueAt *time.Time
 }
+
+// Event это уведомление об изменении заявки для SSE. Теги под payload
+// pg_notify из queries/applications.sql, Postgres шлёт его после коммита.
+type Event struct {
+	ApplicationID uuid.UUID `json:"application_id"`
+	CompanyID     uuid.UUID `json:"company_id"`
+	Status        Status    `json:"status"`
+	Version       int       `json:"version"`
+}

@@ -54,6 +54,9 @@ func New(d Deps) (*echo.Echo, error) {
 	// сервер там относительный, хост не проверяется.
 	validate := oapimw.OapiRequestValidatorWithOptions(spec, &oapimw.Options{
 		SilenceServersWarning: true,
+		// исключённую из генерации операцию генератор вырезает и из встроенной
+		// спеки, валидатор отвечал бы на SSE 405. Параметр проверяет сам хендлер
+		Skipper: func(c echo.Context) bool { return c.Path() == basePath+"/events" },
 		// права проверяет Auth, валидатору остаются только схемы
 		Options: openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
 	})

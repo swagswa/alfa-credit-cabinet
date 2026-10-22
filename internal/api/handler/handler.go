@@ -19,6 +19,7 @@ type Handler struct {
 	companies usecase.CompanyUseCase
 	apps      usecase.ApplicationUseCase
 	auth      usecase.AuthUseCase
+	events    usecase.EventUseCase
 
 	sessionTTL   time.Duration
 	cookieSecure bool
@@ -32,6 +33,7 @@ type Deps struct {
 	Companies    usecase.CompanyUseCase
 	Applications usecase.ApplicationUseCase
 	Auth         usecase.AuthUseCase
+	Events       usecase.EventUseCase
 
 	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
 	SessionTTL   time.Duration
@@ -45,6 +47,7 @@ func New(d Deps) *Handler {
 		companies:    d.Companies,
 		apps:         d.Applications,
 		auth:         d.Auth,
+		events:       d.Events,
 		sessionTTL:   d.SessionTTL,
 		cookieSecure: d.CookieSecure,
 	}
@@ -63,11 +66,6 @@ func (h *Handler) Health(ctx context.Context, _ oapi.HealthRequestObject) (oapi.
 		return oapi.Health503JSONResponse(res), nil
 	}
 	return oapi.Health200JSONResponse(res), nil
-}
-
-// Events отдаёт живые события по SSE, он вне strict server.
-func (h *Handler) Events(echo.Context) error {
-	return errNotImplemented
 }
 
 var errNotImplemented = echo.NewHTTPError(http.StatusNotImplemented)
