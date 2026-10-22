@@ -37,6 +37,9 @@ func TestAllowed(t *testing.T) {
 		// очередь банка откроется отдельно, пока сотрудник заявок не видит
 		{"manager", "/api/applications", "GET", false},
 		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41", "PATCH", false},
+		{rbac.Anonymous, "/api/events", "GET", false},
+		{"client", "/api/events", "GET", true},
+		{"underwriter", "/api/events", "GET", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {

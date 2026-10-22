@@ -51,16 +51,18 @@ func main() {
 	health := usecase.NewHealth(map[string]usecase.Check{"db": db.Ping, "temporal": tc.Ping, "redis": rdb.Check})
 	tokens := token.New(cfg.Secret, cfg.TTL)
 	limit := usecase.LoginLimit{Attempts: cfg.LoginAttempts, Window: cfg.LoginWindow}
-	auth := usecase.NewAuth(repo.NewUser(dbq.New(db)), repo.NewSession(rdb), tokens, limit)
+	users := repo.NewUser(dbq.New(db))
+	auth := usecase.NewAuth(users, repo.NewSession(rdb), tokens, limit)
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc)
+	events := repo.NewEvent(lg.Zap, db)
 
-	e, err := newServer(&cfg, lg.Zap, health, auth, companies, apps)
+	e, err := newServer(&cfg, lg.Zap, health, auth, companies, apps, usecase.NewEvent(events, users))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
 
-	err = svc.Run(ctx, lg.Zap, lg, db, rdb, tc, httpserver.New("http", cfg.Server(), e))
+	err = svc.Run(ctx, lg.Zap, lg, db, rdb, tc, events, httpserver.New("http", cfg.Server(), e))
 	if err != nil {
 		lg.Zap.Fatal("api stopped", zap.Error(err))
 	}
@@ -73,6 +75,7 @@ func newServer(
 	auth usecase.AuthUseCase,
 	companies usecase.CompanyUseCase,
 	apps usecase.ApplicationUseCase,
+	events usecase.EventUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -92,6 +95,7 @@ func newServer(
 			Companies:    companies,
 			Applications: apps,
 			Auth:         auth,
+			Events:       events,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,
 		}),

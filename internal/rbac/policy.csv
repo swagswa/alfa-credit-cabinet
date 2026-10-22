@@ -15,6 +15,8 @@ p, anonymous, /api/samples/:inn, GET
 p, user, /api/me, GET
 p, user, /api/logout, POST
 p, user, /api/products, GET
+# что кому видно в потоке, решает usecase: клиенту только свои компании
+p, user, /api/events, GET
 
 p, client, /api/products/recommendation, GET
 p, client, /api/companies/:inn, GET
