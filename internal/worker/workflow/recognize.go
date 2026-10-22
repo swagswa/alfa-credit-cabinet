@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	// модель на CPU, первый запрос ещё и грузит её в память
-	recognizeTimeout  = 180 * time.Second
+	// на CPU выписка идёт 1-2 минуты (docs/ai-eval.md), первый запрос ещё и
+	// грузит модель; OLLAMA_TIMEOUT в docs-worker должен быть меньше
+	recognizeTimeout  = 300 * time.Second
 	recognizeRetry    = 5 * time.Second
 	recognizeAttempts = 2
 )

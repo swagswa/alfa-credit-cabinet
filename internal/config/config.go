@@ -122,7 +122,7 @@ type Recognition struct {
 	OCRTimeout    time.Duration `env:"OCR_TIMEOUT"    envDefault:"30s"`
 	OllamaURL     string        `env:"OLLAMA_URL"     envDefault:"http://localhost:11434"`
 	OllamaModel   string        `env:"OLLAMA_MODEL"   envDefault:"qwen3:4b-instruct-2507-q4_K_M"`
-	OllamaTimeout time.Duration `env:"OLLAMA_TIMEOUT" envDefault:"150s"`
+	OllamaTimeout time.Duration `env:"OLLAMA_TIMEOUT" envDefault:"240s"`
 }
 
 type Mocks struct {
