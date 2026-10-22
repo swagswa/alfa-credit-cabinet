@@ -75,6 +75,17 @@ type DocValues struct {
 	Financials *Financials `json:"financials,omitempty"`
 }
 
+// Check проверяет заполненный блок, пустые значения проверять нечего.
+func (v DocValues) Check(inn string, today time.Time) []FieldError {
+	switch {
+	case v.Statement != nil:
+		return v.Statement.Check(inn, today)
+	case v.Financials != nil:
+		return v.Financials.Check(inn, today)
+	}
+	return nil
+}
+
 type FieldError struct {
 	Field   string `json:"field"`
 	Message string `json:"message"`
@@ -89,6 +100,7 @@ type Recognition struct {
 	Problems []FieldError
 	Model    string
 	Digest   string
+	Version  string // версия промпта, схемы и предобработки
 	Took     time.Duration
 }
 
