@@ -2,9 +2,11 @@ package ocr_test
 
 import (
 	"cmp"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,13 @@ import (
 
 func TestText(t *testing.T) {
 	bin, err := exec.LookPath(cmp.Or(os.Getenv("TESSERACT_PATH"), "tesseract"))
+	if err == nil {
+		// без rus tesseract не падает, а молча читает кириллицу латиницей
+		langs, _ := exec.Command(bin, "--list-langs").Output()
+		if !strings.Contains(string(langs), "rus") {
+			err = errors.New("нет языка rus, проверь TESSDATA_PREFIX")
+		}
+	}
 	tests := []struct {
 		file   string
 		source domain.TextSource
