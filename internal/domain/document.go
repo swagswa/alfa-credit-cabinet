@@ -112,7 +112,7 @@ const (
 	maxReportAge = 2
 )
 
-// Check сверяет выписку с заявкой и саму с собой (06 раздел 8.1).
+// Check сверяет выписку с заявкой и саму с собой.
 func (s *Statement) Check(inn string, today time.Time) []FieldError {
 	var errs problems
 	add := errs.add

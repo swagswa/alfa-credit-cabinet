@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	kopInRub     = 100
 	bpInOne      = 10_000
 	monthsInYear = 12
 )
@@ -78,7 +77,7 @@ func (q RecommendQuery) holds(c *domain.Condition) bool {
 	case domain.InputTermMonths:
 		v = float64(q.TermMonths)
 	case domain.InputAmountRub:
-		v = float64(q.AmountKop) / kopInRub
+		v = float64(q.AmountKop) / domain.KopInRub
 	case domain.InputAmountToIncome:
 		if q.MonthlyRevenueKop <= 0 {
 			return true

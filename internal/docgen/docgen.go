@@ -96,7 +96,7 @@ func inflate(c synth.Company) synth.Company {
 }
 
 // Statement и Financials повторяют JSON-схемы, по которым модель отдаёт поля
-// (06 раздел 8.1): суммы в рублях с копейками.
+// (internal/integration/ollama/schema): суммы в рублях с копейками.
 type Statement struct {
 	INN            string        `json:"inn"`
 	PeriodFrom     string        `json:"period_from"`
@@ -154,13 +154,24 @@ func financialsTruth(c synth.Company) Financials {
 // Rub хранит копейки, в JSON пишется рублями с двумя знаками: 1234.50
 type Rub int64
 
-func (r Rub) MarshalJSON() ([]byte, error) {
+// Text пишет рубли с разделителем тысяч sep и копейками после dec,
+// пустой dec значит целые рубли. Знак отдельно, иначе -0,50 теряет минус.
+func (r Rub) Text(sep, dec string) string {
 	sign := ""
 	if r < 0 {
 		sign, r = "-", -r
 	}
-	return fmt.Appendf(nil, "%s%d.%02d", sign, r/100, r%100), nil
+	s := strconv.FormatInt(int64(r/100), 10)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + sep + s[i:]
+	}
+	if dec == "" {
+		return sign + s
+	}
+	return fmt.Sprintf("%s%s%s%02d", sign, s, dec, r%100)
 }
+
+func (r Rub) MarshalJSON() ([]byte, error) { return []byte(r.Text("", ".")), nil }
 
 func (r *Rub) UnmarshalJSON(b []byte) error {
 	s := string(b)

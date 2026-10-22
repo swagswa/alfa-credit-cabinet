@@ -2,16 +2,13 @@ package docgen
 
 import (
 	"bytes"
-	"crypto/sha256"
 	_ "embed"
-	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/png"
 	"math"
-	"math/rand/v2"
 	"time"
 
 	"codeberg.org/go-pdf/fpdf"
@@ -20,6 +17,8 @@ import (
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/image/math/fixed"
+
+	"github.com/swagswa/alfa-credit-cabinet/internal/mocks/synth"
 )
 
 var (
@@ -84,8 +83,7 @@ func scan(p page, seed string, asPDF bool) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := sha256.Sum256([]byte(seed))
-	rng := rand.New(rand.NewPCG(binary.BigEndian.Uint64(h[:8]), binary.BigEndian.Uint64(h[8:16])))
+	rng := synth.RNG(seed)
 
 	b := src.Bounds()
 	img := image.NewGray(b)

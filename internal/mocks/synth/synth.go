@@ -69,7 +69,7 @@ type profile struct {
 	cv    float64
 }
 
-// demo это компании из 06 раздел 6.5, остальные цифры у них тоже из seed.
+// demo это компании тестовых учёток из README, профиль задан руками, остальные цифры тоже из seed.
 func demo(inn string) (profile, bool) {
 	p, ok := map[string]profile{
 		"0000100012":   {"ООО «Кофейня на Садовой»", 1_200_000, 1.05, 0.25},
@@ -85,8 +85,7 @@ func New(inn string) (Company, error) {
 	if !domain.ValidINN(inn) {
 		return Company{}, fmt.Errorf("инн %q: неверная длина или контрольные цифры", inn)
 	}
-	h := sha256.Sum256([]byte(inn + Version))
-	rng := rand.New(rand.NewPCG(binary.BigEndian.Uint64(h[:8]), binary.BigEndian.Uint64(h[8:16])))
+	rng := RNG(inn + Version)
 	q := rng.Float64() // скрытое качество компании, от него коррелированно всё остальное
 
 	p, ok := demo(inn)
@@ -104,16 +103,22 @@ func New(inn string) (Company, error) {
 	for i, v := range series(rng, p) {
 		in := rub(p.avg * v)
 		// списываем 93-100% поступившего, остаток на счёте не уходит в минус
-		out := kop(float64(in) / 100 * (0.93 + 0.07*rng.Float64()))
+		out := kop(float64(in) / domain.KopInRub * (0.93 + 0.07*rng.Float64()))
 		c.Months = append(c.Months, Month{start.AddDate(0, i, 0), in, out})
 	}
 
-	revenue := float64(c.Income() / 100)
+	revenue := float64(c.Income() / domain.KopInRub)
 	c.NetProfit = rub(revenue * (0.15*q - 0.03))
 	c.LiabilitiesShort = rub(revenue * (0.08 + 0.1*rng.Float64()))
 	c.LiabilitiesLong = rub(revenue * 0.3 * (1 - q) * rng.Float64())
-	c.BalanceTotal = rub(float64(c.LiabilitiesShort+c.LiabilitiesLong) / 100 / (0.4 + 0.4*q))
+	c.BalanceTotal = rub(float64(c.LiabilitiesShort+c.LiabilitiesLong) / domain.KopInRub / (0.4 + 0.4*q))
 	return c, nil
+}
+
+// RNG даёт генератор от строки: тот же seed, те же числа при каждом запуске
+func RNG(seed string) *rand.Rand {
+	h := sha256.Sum256([]byte(seed))
+	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(h[:8]), binary.BigEndian.Uint64(h[8:16])))
 }
 
 // series даёт 12 множителей к средней выручке: среднее 1, отношение второго
@@ -162,9 +167,8 @@ func name(rng *rand.Rand, ip bool) string {
 	return "ООО «" + a[rng.IntN(len(a))] + " " + b[rng.IntN(len(b))] + "»"
 }
 
-// rub округляет до целых рублей и переводит в копейки
-func rub(x float64) int64 { return int64(math.Round(x)) * 100 }
-
-func kop(x float64) int64 { return int64(math.Round(x * 100)) }
+// kop переводит рубли в копейки, rub ещё и округляет до целых рублей
+func kop(x float64) int64 { return int64(math.Round(x * domain.KopInRub)) }
+func rub(x float64) int64 { return kop(math.Round(x)) }
 
 func clamp(x, lo, hi float64) float64 { return math.Min(hi, math.Max(lo, x)) }

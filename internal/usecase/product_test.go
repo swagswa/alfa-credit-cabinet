@@ -10,8 +10,6 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 )
 
-const rub = 100
-
 func products(t *testing.T) usecase.ProductUseCase {
 	t.Helper()
 	c, err := rules.Products("../../rules/products.yaml")
@@ -19,7 +17,7 @@ func products(t *testing.T) usecase.ProductUseCase {
 	return usecase.NewProduct(c)
 }
 
-// строки таблицы подбора из модели процесса, раздел 3
+// строки таблицы подбора goals из rules/products.yaml
 func TestRecommendPicks(t *testing.T) {
 	uc := products(t)
 	wc, od, eq := domain.WorkingCapital, domain.Overdraft, domain.Equipment
@@ -120,8 +118,8 @@ func TestRecommendInvalid(t *testing.T) {
 func q(g domain.Goal, amountRub int64, term int, revenueRub int64) usecase.RecommendQuery {
 	return usecase.RecommendQuery{
 		Goal:              g,
-		AmountKop:         amountRub * rub,
+		AmountKop:         amountRub * domain.KopInRub,
 		TermMonths:        term,
-		MonthlyRevenueKop: revenueRub * rub,
+		MonthlyRevenueKop: revenueRub * domain.KopInRub,
 	}
 }
