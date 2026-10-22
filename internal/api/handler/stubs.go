@@ -102,13 +102,6 @@ func (h *Handler) SubmitApplication(
 	return nil, errNotImplemented
 }
 
-func (h *Handler) LookupCompany(
-	context.Context,
-	oapi.LookupCompanyRequestObject,
-) (oapi.LookupCompanyResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) GetDocument(context.Context, oapi.GetDocumentRequestObject) (oapi.GetDocumentResponseObject, error) {
 	return nil, errNotImplemented
 }
@@ -140,20 +133,6 @@ func (h *Handler) Logout(context.Context, oapi.LogoutRequestObject) (oapi.Logout
 }
 
 func (h *Handler) Me(context.Context, oapi.MeRequestObject) (oapi.MeResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) ListProducts(
-	context.Context,
-	oapi.ListProductsRequestObject,
-) (oapi.ListProductsResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) RecommendProducts(
-	context.Context,
-	oapi.RecommendProductsRequestObject,
-) (oapi.RecommendProductsResponseObject, error) {
 	return nil, errNotImplemented
 }
 
