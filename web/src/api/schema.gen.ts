@@ -1639,7 +1639,8 @@ export interface operations {
                 status?: components["schemas"]["ApplicationStatus"][];
                 grade?: components["schemas"]["Grade"][];
                 product?: components["schemas"]["ProductCode"];
-                sort?: "created_at" | "-created_at" | "updated_at" | "-updated_at" | "amount_kop" | "-amount_kop" | "due_at";
+                /** @description Минус значит по убыванию. due_at ставит ближайший срок сверху, score рискованные сверху; без срока и без балла в конце */
+                sort?: "created_at" | "-created_at" | "updated_at" | "-updated_at" | "amount_kop" | "-amount_kop" | "due_at" | "score" | "-score";
                 limit?: number;
                 offset?: number;
             };
