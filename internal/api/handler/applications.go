@@ -29,6 +29,7 @@ func (h *Handler) CreateApplication(
 	set(&d.MonthlyRevenueKop, b.MonthlyRevenueKop)
 	set(&d.EquipmentCostKop, b.EquipmentCostKop)
 	set(&d.BKIConsent, b.BkiConsent)
+	set(&d.PDConsent, b.PdConsent)
 	set(&d.Comment, b.Comment)
 	app, err := h.apps.Create(ctx, a, req.Params.IdempotencyKey, b.Inn, d)
 	if err != nil {
@@ -110,6 +111,7 @@ func (h *Handler) UpdateApplication(
 		set(&d.MonthlyRevenueKop, b.MonthlyRevenueKop)
 		set(&d.EquipmentCostKop, b.EquipmentCostKop)
 		set(&d.BKIConsent, b.BkiConsent)
+		set(&d.PDConsent, b.PdConsent)
 		set(&d.Comment, b.Comment)
 	})
 	if err != nil {
@@ -171,6 +173,7 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		MonthlyRevenueKop:  opt(app.MonthlyRevenueKop),
 		EquipmentCostKop:   opt(app.EquipmentCostKop),
 		BkiConsent:         app.BKIConsent,
+		PdConsent:          app.PDConsent,
 		Comment:            opt(app.Comment),
 		Score:              app.Score,
 		DueAt:              app.DueAt,

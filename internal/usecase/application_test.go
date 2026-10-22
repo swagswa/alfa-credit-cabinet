@@ -55,10 +55,10 @@ func (e *appEnv) app(status domain.Status) uuid.UUID {
 	var id uuid.UUID
 	err := e.pool.QueryRow(e.t.Context(), `
 		INSERT INTO applications (company_id, created_by, idempotency_key, status, product, purpose,
-			amount_kop, term_months, bki_consent_at, submitted_at,
+			amount_kop, term_months, bki_consent_at, pd_consent_at, submitted_at,
 			offer_product, offer_amount_kop, offer_term_months, offer_rate_bp)
 		SELECT m.company_id, m.user_id, gen_random_uuid()::text, $1, 'working_capital', 'purchase',
-			100000000, 12, now(), CASE WHEN $1 <> 'draft' THEN now() END,
+			100000000, 12, now(), now(), CASE WHEN $1 <> 'draft' THEN now() END,
 			'working_capital', 100000000, 12, 1800
 		FROM company_members m WHERE m.user_id = $2
 		RETURNING id`, status, e.client.ID).Scan(&id)
@@ -108,7 +108,8 @@ func TestTransition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			id := e.app(tt.from)
 			if tt.noConsent {
-				_, err := e.pool.Exec(t.Context(), "UPDATE applications SET bki_consent_at = NULL WHERE id = $1", id)
+				_, err := e.pool.Exec(t.Context(),
+					"UPDATE applications SET bki_consent_at = NULL, pd_consent_at = NULL WHERE id = $1", id)
 				require.NoError(t, err)
 			}
 			err := e.uc.Transition(t.Context(), id, tt.m)

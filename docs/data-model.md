@@ -59,6 +59,7 @@ erDiagram
         bigint monthly_revenue_kop
         bigint equipment_cost_kop
         timestamptz bki_consent_at
+        timestamptz pd_consent_at
         text comment
         text offer_product
         bigint offer_amount_kop
