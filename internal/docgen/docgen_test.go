@@ -64,7 +64,7 @@ func TestStatement(t *testing.T) {
 			require.Equal(t, s.ClosingBalance, s.OpeningBalance+s.TurnoverIn-s.TurnoverOut)
 			require.InDelta(t, tt.in*100, int64(s.TurnoverIn), 18*100)
 
-			// сверка с ФНС как в 06 раздел 8.5: у честной выписки совпадает, у ловушки нет
+			// сверка с выручкой в ФНС: у честной выписки совпадает, у ловушки нет
 			c, err := synth.New(tt.doc.INN)
 			require.NoError(t, err)
 			require.InDelta(t, tt.ratio, float64(s.TurnoverIn)/float64(c.Income()), 0.001)

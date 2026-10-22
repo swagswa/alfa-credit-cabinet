@@ -69,7 +69,7 @@ type profile struct {
 	cv    float64
 }
 
-// demo это компании из 06 раздел 6.5, остальные цифры у них тоже из seed.
+// demo это компании тестовых учёток из README, профиль задан руками, остальные цифры тоже из seed.
 func demo(inn string) (profile, bool) {
 	p, ok := map[string]profile{
 		"0000100012":   {"ООО «Кофейня на Садовой»", 1_200_000, 1.05, 0.25},

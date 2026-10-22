@@ -17,7 +17,7 @@ func products(t *testing.T) usecase.ProductUseCase {
 	return usecase.NewProduct(c)
 }
 
-// строки таблицы подбора из модели процесса, раздел 3
+// строки таблицы подбора goals из rules/products.yaml
 func TestRecommendPicks(t *testing.T) {
 	uc := products(t)
 	wc, od, eq := domain.WorkingCapital, domain.Overdraft, domain.Equipment

@@ -96,7 +96,7 @@ func inflate(c synth.Company) synth.Company {
 }
 
 // Statement и Financials повторяют JSON-схемы, по которым модель отдаёт поля
-// (06 раздел 8.1): суммы в рублях с копейками.
+// (internal/integration/ollama/schema): суммы в рублях с копейками.
 type Statement struct {
 	INN            string        `json:"inn"`
 	PeriodFrom     string        `json:"period_from"`
