@@ -1,22 +1,20 @@
+# Наследование: вошедший может всё, что аноним (вход, health, примеры документов),
+# у всех вошедших общая роль user, админ может всё, что сотрудники банка.
+g, user, anonymous
+g, client, user
+g, manager, user
+g, underwriter, user
+g, admin, user
+g, admin, manager
+g, admin, underwriter
+
 p, anonymous, /api/login, POST
 p, anonymous, /api/health, GET
 p, anonymous, /api/samples/:inn, GET
 
-p, client, /api/login, POST
-p, client, /api/me, GET
-p, client, /api/logout, POST
-p, client, /api/products, GET
+p, user, /api/me, GET
+p, user, /api/logout, POST
+p, user, /api/products, GET
+
 p, client, /api/products/recommendation, GET
 p, client, /api/companies/:inn, GET
-p, manager, /api/login, POST
-p, manager, /api/me, GET
-p, manager, /api/logout, POST
-p, manager, /api/products, GET
-p, underwriter, /api/login, POST
-p, underwriter, /api/me, GET
-p, underwriter, /api/logout, POST
-p, underwriter, /api/products, GET
-p, admin, /api/login, POST
-p, admin, /api/me, GET
-p, admin, /api/logout, POST
-p, admin, /api/products, GET
