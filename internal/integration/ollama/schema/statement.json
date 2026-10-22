@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "properties": {
+    "inn": {"type": "string"},
+    "period_from": {"type": "string"},
+    "period_to": {"type": "string"},
+    "opening_balance": {"type": "number"},
+    "turnover_in": {"type": "number"},
+    "turnover_out": {"type": "number"},
+    "closing_balance": {"type": "number"},
+    "monthly_in": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "month": {"type": "string"},
+          "amount": {"type": "number"}
+        },
+        "required": ["month", "amount"]
+      }
+    }
+  },
+  "required": ["inn", "period_from", "period_to", "opening_balance", "turnover_in", "turnover_out", "closing_balance", "monthly_in"]
+}

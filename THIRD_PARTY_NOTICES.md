@@ -27,6 +27,7 @@
 | golang.org/x/image | 0.47.0 | BSD-3-Clause |
 | github.com/ledongthuc/pdf | v0.0.0-20261020125853-5e46805f718e | BSD-3-Clause |
 | github.com/pdfcpu/pdfcpu | 0.16.3 | Apache-2.0 |
+| github.com/ollama/ollama (пакет api, клиент) | 0.40.7 | MIT |
 
 Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go и модули postgres и redis 0.44.0 (MIT), golangci-lint (GPL-3.0).
 

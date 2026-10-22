@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "inn": {"type": "string"},
+    "year": {"type": "integer"},
+    "revenue": {"type": "number"},
+    "net_profit": {"type": "number"},
+    "liabilities_long": {"type": "number"},
+    "liabilities_short": {"type": "number"},
+    "balance_total": {"type": "number"}
+  },
+  "required": ["inn", "year", "revenue", "net_profit", "liabilities_long", "liabilities_short", "balance_total"]
+}
