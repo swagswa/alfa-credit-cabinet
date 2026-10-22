@@ -17,6 +17,7 @@ type Handler struct {
 	health    usecase.HealthUseCase
 	products  usecase.ProductUseCase
 	companies usecase.CompanyUseCase
+	apps      usecase.ApplicationUseCase
 	auth      usecase.AuthUseCase
 
 	sessionTTL   time.Duration
@@ -26,10 +27,11 @@ type Handler struct {
 var _ oapi.StrictServerInterface = (*Handler)(nil)
 
 type Deps struct {
-	Health    usecase.HealthUseCase
-	Products  usecase.ProductUseCase
-	Companies usecase.CompanyUseCase
-	Auth      usecase.AuthUseCase
+	Health       usecase.HealthUseCase
+	Products     usecase.ProductUseCase
+	Companies    usecase.CompanyUseCase
+	Applications usecase.ApplicationUseCase
+	Auth         usecase.AuthUseCase
 
 	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
 	SessionTTL   time.Duration
@@ -41,6 +43,7 @@ func New(d Deps) *Handler {
 		health:       d.Health,
 		products:     d.Products,
 		companies:    d.Companies,
+		apps:         d.Applications,
 		auth:         d.Auth,
 		sessionTTL:   d.SessionTTL,
 		cookieSecure: d.CookieSecure,

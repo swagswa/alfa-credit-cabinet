@@ -43,6 +43,8 @@ func problem(err error) oapi.Problem {
 		return newProblem(http.StatusForbidden, oapi.ProblemCodeForbidden, "")
 	case errors.Is(err, domain.ErrIllegalTransition):
 		return newProblem(http.StatusConflict, oapi.ProblemCodeIllegalTransition, err.Error())
+	case errors.Is(err, domain.ErrKeyReused):
+		return newProblem(http.StatusConflict, oapi.ProblemCodeIdempotencyConflict, err.Error())
 	case errors.Is(err, domain.ErrConflict):
 		return newProblem(http.StatusConflict, oapi.ProblemCodeVersionConflict, err.Error())
 	case errors.Is(err, domain.ErrInvalid):

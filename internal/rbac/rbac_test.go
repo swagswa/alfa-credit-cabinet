@@ -31,6 +31,12 @@ func TestAllowed(t *testing.T) {
 		{"admin", "/api/samples/0000100012", "GET", true},
 		{"manager", "/api/companies/0000100012", "GET", false},
 		{"admin", "/api/me", "GET", true},
+		{"client", "/api/applications", "POST", true},
+		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41", "PATCH", true},
+		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/cancel", "POST", true},
+		// очередь банка откроется отдельно, пока сотрудник заявок не видит
+		{"manager", "/api/applications", "GET", false},
+		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41", "PATCH", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {

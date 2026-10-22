@@ -18,3 +18,8 @@ p, user, /api/products, GET
 
 p, client, /api/products/recommendation, GET
 p, client, /api/companies/:inn, GET
+p, client, /api/applications, GET
+p, client, /api/applications, POST
+p, client, /api/applications/:id, GET
+p, client, /api/applications/:id, PATCH
+p, client, /api/applications/:id/cancel, POST
