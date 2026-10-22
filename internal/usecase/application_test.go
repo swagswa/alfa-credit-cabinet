@@ -1,7 +1,10 @@
 package usecase_test
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +19,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/migrations"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/testenv"
 )
 
@@ -34,7 +38,7 @@ func newAppEnv(t *testing.T) *appEnv {
 	e := &appEnv{
 		t:    t,
 		pool: pool,
-		uc:   usecase.NewApplication(&postgres.Client{Pool: pool}, repo.NewApplication(db.New(pool))),
+		uc:   usecase.NewApplication(&postgres.Client{Pool: pool}, repo.NewApplication(db.New(pool)), nil),
 	}
 	e.client = e.user("coffee")
 	return e
@@ -208,4 +212,36 @@ func TestTransitionNotify(t *testing.T) {
 	require.Equal(t, map[string]any{
 		"application_id": id.String(), "company_id": company, "status": "checking", "version": float64(2),
 	}, got)
+}
+
+type fakeWorkflows struct {
+	err  error
+	args []any
+}
+
+func (f *fakeWorkflows) Start(_ context.Context, queue, id, workflow string, args ...any) error {
+	f.args = append([]any{queue, id, workflow}, args...)
+	return f.err
+}
+
+func TestStartProcess(t *testing.T) {
+	id := uuid.New()
+	boom := errors.New("temporal down")
+	tests := []struct {
+		name string
+		err  error
+		want error
+	}{
+		{"запущен", nil, nil},
+		{"повторная подача", fmt.Errorf("wrap: %w", temporalsvc.ErrAlreadyStarted), domain.ErrConflict},
+		{"temporal недоступен", boom, boom},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wf := &fakeWorkflows{err: tt.err}
+			err := usecase.NewApplication(nil, nil, wf).StartProcess(t.Context(), id)
+			require.ErrorIs(t, err, tt.want)
+			require.Equal(t, []any{"credit", id.String(), "ApplicationWorkflow", id}, wf.args)
+		})
+	}
 }
