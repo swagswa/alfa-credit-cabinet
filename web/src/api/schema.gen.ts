@@ -521,7 +521,10 @@ export interface paths {
         };
         /**
          * Лента клиента
-         * @description События заявок компании и подсказки по профилю (отрасль, обороты, госпрограммы). На решение не влияет.
+         * @description Только для клиента. Сначала подсказки по профилю компании (класс ОКВЭД, продукты и обороты в банке,
+         *     состояние последней заявки) из `rules/feed.yaml`, за ними смены статусов заявок компании, новые сверху.
+         *     `limit` на всю ленту. Продукты и обороты берутся из последней проверки данных банка по заявкам компании,
+         *     до первой проверки подсказок по ним нет. На решение по заявке лента не влияет.
          */
         get: operations["listFeed"];
         put?: never;
@@ -1397,25 +1400,30 @@ export interface components {
             confirmed_at?: string;
         };
         FeedItem: {
-            /** @example ev-42 */
+            /**
+             * @description ev-<id журнала> у события, tip-<код подсказки> у подсказки
+             * @example ev-42
+             */
             id: string;
             /**
              * @description event событие заявки, tip подсказка по профилю компании
-             * @example tip
+             * @example event
              * @enum {string}
              */
             kind: "event" | "tip";
-            /** @example Льготный кредит для общепита */
+            /** @example Заявка №12 одобрена */
             title: string;
-            /** @example Для вашей отрасли есть программа 1764 со ставкой «ключевая плюс 3%». На решение по заявке не влияет */
+            /** @example Условия в карточке заявки. Чтобы получить деньги, примите предложение и подпишите договор */
             text: string;
             /**
              * Format: uuid
+             * @description Только у события
              * @example 0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41
              */
             application_id?: string;
             /**
              * Format: date-time
+             * @description У подсказки время запроса
              * @example 2026-10-21T10:02:31Z
              */
             created_at: string;
@@ -2204,7 +2212,7 @@ export interface operations {
     listFeed: {
         parameters: {
             query?: {
-                /** @description Если у пользователя несколько компаний */
+                /** @description Если у пользователя несколько компаний. Без него первая по названию, чужая компания 404 */
                 company_id?: string;
                 limit?: number;
             };
@@ -2214,7 +2222,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Новые сверху */
+            /** @description Подсказки, затем события, новые сверху */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2225,6 +2233,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     streamEvents: {

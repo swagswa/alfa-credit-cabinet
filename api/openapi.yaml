@@ -793,11 +793,15 @@ paths:
       tags: [feed]
       operationId: listFeed
       summary: Лента клиента
-      description: События заявок компании и подсказки по профилю (отрасль, обороты, госпрограммы). На решение не влияет.
+      description: |
+        Только для клиента. Сначала подсказки по профилю компании (класс ОКВЭД, продукты и обороты в банке,
+        состояние последней заявки) из `rules/feed.yaml`, за ними смены статусов заявок компании, новые сверху.
+        `limit` на всю ленту. Продукты и обороты берутся из последней проверки данных банка по заявкам компании,
+        до первой проверки подсказок по ним нет. На решение по заявке лента не влияет.
       parameters:
         - name: company_id
           in: query
-          description: Если у пользователя несколько компаний
+          description: Если у пользователя несколько компаний. Без него первая по названию, чужая компания 404
           schema:
             type: string
             format: uuid
@@ -810,7 +814,7 @@ paths:
             default: 30
       responses:
         '200':
-          description: Новые сверху
+          description: Подсказки, затем события, новые сверху
           content:
             application/json:
               schema:
@@ -820,6 +824,8 @@ paths:
         '400':
           $ref: '#/components/responses/Problem'
         '401':
+          $ref: '#/components/responses/Problem'
+        '404':
           $ref: '#/components/responses/Problem'
 
   /events:
@@ -2064,25 +2070,28 @@ components:
       properties:
         id:
           type: string
+          description: ev-<id журнала> у события, tip-<код подсказки> у подсказки
           example: ev-42
         kind:
           type: string
           description: event событие заявки, tip подсказка по профилю компании
           enum: [event, tip]
-          example: tip
+          example: event
         title:
           type: string
-          example: Льготный кредит для общепита
+          example: Заявка №12 одобрена
         text:
           type: string
-          example: Для вашей отрасли есть программа 1764 со ставкой «ключевая плюс 3%». На решение по заявке не влияет
+          example: Условия в карточке заявки. Чтобы получить деньги, примите предложение и подпишите договор
         application_id:
           type: string
           format: uuid
+          description: Только у события
           example: 0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41
         created_at:
           type: string
           format: date-time
+          description: У подсказки время запроса
           example: '2026-10-21T10:02:31Z'
 
     StreamEvent:

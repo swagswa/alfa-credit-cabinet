@@ -57,6 +57,9 @@ func TestAllowed(t *testing.T) {
 		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/retry-checks", "POST", true},
 		{"underwriter", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/retry-checks", "POST", false},
 		{"admin", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/retry-checks", "POST", true},
+		{"client", "/api/feed", "GET", true},
+		{"manager", "/api/feed", "GET", false},
+		{"admin", "/api/feed", "GET", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {
