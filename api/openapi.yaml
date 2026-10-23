@@ -1050,8 +1050,10 @@ components:
 
     DocumentKind:
       type: string
-      description: statement выписка из другого банка, financials бухотчётность или декларация ИП, tax_receipt квитанция о сдаче декларации
-      enum: [passport, power_of_attorney, statement, financials, supply_contract, tax_receipt]
+      description: |
+        statement выписка из другого банка, financials бухотчётность или декларация ИП, tax_receipt квитанция о сдаче декларации.
+        loan_agreement кредитный договор с графиком, его формирует банк после принятия условий, загрузить нельзя (400).
+      enum: [passport, power_of_attorney, statement, financials, supply_contract, tax_receipt, loan_agreement]
       example: statement
 
     DocumentStatus:
@@ -1869,8 +1871,10 @@ components:
           example: 3
         kind:
           type: string
-          description: escalation это истёк SLA ручного рассмотрения, статус при этом не меняется
-          enum: [transition, escalation, override]
+          description: |
+            escalation это истёк SLA ручного рассмотрения, signing шаг подписания (код выдан, неверный код),
+            статус при них не меняется
+          enum: [transition, escalation, override, signing]
           example: transition
         from_status:
           $ref: '#/components/schemas/ApplicationStatus'

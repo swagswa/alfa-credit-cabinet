@@ -22,4 +22,15 @@ type Deadlines struct {
 	Review time.Duration
 	// Offer сколько ждём, пока клиент примет условия
 	Offer time.Duration
+	// Signing сколько ждём подписи, потом заявка истекает
+	Signing time.Duration
+	// Close через сколько после выдачи заявка закрывается
+	Close time.Duration
+}
+
+// SigningCode это код подписи без самого кода: сверяем по хэшу.
+type SigningCode struct {
+	Hash         []byte
+	AttemptsLeft int
+	ExpiresAt    time.Time
 }

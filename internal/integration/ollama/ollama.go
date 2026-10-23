@@ -100,6 +100,8 @@ func (c *Client) Extract(ctx context.Context, kind domain.DocKind, text string) 
 	}
 
 	var v domain.DocValues
+	// сюда приходят только распознаваемые виды
+	//exhaustive:ignore
 	switch kind {
 	case domain.DocStatement:
 		var s statement

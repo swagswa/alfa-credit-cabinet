@@ -1,0 +1,32 @@
+meta {
+  name: 31 Код подписи
+  type: http
+  seq: 31
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/signing-code
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.attempts_left: eq 3
+}
+
+script:pre-request {
+  await bru.sleep(2000);
+}
+
+script:post-response {
+  bru.setVar("signCode", res.body.code);
+}
+
+docs {
+  SMS в сценарии нет, код приходит в ответе и показывается в кабинете. Новый код заменяет старый. Не в signing: 409.
+}

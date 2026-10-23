@@ -22,6 +22,8 @@ type ApplicationRepository interface {
 	Move(ctx context.Context, app domain.Application, m domain.Move) error
 	// Escalate пишет в журнал, что SLA андеррайтера прошёл. Статус не меняется.
 	Escalate(ctx context.Context, id uuid.UUID) error
+	// Note пишет в журнал шаг подписания, статус не меняется.
+	Note(ctx context.Context, id uuid.UUID, actor domain.Actor, comment string) error
 	// SaveDecision пишет m.Decision, его условия становятся текущими. Звать до Move:
 	// approved без условий база не пропустит.
 	SaveDecision(ctx context.Context, id uuid.UUID, m *domain.Move) error
@@ -111,6 +113,19 @@ func (r *applicationRepo) Move(ctx context.Context, app domain.Application, m do
 func (r *applicationRepo) Escalate(ctx context.Context, id uuid.UUID) error {
 	if err := r.q.AddEscalation(ctx, id); err != nil {
 		return fmt.Errorf("escalate %s: %w", id, err)
+	}
+	return nil
+}
+
+func (r *applicationRepo) Note(ctx context.Context, id uuid.UUID, actor domain.Actor, comment string) error {
+	err := r.q.AddNote(ctx, db.AddNoteParams{
+		ID:        id,
+		ActorID:   pgtype.UUID{Bytes: actor.ID, Valid: actor.ID != uuid.Nil},
+		ActorRole: string(actor.Role),
+		Comment:   text(comment),
+	})
+	if err != nil {
+		return fmt.Errorf("note %s: %w", id, err)
 	}
 	return nil
 }

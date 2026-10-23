@@ -190,6 +190,53 @@ func (h *Handler) SubmitApplication(
 	return oapi.SubmitApplication200JSONResponse(toView(&app, a.Role)), nil
 }
 
+func (h *Handler) AcceptOffer(
+	ctx context.Context,
+	req oapi.AcceptOfferRequestObject,
+) (oapi.AcceptOfferResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = h.issue.Accept(ctx, a, req.Id, req.Body.Version)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.card(ctx, a, req.Id)
+	return oapi.AcceptOffer200JSONResponse(v), err
+}
+
+func (h *Handler) RequestSigningCode(
+	ctx context.Context,
+	req oapi.RequestSigningCodeRequestObject,
+) (oapi.RequestSigningCodeResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	code, c, err := h.issue.RequestCode(ctx, a, req.Id)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.RequestSigningCode200JSONResponse{Code: code, ExpiresAt: c.ExpiresAt, AttemptsLeft: c.AttemptsLeft}, nil
+}
+
+func (h *Handler) SignApplication(
+	ctx context.Context,
+	req oapi.SignApplicationRequestObject,
+) (oapi.SignApplicationResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = h.issue.Sign(ctx, a, req.Id, req.Body.Code)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.card(ctx, a, req.Id)
+	return oapi.SignApplication200JSONResponse(v), err
+}
+
 func (h *Handler) ProvideInfo(
 	ctx context.Context,
 	req oapi.ProvideInfoRequestObject,

@@ -87,6 +87,10 @@ func TestDecision(t *testing.T) {
 			e.expect(domain.StatusChecking, domain.RoleSystem)
 			e.round(nil)
 			e.decides(tt.d)
+			if tt.d.Terms != nil {
+				// условия так и не приняли
+				e.expect(domain.StatusExpired, domain.RoleSystem)
+			}
 
 			e.run()
 			require.NoError(t, e.GetWorkflowError())
@@ -154,6 +158,9 @@ func TestUnderwriter(t *testing.T) {
 			got := e.act(3*time.Minute, usecase.UpdateDecide, tt.act)
 			if tt.want != nil {
 				e.move(tt.want.Outcome, domain.RoleUnderwriter, tt.want, tt.act.Codes...)
+				if tt.want.Terms != nil {
+					e.expect(domain.StatusExpired, domain.RoleSystem)
+				}
 			} else {
 				// SLA прошёл, эскалация, а заявка так и ждёт специалиста
 				e.OnActivity(e.apps.Escalate, mock.Anything, e.id).Return(nil).Once()

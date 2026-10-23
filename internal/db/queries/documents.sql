@@ -1,7 +1,13 @@
 -- name: AddDocument :one
 INSERT INTO documents (application_id, kind, status, file_name, content_type, size_bytes, sha256, content, uploaded_by)
-VALUES (@application_id, @kind, @status, @file_name, @content_type, @size_bytes, @sha256, @content, @uploaded_by)
+VALUES (@application_id, @kind, @status, @file_name, @content_type, @size_bytes, @sha256, @content, @uploaded_by::uuid)
 RETURNING id;
+
+-- договор формирует процесс, повтор шага не должен плодить копии
+-- name: AddContract :exec
+INSERT INTO documents (application_id, kind, file_name, content_type, size_bytes, sha256, content)
+VALUES (@application_id, 'loan_agreement', @file_name, 'application/pdf', @size_bytes, @sha256, @content)
+ON CONFLICT (application_id) WHERE kind = 'loan_agreement' DO NOTHING;
 
 -- owner задан у клиента: чужой документ для него просто не находится, как и заявка
 -- name: DocumentFile :one

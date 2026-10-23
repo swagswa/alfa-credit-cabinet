@@ -64,10 +64,12 @@ func main() {
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc, catalog)
 	events := repo.NewEvent(lg.Zap, db)
+	issue := usecase.NewIssue(db, apps, repo.NewApplication(dbq.New(db)), repo.NewDocument(db), repo.NewSigning(db),
+		catalog, cfg.SigningCodeTTL)
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
-		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules))
+		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue)
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -89,6 +91,7 @@ func newServer(
 	events usecase.EventUseCase,
 	docs usecase.DocumentUseCase,
 	feed usecase.FeedUseCase,
+	issue usecase.IssueUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -105,6 +108,7 @@ func newServer(
 			Events:       events,
 			Documents:    docs,
 			Feed:         feed,
+			Issue:        issue,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,
 		}),

@@ -39,6 +39,10 @@ script:pre-request {
   await bru.sleep(Number(bru.getEnvVar("checksWaitMs")));
 }
 
+script:post-response {
+  bru.setVar("northVersion", res.body.version);
+}
+
 docs {
   После повтора проверок (24) ЕГРЮЛ снова не отвечает, заявка возвращается в manual_review.
   Платёж считает сервер. Без комментария 400, под manager 403, повторное решение 409.

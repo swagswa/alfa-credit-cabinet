@@ -57,12 +57,14 @@ func main() {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
 
-	deadlines := domain.Deadlines{NeedInfo: cfg.NeedInfoTTL, Review: cfg.ReviewSLA, Offer: cfg.OfferTTL}
-	appActs := activity.NewApplicationActivities(
-		usecase.NewApplication(db, appRepo, nil, tc, catalog),
-		usecase.NewDecision(catalog, scoring, policy),
-		deadlines,
-	)
+	deadlines := domain.Deadlines{
+		NeedInfo: cfg.NeedInfoTTL, Review: cfg.ReviewSLA, Offer: cfg.OfferTTL,
+		Signing: cfg.SigningTTL, Close: cfg.CloseAfter,
+	}
+	apps := usecase.NewApplication(db, appRepo, nil, tc, catalog)
+	// коды подписи выдаёт api, воркеру их срок не нужен
+	issue := usecase.NewIssue(db, apps, appRepo, repo.NewDocument(db), repo.NewSigning(db), catalog, 0)
+	appActs := activity.NewApplicationActivities(apps, usecase.NewDecision(catalog, scoring, policy), issue, deadlines)
 	checkActs := activity.NewCheckActivities(usecase.NewCheck(appRepo, repo.NewCheck(q), sources))
 
 	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {

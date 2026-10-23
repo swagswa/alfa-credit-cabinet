@@ -17,6 +17,8 @@ import (
 
 type DocumentRepository interface {
 	Add(ctx context.Context, appID, by uuid.UUID, f *domain.DocFile) (uuid.UUID, error)
+	// AddContract кладёт договор заявки от имени банка, второй раз ничего не меняет
+	AddContract(ctx context.Context, appID uuid.UUID, f *domain.DocFile) error
 	// Card и File с owner ищут только среди заявок его компаний, без owner любой документ
 	Card(ctx context.Context, id uuid.UUID, owner *uuid.UUID) (domain.Document, error)
 	File(ctx context.Context, id uuid.UUID, owner *uuid.UUID) (domain.DocFile, error)
@@ -53,6 +55,21 @@ func (r *documentRepo) Add(ctx context.Context, appID, by uuid.UUID, f *domain.D
 		return uuid.Nil, fmt.Errorf("add document: %w", err)
 	}
 	return id, nil
+}
+
+func (r *documentRepo) AddContract(ctx context.Context, appID uuid.UUID, f *domain.DocFile) error {
+	sum := sha256.Sum256(f.Content)
+	err := r.q.AddContract(ctx, db.AddContractParams{
+		ApplicationID: appID,
+		FileName:      f.FileName,
+		SizeBytes:     int32(len(f.Content)), //nolint:gosec // договор на пару страниц
+		Sha256:        sum[:],
+		Content:       f.Content,
+	})
+	if err != nil {
+		return fmt.Errorf("add contract %s: %w", appID, err)
+	}
+	return nil
 }
 
 func (r *documentRepo) Card(ctx context.Context, id uuid.UUID, owner *uuid.UUID) (domain.Document, error) {

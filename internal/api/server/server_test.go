@@ -22,6 +22,7 @@ import (
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/handler"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/middleware"
+	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/server"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
@@ -121,6 +122,7 @@ func newServer(t *testing.T, auth usecase.AuthUseCase, dbErr error) http.Handler
 			Companies:  usecase.NewCompany(egrulDown{}),
 			Auth:       auth,
 			Documents:  &fakeDocs{},
+			Issue:      fakeIssue{},
 			SessionTTL: time.Hour,
 		}),
 		Auth: auth,
@@ -316,4 +318,49 @@ func field(t *testing.T, b []byte, key string) string {
 	var m map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(b, &m))
 	return string(m[key])
+}
+
+// fakeIssue: верный код 482913, всё остальное мимо
+type fakeIssue struct {
+	usecase.IssueUseCase
+}
+
+func (fakeIssue) RequestCode(context.Context, domain.Actor, uuid.UUID) (string, domain.SigningCode, error) {
+	at := time.Date(2026, time.October, 24, 10, 5, 0, 0, time.UTC)
+	return "482913", domain.SigningCode{AttemptsLeft: 3, ExpiresAt: at}, nil
+}
+
+func (fakeIssue) Sign(_ context.Context, _ domain.Actor, _ uuid.UUID, code string) error {
+	if code == "482913" {
+		return nil
+	}
+	return domain.FieldErrors{{Field: "code", Message: "неверный код, осталось попыток: 2"}}
+}
+
+func TestSigningHTTP(t *testing.T) {
+	auth := newAuth(t)
+	_, client, err := auth.Login(t.Context(), "coffee", "demo12345", "10.0.0.1")
+	require.NoError(t, err)
+	const app = "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41"
+	h := newServer(t, auth, nil)
+
+	rec := call(t, h, "POST", app+"/signing-code", "", client)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.JSONEq(t, `{"code":"482913","expires_at":"2026-10-24T10:05:00Z","attempts_left":3}`, rec.Body.String())
+
+	rec = call(t, h, "POST", app+"/sign", `{"code":"000000"}`, client)
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	require.JSONEq(t, `[{"field":"code","message":"неверный код, осталось попыток: 2"}]`,
+		field(t, rec.Body.Bytes(), "errors"))
+	require.NotContains(t, rec.Body.String(), "482913")
+
+	rec = call(t, h, "POST", app+"/sign", `{"code":"12"}`, client)
+	require.Equal(t, http.StatusBadRequest, rec.Code, "код не из 6 цифр режет валидатор")
+}
+
+// виды событий журнала из CHECK в схеме: история отдаёт их как есть, контракт должен их знать
+func TestEventKinds(t *testing.T) {
+	for _, k := range []string{"transition", "escalation", "override", "signing"} {
+		require.True(t, oapi.ApplicationEventKind(k).Valid(), k)
+	}
 }

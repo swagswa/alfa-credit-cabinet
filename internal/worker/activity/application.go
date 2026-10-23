@@ -17,15 +17,17 @@ import (
 type ApplicationActivities struct {
 	apps      usecase.ApplicationUseCase
 	decisions usecase.DecisionUseCase
+	issue     usecase.IssueUseCase
 	deadlines domain.Deadlines
 }
 
 func NewApplicationActivities(
 	apps usecase.ApplicationUseCase,
 	decisions usecase.DecisionUseCase,
+	issue usecase.IssueUseCase,
 	deadlines domain.Deadlines,
 ) *ApplicationActivities {
-	return &ApplicationActivities{apps: apps, decisions: decisions, deadlines: deadlines}
+	return &ApplicationActivities{apps: apps, decisions: decisions, issue: issue, deadlines: deadlines}
 }
 
 // Deadlines отдаёт сроки из конфига воркера. Процесс берёт их один раз, и они
@@ -46,6 +48,16 @@ func (a *ApplicationActivities) Decide(ctx context.Context, id uuid.UUID) (domai
 
 func (a *ApplicationActivities) Escalate(ctx context.Context, id uuid.UUID) error {
 	return classify(a.apps.Escalate(ctx, id))
+}
+
+// PrepareContract повторять безопасно: дата из процесса, договор у заявки один.
+func (a *ApplicationActivities) PrepareContract(ctx context.Context, id uuid.UUID, date time.Time) error {
+	return classify(a.issue.PrepareContract(ctx, id, date))
+}
+
+// Payout повторять безопасно: выдача у заявки одна.
+func (a *ApplicationActivities) Payout(ctx context.Context, id uuid.UUID) error {
+	return classify(a.issue.Payout(ctx, id))
 }
 
 // Transition повторять безопасно: повтор после коммита ничего не меняет.

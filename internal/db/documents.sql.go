@@ -13,9 +13,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addContract = `-- name: AddContract :exec
+INSERT INTO documents (application_id, kind, file_name, content_type, size_bytes, sha256, content)
+VALUES ($1, 'loan_agreement', $2, 'application/pdf', $3, $4, $5)
+ON CONFLICT (application_id) WHERE kind = 'loan_agreement' DO NOTHING
+`
+
+type AddContractParams struct {
+	ApplicationID uuid.UUID
+	FileName      string
+	SizeBytes     int32
+	Sha256        []byte
+	Content       []byte
+}
+
+// договор формирует процесс, повтор шага не должен плодить копии
+func (q *Queries) AddContract(ctx context.Context, arg AddContractParams) error {
+	_, err := q.db.Exec(ctx, addContract,
+		arg.ApplicationID,
+		arg.FileName,
+		arg.SizeBytes,
+		arg.Sha256,
+		arg.Content,
+	)
+	return err
+}
+
 const addDocument = `-- name: AddDocument :one
 INSERT INTO documents (application_id, kind, status, file_name, content_type, size_bytes, sha256, content, uploaded_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid)
 RETURNING id
 `
 

@@ -158,7 +158,7 @@ type Document struct {
 	SizeBytes        int32
 	Sha256           []byte
 	Content          []byte
-	UploadedBy       uuid.UUID
+	UploadedBy       pgtype.UUID
 	TextSource       pgtype.Text
 	ExtractedRaw     []byte
 	Extracted        []byte
@@ -173,6 +173,21 @@ type Document struct {
 	ConfirmedBy      pgtype.UUID
 	ConfirmedAt      pgtype.Timestamptz
 	CreatedAt        time.Time
+}
+
+type Payout struct {
+	ApplicationID uuid.UUID
+	AmountKop     int64
+	Account       string
+	CreatedAt     time.Time
+}
+
+type SigningCode struct {
+	ApplicationID uuid.UUID
+	CodeHash      []byte
+	AttemptsLeft  int16
+	ExpiresAt     time.Time
+	CreatedAt     time.Time
 }
 
 type User struct {

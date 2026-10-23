@@ -21,7 +21,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
   const [comment, setComment] = useState('');
   const [revenue, setRevenue] = useState('');
   const required = [...new Set<Kind>([...(card.info_request?.documents ?? []), ...(card.representative_role === 'proxy' ? ['power_of_attorney' as const] : [])])];
-  const choices = required.length ? required : Object.keys(kinds) as Kind[];
+  const choices = required.length ? required : (Object.keys(kinds) as Kind[]).filter(k => k !== 'loan_agreement');
   const editable = !bank && ['draft', 'need_info'].includes(card.status);
   async function sample() {
     setBusy(true);setError('');

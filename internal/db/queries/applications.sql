@@ -140,6 +140,16 @@ SELECT pg_notify('applications', json_build_object(
 FROM applications a
 WHERE a.id = @id;
 
+-- name: AddNote :exec
+WITH e AS (
+    INSERT INTO application_events (application_id, kind, actor_id, actor_role, comment)
+    VALUES (@id, 'signing', sqlc.narg(actor_id), @actor_role, @comment)
+)
+SELECT pg_notify('applications', json_build_object(
+    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
+FROM applications a
+WHERE a.id = @id;
+
 -- согласие из анкеты становится записью при подаче, повтор ничего не меняет
 -- name: AddBKIConsent :exec
 INSERT INTO bki_consents (application_id, given_at)

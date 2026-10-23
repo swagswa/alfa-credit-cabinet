@@ -100,6 +100,8 @@ type API struct {
 	// CORSOrigin нужен только dev-серверу Vite, в compose фронт ходит через nginx
 	CORSOrigin string `env:"CORS_ORIGIN"`
 	AIEnabled  bool   `env:"AI_ENABLED"  envDefault:"false"`
+	// SigningCodeTTL сколько живёт код подписи, на проде как у SMS-кода
+	SigningCodeTTL time.Duration `env:"SIGNING_CODE_TTL" envDefault:"5m"`
 	// SeedDemo заводит тестовые учётки и демо-компании, на стенде для жюри включён
 	SeedDemo bool `env:"SEED_DEMO" envDefault:"false"`
 }
@@ -112,10 +114,12 @@ type Worker struct {
 
 	RulesDir string `env:"RULES_DIR" envDefault:"rules"`
 
-	// по умолчанию сроки демо, на проде 5, 1 и 10 рабочих дней
+	// по умолчанию сроки демо, на проде 5, 1, 10 и 3 рабочих дня, закрытие через сутки
 	NeedInfoTTL time.Duration `env:"NEED_INFO_TTL" envDefault:"3m"`
 	ReviewSLA   time.Duration `env:"REVIEW_SLA"    envDefault:"5m"`
 	OfferTTL    time.Duration `env:"OFFER_TTL"     envDefault:"5m"`
+	SigningTTL  time.Duration `env:"SIGNING_TTL"   envDefault:"5m"`
+	CloseAfter  time.Duration `env:"CLOSE_AFTER"   envDefault:"1m"`
 }
 
 type DocsWorker struct {

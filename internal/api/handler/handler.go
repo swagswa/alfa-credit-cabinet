@@ -4,10 +4,7 @@ package handler
 
 import (
 	"context"
-	"net/http"
 	"time"
-
-	"github.com/labstack/echo/v4"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
@@ -22,6 +19,7 @@ type Handler struct {
 	events    usecase.EventUseCase
 	docs      usecase.DocumentUseCase
 	feed      usecase.FeedUseCase
+	issue     usecase.IssueUseCase
 
 	sessionTTL   time.Duration
 	cookieSecure bool
@@ -38,6 +36,7 @@ type Deps struct {
 	Events       usecase.EventUseCase
 	Documents    usecase.DocumentUseCase
 	Feed         usecase.FeedUseCase
+	Issue        usecase.IssueUseCase
 
 	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
 	SessionTTL   time.Duration
@@ -54,6 +53,7 @@ func New(d Deps) *Handler {
 		events:       d.Events,
 		docs:         d.Documents,
 		feed:         d.Feed,
+		issue:        d.Issue,
 		sessionTTL:   d.SessionTTL,
 		cookieSecure: d.CookieSecure,
 	}
@@ -73,5 +73,3 @@ func (h *Handler) Health(ctx context.Context, _ oapi.HealthRequestObject) (oapi.
 	}
 	return oapi.Health200JSONResponse(res), nil
 }
-
-var errNotImplemented = echo.NewHTTPError(http.StatusNotImplemented)

@@ -89,6 +89,8 @@ func (u *documentUseCase) Upload(
 		return domain.Document{}, fmt.Errorf("%w: файл пустой", domain.ErrInvalid)
 	case !docTypes[ct]:
 		return domain.Document{}, fmt.Errorf("%w: принимаем PDF, PNG или JPEG", domain.ErrInvalid)
+	case kind == domain.DocLoanAgreement:
+		return domain.Document{}, fmt.Errorf("%w: договор формирует банк", domain.ErrInvalid)
 	}
 	app, err := u.apps.Card(ctx, appID, owner(actor))
 	if err != nil {
