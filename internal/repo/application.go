@@ -178,9 +178,13 @@ func (r *applicationRepo) Card(ctx context.Context, id uuid.UUID, owner *uuid.UU
 		return app, fmt.Errorf("application %s documents: %w", id, err)
 	}
 	for _, d := range docs {
-		app.Documents = append(app.Documents, domain.Document{
+		doc := domain.Document{
 			ID: d.ID, Kind: domain.DocKind(d.Kind), Status: domain.DocStatus(d.Status), FileName: d.FileName,
-		})
+		}
+		if err := unmarshal(d.Confirmed, &doc.Confirmed); err != nil {
+			return app, err
+		}
+		app.Documents = append(app.Documents, doc)
 	}
 	return app, nil
 }

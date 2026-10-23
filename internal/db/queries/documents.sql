@@ -24,8 +24,9 @@ WHERE d.id = @id
   AND (sqlc.narg(owner)::uuid IS NULL OR EXISTS (
       SELECT 1 FROM company_members o WHERE o.company_id = a.company_id AND o.user_id = sqlc.narg(owner)));
 
+-- confirmed нужен решению: сверка с ФНС берёт только подтверждённые итоги
 -- name: ApplicationDocuments :many
-SELECT id, kind, status, file_name
+SELECT id, kind, status, file_name, confirmed
 FROM documents
 WHERE application_id = $1
 ORDER BY created_at;

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	"github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/migrations"
@@ -116,6 +117,26 @@ func TestDocumentRecognized(t *testing.T) {
 		"liabilities_long_kop":0,"liabilities_short_kop":0,"balance_total_kop":0}}`, extracted)
 	require.Nil(t, problems)
 	require.Equal(t, "recognized", status(ctx, t, pool, id))
+}
+
+// подтверждённые итоги приходят в карточке заявки, по ним решение сверяет выручку с ФНС
+func TestCardConfirmed(t *testing.T) {
+	pool := testenv.Postgres(t, migrations.FS)
+	ctx := t.Context()
+	id := upload(t, pool)
+	v := domain.DocValues{Statement: &domain.Statement{INN: "0000100012", TurnoverIn: 300_00}}
+	require.NoError(
+		t,
+		repo.NewDocument(pool).Confirm(ctx, id, v, nil, uuid.MustParse("01930000-0000-7000-8000-000000000001")),
+	)
+
+	var appID uuid.UUID
+	require.NoError(t, pool.QueryRow(ctx, "SELECT application_id FROM documents WHERE id = $1", id).Scan(&appID))
+	app, err := repo.NewApplication(db.New(pool)).Card(ctx, appID, nil)
+	require.NoError(t, err)
+	require.Len(t, app.Documents, 1)
+	require.Equal(t, domain.DocConfirmed, app.Documents[0].Status)
+	require.Equal(t, &v, app.Documents[0].Confirmed)
 }
 
 // событие document уходит в тот же канал, что и заявки, только при смене статуса

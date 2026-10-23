@@ -49,19 +49,21 @@ func (q *Queries) AddDocument(ctx context.Context, arg AddDocumentParams) (uuid.
 }
 
 const applicationDocuments = `-- name: ApplicationDocuments :many
-SELECT id, kind, status, file_name
+SELECT id, kind, status, file_name, confirmed
 FROM documents
 WHERE application_id = $1
 ORDER BY created_at
 `
 
 type ApplicationDocumentsRow struct {
-	ID       uuid.UUID
-	Kind     string
-	Status   string
-	FileName string
+	ID        uuid.UUID
+	Kind      string
+	Status    string
+	FileName  string
+	Confirmed []byte
 }
 
+// confirmed нужен решению: сверка с ФНС берёт только подтверждённые итоги
 func (q *Queries) ApplicationDocuments(ctx context.Context, applicationID uuid.UUID) ([]ApplicationDocumentsRow, error) {
 	rows, err := q.db.Query(ctx, applicationDocuments, applicationID)
 	if err != nil {
@@ -76,6 +78,7 @@ func (q *Queries) ApplicationDocuments(ctx context.Context, applicationID uuid.U
 			&i.Kind,
 			&i.Status,
 			&i.FileName,
+			&i.Confirmed,
 		); err != nil {
 			return nil, err
 		}
