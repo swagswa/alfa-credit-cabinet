@@ -10,6 +10,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
 	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/activity"
@@ -35,12 +36,18 @@ func main() {
 	// миграции накатывает api, воркер только читает и пишет
 	db := postgres.New(lg.Zap, cfg.Postgres.Client())
 	tc := temporalsvc.NewClient(lg.Zap, cfg.Temporal.Client())
-	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), nil, tc, domain.Catalog{})
-	appActs := activity.NewApplicationActivities(apps)
+	q := dbq.New(db)
+	appRepo := repo.NewApplication(q)
+	sources := source.New(source.URLs{
+		EGRUL: cfg.EGRULURL, FNS: cfg.FNSURL, BKI: cfg.BKIURL, Bank: cfg.BankURL,
+	}, cfg.Sources.Timeout)
+	appActs := activity.NewApplicationActivities(usecase.NewApplication(db, appRepo, nil, tc, domain.Catalog{}))
+	checkActs := activity.NewCheckActivities(usecase.NewCheck(appRepo, repo.NewCheck(q), sources))
 
 	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {
 		r.RegisterWorkflow(workflow.ApplicationWorkflow)
 		r.RegisterActivity(appActs)
+		r.RegisterActivity(checkActs)
 	})
 
 	if err := svc.Run(ctx, lg.Zap, lg, db, tc, w); err != nil {

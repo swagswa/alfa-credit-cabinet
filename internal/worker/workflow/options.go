@@ -23,3 +23,20 @@ func WithDBActivityOptions(ctx workflow.Context) workflow.Context {
 		RetryPolicy:         DefaultRetryPolicy,
 	})
 }
+
+// SourceRetryPolicy для внешних источников: мок может моргнуть или лежать долго,
+// ждём около 15 с и уходим в ручное рассмотрение. На проде попыток больше.
+var SourceRetryPolicy = &temporal.RetryPolicy{
+	InitialInterval:    time.Second,
+	BackoffCoefficient: 2,
+	MaximumInterval:    10 * time.Second,
+	MaximumAttempts:    5,
+}
+
+// WithSourceActivityOptions для запросов в ЕГРЮЛ, ФНС, БКИ и данные банка.
+func WithSourceActivityOptions(ctx workflow.Context) workflow.Context {
+	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 5 * time.Second,
+		RetryPolicy:         SourceRetryPolicy,
+	})
+}

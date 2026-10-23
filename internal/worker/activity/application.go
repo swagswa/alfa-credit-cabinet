@@ -18,6 +18,8 @@ const (
 	NotFoundErrorType          = "NotFoundError"
 	IllegalTransitionErrorType = "IllegalTransitionError"
 	VersionConflictErrorType   = "VersionConflictError"
+	ForbiddenErrorType         = "ForbiddenError"
+	InvalidErrorType           = "InvalidError"
 )
 
 var nonRetryable = []struct {
@@ -27,6 +29,8 @@ var nonRetryable = []struct {
 	{domain.ErrNotFound, NotFoundErrorType},
 	{domain.ErrIllegalTransition, IllegalTransitionErrorType},
 	{domain.ErrConflict, VersionConflictErrorType},
+	{domain.ErrForbidden, ForbiddenErrorType},
+	{domain.ErrInvalid, InvalidErrorType},
 }
 
 // ApplicationActivities шаги ApplicationWorkflow, которые трогают заявку.

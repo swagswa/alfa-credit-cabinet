@@ -36,6 +36,8 @@ func TestTransition(t *testing.T) {
 			activity.IllegalTransitionErrorType,
 		},
 		{"устаревшая версия", domain.ErrConflict, activity.VersionConflictErrorType},
+		{"бки без согласия", fmt.Errorf("bki: %w", domain.ErrForbidden), activity.ForbiddenErrorType},
+		{"источник не понял запрос", fmt.Errorf("fns: 400: %w", domain.ErrInvalid), activity.InvalidErrorType},
 		{"сбой бд", boom, ""},
 	}
 	for _, tt := range tests {
