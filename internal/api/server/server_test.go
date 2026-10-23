@@ -22,6 +22,7 @@ import (
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/handler"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/middleware"
+	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/server"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
@@ -355,4 +356,11 @@ func TestSigningHTTP(t *testing.T) {
 
 	rec = call(t, h, "POST", app+"/sign", `{"code":"12"}`, client)
 	require.Equal(t, http.StatusBadRequest, rec.Code, "код не из 6 цифр режет валидатор")
+}
+
+// виды событий журнала из CHECK в схеме: история отдаёт их как есть, контракт должен их знать
+func TestEventKinds(t *testing.T) {
+	for _, k := range []string{"transition", "escalation", "override", "signing"} {
+		require.True(t, oapi.ApplicationEventKind(k).Valid(), k)
+	}
 }

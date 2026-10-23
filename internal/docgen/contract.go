@@ -17,12 +17,11 @@ type Contract struct {
 	Number int64
 	Date   time.Time
 	// Product название продукта для текста, пустое: не пишем
-	Product      string
-	Company      string
-	INN          string
-	Terms        domain.Terms
-	Repayment    domain.Repayment
-	MSPGuarantee bool
+	Product   string
+	Company   string
+	INN       string
+	Terms     domain.Terms
+	Repayment domain.Repayment
 }
 
 // Payment строка графика, суммы в копейках.
@@ -95,9 +94,6 @@ func ContractPDF(c Contract) ([]byte, error) {
 	}
 	if t.Pledge {
 		extra = append(extra, "залог приобретаемого имущества")
-	}
-	if c.MSPGuarantee {
-		extra = append(extra, "гарантия Корпорации МСП")
 	}
 	if len(extra) > 0 {
 		para(f, "3. Обеспечение: "+strings.Join(extra, ", ")+".")

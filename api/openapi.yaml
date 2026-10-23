@@ -1871,8 +1871,10 @@ components:
           example: 3
         kind:
           type: string
-          description: escalation это истёк SLA ручного рассмотрения, статус при этом не меняется
-          enum: [transition, escalation, override]
+          description: |
+            escalation это истёк SLA ручного рассмотрения, signing шаг подписания (код выдан, неверный код),
+            статус при них не меняется
+          enum: [transition, escalation, override, signing]
           example: transition
         from_status:
           $ref: '#/components/schemas/ApplicationStatus'
