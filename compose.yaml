@@ -144,9 +144,10 @@ services:
       FNS_URL: http://mocks:8081
       BKI_URL: http://mocks:8081
       BANK_URL: http://mocks:8081
-      # сроки демо; на проде 5 рабочих дней и 1 рабочий день
+      # сроки демо; на проде 5, 1 и 10 рабочих дней
       NEED_INFO_TTL: ${NEED_INFO_TTL:-3m}
       REVIEW_SLA: ${REVIEW_SLA:-5m}
+      OFFER_TTL: ${OFFER_TTL:-5m}
     depends_on:
       api:
         condition: service_healthy

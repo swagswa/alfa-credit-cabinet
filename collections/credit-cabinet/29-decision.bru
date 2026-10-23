@@ -1,0 +1,45 @@
+meta {
+  name: 29 Решение андеррайтера
+  type: http
+  seq: 29
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/decision
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{uwCookie}}
+}
+
+body:json {
+  {
+    "outcome": "counter_offer",
+    "terms": {
+      "product": "working_capital",
+      "amount_kop": 100000000,
+      "term_months": 12,
+      "rate_bp": 2250,
+      "guarantor_required": true
+    },
+    "reason_codes": ["R_GUARANTOR"],
+    "comment": "Реестр не отвечает, выписку проверил руками, даю меньше с поручительством"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq counter_offer
+  res.body.offer.monthly_payment_kop: gt 0
+}
+
+script:pre-request {
+  await bru.sleep(Number(bru.getEnvVar("checksWaitMs")));
+}
+
+docs {
+  После повтора проверок (24) ЕГРЮЛ снова не отвечает, заявка возвращается в manual_review.
+  Платёж считает сервер. Без комментария 400, под manager 403, повторное решение 409.
+}
