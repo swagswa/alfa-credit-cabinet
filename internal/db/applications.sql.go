@@ -50,6 +50,22 @@ func (q *Queries) AddCompany(ctx context.Context, arg AddCompanyParams) (uuid.UU
 	return id, err
 }
 
+const addEscalation = `-- name: AddEscalation :exec
+WITH e AS (
+    INSERT INTO application_events (application_id, kind, actor_role) VALUES ($1, 'escalation', 'system')
+)
+SELECT pg_notify('applications', json_build_object(
+    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
+FROM applications a
+WHERE a.id = $1
+`
+
+// эскалация статус не меняет, но карточку и очередь стоит обновить
+func (q *Queries) AddEscalation(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, addEscalation, id)
+	return err
+}
+
 const addTransitionEvent = `-- name: AddTransitionEvent :exec
 INSERT INTO application_events (application_id, from_status, to_status, actor_id, actor_role, reason_codes, comment)
 VALUES ($1, $2, $3, $4, $5,
