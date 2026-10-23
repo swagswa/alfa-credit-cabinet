@@ -58,15 +58,6 @@ const (
 	InputApplication FeedInput = "application"
 )
 
-type Op string
-
-const (
-	OpGt Op = "gt"
-	OpLt Op = "lt"
-	OpEq Op = "eq"
-	OpNe Op = "ne"
-)
-
 // TipCond это условие подсказки. У turnover_month_rub сравнивается Num (gt, lt), у остальных Value (eq, ne).
 // products eq значит «продукт есть», ne «продукта нет».
 type TipCond struct {
