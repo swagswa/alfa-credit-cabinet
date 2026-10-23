@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -156,8 +157,16 @@ WHERE ($1::uuid IS NULL OR EXISTS (
   AND ($2::text[] IS NULL OR v.status = ANY ($2::text[]))
   AND ($3::text[] IS NULL OR v.grade = ANY ($3::text[]))
   AND ($4::text IS NULL OR v.product = $4)
-ORDER BY v.created_at DESC
-LIMIT $6 OFFSET $5
+ORDER BY CASE WHEN $5::text = 'created_at' THEN v.created_at END,
+         CASE WHEN $5::text = 'updated_at' THEN v.updated_at END,
+         CASE WHEN $5::text = '-updated_at' THEN v.updated_at END DESC,
+         CASE WHEN $5::text = 'amount_kop' THEN v.amount_kop END,
+         CASE WHEN $5::text = '-amount_kop' THEN v.amount_kop END DESC,
+         CASE WHEN $5::text = 'due_at' THEN v.due_at END,
+         CASE WHEN $5::text = 'score' THEN v.score END,
+         CASE WHEN $5::text = '-score' THEN v.score END DESC NULLS LAST,
+         v.created_at DESC, v.id DESC
+LIMIT $7 OFFSET $6
 `
 
 type ApplicationCardsParams struct {
@@ -165,6 +174,7 @@ type ApplicationCardsParams struct {
 	Statuses []string
 	Grades   []string
 	Product  pgtype.Text
+	Sort     string
 	Off      int32
 	Lim      int32
 }
@@ -174,12 +184,15 @@ type ApplicationCardsRow struct {
 	Total           int64
 }
 
+// порядок из параметра sort, по одной строке на вариант: у столбцов разные типы,
+// один CASE на всех не собрать. Без срока и без балла всегда в конце
 func (q *Queries) ApplicationCards(ctx context.Context, arg ApplicationCardsParams) ([]ApplicationCardsRow, error) {
 	rows, err := q.db.Query(ctx, applicationCards,
 		arg.Owner,
 		arg.Statuses,
 		arg.Grades,
 		arg.Product,
+		arg.Sort,
 		arg.Off,
 		arg.Lim,
 	)
@@ -217,6 +230,56 @@ func (q *Queries) ApplicationCards(ctx context.Context, arg ApplicationCardsPara
 			&i.ApplicationCard.RepresentativeRole,
 			&i.ApplicationCard.PdConsent,
 			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const applicationEvents = `-- name: ApplicationEvents :many
+SELECT e.id, e.kind, e.from_status, e.to_status, e.actor_role, u.full_name, e.reason_codes, e.comment, e.created_at
+FROM application_events e
+LEFT JOIN users u ON u.id = e.actor_id
+WHERE e.application_id = $1
+ORDER BY e.id
+`
+
+type ApplicationEventsRow struct {
+	ID          int64
+	Kind        string
+	FromStatus  pgtype.Text
+	ToStatus    pgtype.Text
+	ActorRole   string
+	FullName    pgtype.Text
+	ReasonCodes []string
+	Comment     pgtype.Text
+	CreatedAt   time.Time
+}
+
+func (q *Queries) ApplicationEvents(ctx context.Context, applicationID uuid.UUID) ([]ApplicationEventsRow, error) {
+	rows, err := q.db.Query(ctx, applicationEvents, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApplicationEventsRow
+	for rows.Next() {
+		var i ApplicationEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.FromStatus,
+			&i.ToStatus,
+			&i.ActorRole,
+			&i.FullName,
+			&i.ReasonCodes,
+			&i.Comment,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -302,6 +365,48 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const latestChecks = `-- name: LatestChecks :many
+SELECT DISTINCT ON (source) source, status, payload, error, created_at
+FROM check_results
+WHERE application_id = $1
+ORDER BY source, id DESC
+`
+
+type LatestChecksRow struct {
+	Source    string
+	Status    string
+	Payload   []byte
+	Error     pgtype.Text
+	CreatedAt time.Time
+}
+
+// после need_info источники опрашиваются заново, в карточку идёт последний ответ
+func (q *Queries) LatestChecks(ctx context.Context, applicationID uuid.UUID) ([]LatestChecksRow, error) {
+	rows, err := q.db.Query(ctx, latestChecks, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LatestChecksRow
+	for rows.Next() {
+		var i LatestChecksRow
+		if err := rows.Scan(
+			&i.Source,
+			&i.Status,
+			&i.Payload,
+			&i.Error,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const lockApplication = `-- name: LockApplication :one

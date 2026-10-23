@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // Source это внешний источник проверки заявки.
 type Source string
 
@@ -27,10 +29,12 @@ const (
 	CodeSourceUnavailable = "SF_SOURCE_UNAVAILABLE"
 )
 
-// CheckResult это ответ источника для записи. Payload ответ как есть, только у ok.
+// CheckResult это ответ источника. Payload ответ как есть, только у ok.
+// At ставит база, при записи не нужен.
 type CheckResult struct {
 	Source  Source
 	Status  CheckStatus
 	Payload []byte
 	Error   string
+	At      time.Time
 }

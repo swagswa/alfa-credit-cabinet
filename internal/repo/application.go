@@ -30,6 +30,10 @@ type ApplicationRepository interface {
 	// Card отдаёт заявку целиком. С owner чужая заявка это ErrNotFound.
 	Card(ctx context.Context, id uuid.UUID, owner *uuid.UUID) (domain.Application, error)
 	List(ctx context.Context, f domain.ApplicationFilter) ([]domain.Application, int, error)
+	// Checks отдаёт последний результат по каждому источнику, по алфавиту источников.
+	Checks(ctx context.Context, id uuid.UUID) ([]domain.CheckResult, error)
+	// History это журнал заявки, старые сверху.
+	History(ctx context.Context, id uuid.UUID) ([]domain.AuditEntry, error)
 	// SaveDraft пишет анкету, если заявка всё ещё draft той же версии, иначе ErrConflict.
 	SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error
 }
@@ -187,6 +191,7 @@ func (r *applicationRepo) List(ctx context.Context, f domain.ApplicationFilter) 
 		Statuses: strs(f.Statuses),
 		Grades:   f.Grades,
 		Product:  text(string(f.Product)),
+		Sort:     f.Sort,
 		Lim:      int32(f.Limit),  //nolint:gosec // до 100 по схеме
 		Off:      int32(f.Offset), //nolint:gosec // смещение страницы, не миллиарды
 	})
@@ -200,6 +205,44 @@ func (r *applicationRepo) List(ctx context.Context, f domain.ApplicationFilter) 
 		total = int(rows[i].Total)
 	}
 	return out, total, nil
+}
+
+func (r *applicationRepo) Checks(ctx context.Context, id uuid.UUID) ([]domain.CheckResult, error) {
+	rows, err := r.q.LatestChecks(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("checks %s: %w", id, err)
+	}
+	out := make([]domain.CheckResult, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.CheckResult{
+			Source: domain.Source(row.Source), Status: domain.CheckStatus(row.Status),
+			Payload: row.Payload, Error: row.Error.String, At: row.CreatedAt,
+		})
+	}
+	return out, nil
+}
+
+func (r *applicationRepo) History(ctx context.Context, id uuid.UUID) ([]domain.AuditEntry, error) {
+	rows, err := r.q.ApplicationEvents(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("history %s: %w", id, err)
+	}
+	out := make([]domain.AuditEntry, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		out = append(out, domain.AuditEntry{
+			ID:        row.ID,
+			Kind:      row.Kind,
+			From:      domain.Status(row.FromStatus.String),
+			To:        domain.Status(row.ToStatus.String),
+			ActorRole: domain.Role(row.ActorRole),
+			ActorName: row.FullName.String,
+			Codes:     row.ReasonCodes,
+			Comment:   row.Comment.String,
+			At:        row.CreatedAt,
+		})
+	}
+	return out, nil
 }
 
 func (r *applicationRepo) SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error {

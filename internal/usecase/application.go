@@ -42,8 +42,11 @@ type ApplicationUseCase interface {
 	// и автор становится представителем. Чужую компанию так присвоить нельзя.
 	// Повтор с тем же ключом отдаёт ту же заявку, с другим телом ErrKeyReused.
 	Create(ctx context.Context, actor domain.Actor, key, inn string, d domain.Draft) (domain.Application, error)
+	// Get отдаёт карточку. Сотруднику банка вместе с результатами проверок.
 	Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error)
 	List(ctx context.Context, actor domain.Actor, f domain.ApplicationFilter) ([]domain.Application, int, error)
+	// History это журнал заявки. Клиент видит только свои комментарии, заметки банка и системы нет.
+	History(ctx context.Context, actor domain.Actor, id uuid.UUID) ([]domain.AuditEntry, error)
 	// Edit меняет анкету черновика той версии, которую видел клиент.
 	Edit(ctx context.Context, actor domain.Actor, id uuid.UUID, version int, edit func(*domain.Draft)) (
 		domain.Application, error)
@@ -160,7 +163,31 @@ func (u *applicationUseCase) company(
 }
 
 func (u *applicationUseCase) Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
-	return u.apps.Card(ctx, id, owner(actor))
+	app, err := u.apps.Card(ctx, id, owner(actor))
+	if err != nil || actor.Role == domain.RoleClient {
+		return app, err
+	}
+	app.Checks, err = u.apps.Checks(ctx, id)
+	return app, err
+}
+
+func (u *applicationUseCase) History(
+	ctx context.Context, actor domain.Actor, id uuid.UUID,
+) ([]domain.AuditEntry, error) {
+	// у черновика журнал пустой, поэтому владение проверяем по самой заявке
+	if _, err := u.apps.Card(ctx, id, owner(actor)); err != nil {
+		return nil, err
+	}
+	events, err := u.apps.History(ctx, id)
+	if err != nil || actor.Role != domain.RoleClient {
+		return events, err
+	}
+	for i := range events {
+		if events[i].ActorRole != domain.RoleClient {
+			events[i].Comment = ""
+		}
+	}
+	return events, nil
 }
 
 func (u *applicationUseCase) List(

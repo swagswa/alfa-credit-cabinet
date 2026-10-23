@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/middleware"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
@@ -61,9 +62,9 @@ func (h *Handler) ListApplications(
 	if err != nil {
 		return nil, err
 	}
-	// sort пока не разбираем, всегда новые сверху; остальные порядки с очередью банка
 	p := req.Params
 	f := domain.ApplicationFilter{Limit: pageSize}
+	set(&f.Sort, (*string)(p.Sort))
 	set(&f.Limit, p.Limit)
 	set(&f.Offset, p.Offset)
 	set(&f.Product, (*domain.ProductCode)(p.Product))
@@ -88,6 +89,40 @@ func (h *Handler) ListApplications(
 			Id: v.Id, Number: v.Number, Status: v.Status, Company: v.Company, Product: v.Product,
 			AmountKop: v.AmountKop, TermMonths: v.TermMonths, Grade: v.Grade, Score: v.Score, DueAt: v.DueAt,
 			CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt,
+		})
+	}
+	return res, nil
+}
+
+func (h *Handler) ListApplicationEvents(
+	ctx context.Context,
+	req oapi.ListApplicationEventsRequestObject,
+) (oapi.ListApplicationEventsResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	events, err := h.apps.History(ctx, a, req.Id)
+	if err != nil {
+		return nil, err
+	}
+	res := make(oapi.ListApplicationEvents200JSONResponse, 0, len(events))
+	for i := range events {
+		ev := &events[i]
+		codes := make([]oapi.ReasonCode, 0, len(ev.Codes))
+		for _, c := range ev.Codes {
+			codes = append(codes, oapi.ReasonCode(c))
+		}
+		res = append(res, oapi.ApplicationEvent{
+			Id:          ev.ID,
+			Kind:        oapi.ApplicationEventKind(ev.Kind),
+			FromStatus:  opt(oapi.ApplicationStatus(ev.From)),
+			ToStatus:    opt(oapi.ApplicationStatus(ev.To)),
+			ActorRole:   oapi.ActorRole(ev.ActorRole),
+			ActorName:   opt(ev.ActorName),
+			ReasonCodes: &codes,
+			Comment:     opt(ev.Comment),
+			CreatedAt:   ev.At,
 		})
 	}
 	return res, nil
@@ -208,6 +243,21 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 	if app.Grade != "" {
 		g := oapi.Grade(app.Grade)
 		v.Grade = &g
+	}
+	if role != domain.RoleClient {
+		checks := make([]oapi.CheckResult, 0, len(app.Checks))
+		for _, c := range app.Checks {
+			r := oapi.CheckResult{
+				Source: oapi.CheckSource(c.Source), Status: oapi.CheckStatus(c.Status),
+				Error: opt(c.Error), CheckedAt: c.At,
+			}
+			// payload из jsonb, разбор не падает
+			if c.Payload != nil {
+				_ = json.Unmarshal(c.Payload, &r.Payload)
+			}
+			checks = append(checks, r)
+		}
+		v.Checks = &checks
 	}
 	return v
 }
