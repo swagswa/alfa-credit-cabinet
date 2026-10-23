@@ -32,3 +32,15 @@ func TestValidINN(t *testing.T) {
 		})
 	}
 }
+
+func TestCompleteINN(t *testing.T) {
+	for base, want := range map[string]string{
+		"000010001":  "0000100012",
+		"770123456":  "7701234560",
+		"7701234567": "770123456703",
+		"0000123456": "000012345627",
+		"123":        "123",
+	} {
+		require.Equal(t, want, domain.CompleteINN(base), base)
+	}
+}
