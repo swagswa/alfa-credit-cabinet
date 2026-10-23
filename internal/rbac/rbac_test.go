@@ -49,6 +49,14 @@ func TestAllowed(t *testing.T) {
 		{"client", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/confirm", "POST", true},
 		{"underwriter", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/confirm", "POST", false},
 		{rbac.Anonymous, "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/file", "GET", false},
+		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/provide-info", "POST", true},
+		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/provide-info", "POST", false},
+		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/request-info", "POST", true},
+		{"underwriter", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/request-info", "POST", true},
+		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/request-info", "POST", false},
+		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/retry-checks", "POST", true},
+		{"underwriter", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/retry-checks", "POST", false},
+		{"admin", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/retry-checks", "POST", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {
