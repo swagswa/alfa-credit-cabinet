@@ -108,7 +108,7 @@ func TestSubmitDenied(t *testing.T) {
 		err   error
 	}{
 		{"чужая заявка", e.user("logistics"), app, domain.ErrNotFound},
-		{"сотрудник банка за клиента", e.user("manager"), app, domain.ErrIllegalTransition},
+		{"сотрудник банка черновика не видит", e.user("manager"), app, domain.ErrNotFound},
 		{"отменённый черновик", e.client, cancelled, domain.ErrIllegalTransition},
 	}
 	for _, tt := range tests {

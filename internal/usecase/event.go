@@ -11,7 +11,7 @@ import (
 
 type EventUseCase interface {
 	// Subscribe отдаёт события, которые пользователь вправе видеть: клиент
-	// только по своим компаниям, сотрудник банка все. appID, если не нулевой,
+	// только по своим компаниям, сотрудник банка все, кроме черновиков. appID, если не нулевой,
 	// оставляет одну заявку.
 	Subscribe(ctx context.Context, s domain.Session, appID uuid.UUID) (<-chan domain.Event, func(), error)
 }
@@ -44,7 +44,9 @@ func (u *eventUseCase) Subscribe(
 		}
 	}
 	events, cancel = u.events.Subscribe(func(ev domain.Event) bool {
-		return (appID == uuid.Nil || ev.ApplicationID == appID) && (own == nil || own[ev.CompanyID])
+		// банку черновики не шлём, как и в очереди: до подачи это дело клиента
+		return (appID == uuid.Nil || ev.ApplicationID == appID) &&
+			(own[ev.CompanyID] || own == nil && ev.Status != domain.StatusDraft)
 	})
 	return events, cancel, nil
 }

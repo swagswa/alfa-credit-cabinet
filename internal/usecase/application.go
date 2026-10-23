@@ -163,7 +163,7 @@ func (u *applicationUseCase) company(
 }
 
 func (u *applicationUseCase) Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
-	app, err := u.apps.Card(ctx, id, owner(actor))
+	app, err := u.card(ctx, actor, id)
 	if err != nil || actor.Role == domain.RoleClient {
 		return app, err
 	}
@@ -171,11 +171,21 @@ func (u *applicationUseCase) Get(ctx context.Context, actor domain.Actor, id uui
 	return app, err
 }
 
+// card отдаёт заявку тому, кому её видно: клиенту только его компаний,
+// банку всё, кроме черновиков, как и в очереди
+func (u *applicationUseCase) card(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
+	app, err := u.apps.Card(ctx, id, owner(actor))
+	if err == nil && actor.Role != domain.RoleClient && app.Status == domain.StatusDraft {
+		return domain.Application{}, domain.ErrNotFound
+	}
+	return app, err
+}
+
 func (u *applicationUseCase) History(
 	ctx context.Context, actor domain.Actor, id uuid.UUID,
 ) ([]domain.AuditEntry, error) {
 	// у черновика журнал пустой, поэтому владение проверяем по самой заявке
-	if _, err := u.apps.Card(ctx, id, owner(actor)); err != nil {
+	if _, err := u.card(ctx, actor, id); err != nil {
 		return nil, err
 	}
 	events, err := u.apps.History(ctx, id)
