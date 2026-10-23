@@ -3,8 +3,10 @@ package mocks_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 
+	"github.com/swagswa/alfa-credit-cabinet/internal/docgen"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/mocks"
 	"github.com/swagswa/alfa-credit-cabinet/internal/mocks/synth"
@@ -31,15 +34,22 @@ func call(t *testing.T, e *echo.Echo, method, path, body string) (code int, got 
 	return rec.Code, got
 }
 
-// field достаёт значение по пути вида "summary.inquiries_90d"
+// field достаёт значение по пути вида "summary.inquiries_90d" или "loans.0.amount"
 func field(m map[string]any, path string) any {
 	var v any = m
 	for k := range strings.SplitSeq(path, ".") {
-		obj, ok := v.(map[string]any)
-		if !ok {
+		switch x := v.(type) {
+		case map[string]any:
+			v = x[k]
+		case []any:
+			i, err := strconv.Atoi(k)
+			if err != nil || i >= len(x) {
+				return nil
+			}
+			v = x[i]
+		default:
 			return nil
 		}
-		v = obj[k]
 	}
 	return v
 }
@@ -89,22 +99,71 @@ func TestSources(t *testing.T) {
 	}
 }
 
-// выписка и отчётность из генератора документов должны сходиться с ФНС и банком
+// Источники говорят об одной компании, выписка из генератора документов сходится с ФНС и банком.
+// Демо плюс тысяча ИНН из генератора, каждый третий ИП.
 func TestSourcesMatchSynth(t *testing.T) {
 	e := mocks.New()
-	for _, inn := range []string{"0000100012", "000020001010", "0000300011", "0000400016", "0000500010"} {
+	inns := []string{"0000100012", "000020001010", "0000300011", "0000400016", "0000500010"}
+	rng := synth.RNG("inns")
+	for i := range 1000 {
+		base := fmt.Sprintf("%09d", rng.IntN(1e9))
+		if i%3 == 0 {
+			base += strconv.Itoa(rng.IntN(10))
+		}
+		inns = append(inns, domain.CompleteINN(base))
+	}
+
+	for i, inn := range inns {
 		t.Run(inn, func(t *testing.T) {
 			c, err := synth.New(inn)
 			require.NoError(t, err)
 			in, _ := c.Turnover()
+			income := float64(c.Income() / domain.KopInRub)
 
-			_, fns := call(t, e, "GET", "/fns/"+inn, "")
-			require.InDelta(t, float64(c.Income()/domain.KopInRub), field(fns, "income_last_year"), 0)
+			code, reg := call(t, e, "GET", "/egrul/"+inn, "")
+			if inn != "0000500010" { // у неё егрюл лежит
+				require.Equal(t, http.StatusOK, code)
+				require.Equal(t, inn, reg["inn"])
+				if c.IsIP() {
+					require.Equal(
+						t,
+						"Индивидуальный предприниматель "+strings.TrimPrefix(c.Name, "ИП "),
+						reg["full_name"],
+					)
+				} else {
+					require.Equal(t, c.Name, reg["short_name"])
+					require.Equal(t, field(reg, "director.inn"), field(reg, "founders.0.inn"))
+				}
+			}
+
+			code, fns := call(t, e, "GET", "/fns/"+inn, "")
+			require.Equal(t, http.StatusOK, code)
+			require.InDelta(t, income, field(fns, "income_last_year"), 0)
+			if i%20 == 0 { // pdf рисуется не мгновенно, хватит каждого двадцатого
+				_, truth, err := docgen.Generate(docgen.Doc{INN: inn, Kind: docgen.KindStatement, Format: "a"})
+				require.NoError(t, err)
+				var st struct {
+					TurnoverIn float64 `json:"turnover_in"`
+				}
+				require.NoError(t, json.Unmarshal(truth, &st))
+				require.InDelta(t, income, st.TurnoverIn, 1, "выписка и ФНС")
+			}
+
+			code, bki := call(t, e, "POST", "/bki/report", `{"inn":"`+inn+`",`+consent+`}`)
+			require.Equal(t, http.StatusOK, code)
+			require.LessOrEqual(
+				t,
+				field(bki, "summary.monthly_payments_total").(float64),
+				income/12,
+				"платежи больше выручки",
+			)
 
 			code, bank := call(t, e, "GET", "/internal/"+inn, "")
-			if code == http.StatusNotFound {
+			if code == http.StatusNotFound { // счёта у нас нет
 				return
 			}
+			require.Equal(t, http.StatusOK, code)
+			require.Equal(t, true, bank["is_client"])
 			var credit float64
 			for _, m := range bank["turnover_12m"].([]any) {
 				credit += m.(map[string]any)["credit"].(float64)
