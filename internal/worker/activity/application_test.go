@@ -29,15 +29,15 @@ func TestTransition(t *testing.T) {
 		err     error
 		errType string // пусто: ошибка повторяемая
 	}{
-		{"нет заявки", domain.ErrNotFound, activity.NotFoundErrorType},
+		{"нет заявки", domain.ErrNotFound, usecase.NotFoundErrorType},
 		{
 			"переход не по таблице",
 			fmt.Errorf("%w: из a в b", domain.ErrIllegalTransition),
-			activity.IllegalTransitionErrorType,
+			usecase.IllegalTransitionErrorType,
 		},
-		{"устаревшая версия", domain.ErrConflict, activity.VersionConflictErrorType},
-		{"бки без согласия", fmt.Errorf("bki: %w", domain.ErrForbidden), activity.ForbiddenErrorType},
-		{"источник не понял запрос", fmt.Errorf("fns: 400: %w", domain.ErrInvalid), activity.InvalidErrorType},
+		{"устаревшая версия", domain.ErrConflict, usecase.VersionConflictErrorType},
+		{"бки без согласия", fmt.Errorf("bki: %w", domain.ErrForbidden), usecase.ForbiddenErrorType},
+		{"источник не понял запрос", fmt.Errorf("fns: 400: %w", domain.ErrInvalid), usecase.InvalidErrorType},
 		{"сбой бд", boom, ""},
 	}
 	for _, tt := range tests {

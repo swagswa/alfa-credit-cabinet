@@ -16,18 +16,10 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 )
 
-// Очереди и имена процессов Temporal. Живут здесь, а не в worker/workflow:
-// процессы стартует usecase, а workflow сам зовёт usecase через activity.
-const (
-	QueueCredit = "credit"
-	QueueDocs   = "docs"
-
-	ApplicationWorkflowName = "ApplicationWorkflow"
-)
-
-// Workflows стартует процессы, на стенде это temporalsvc.Client.
+// Workflows стартует процессы и передаёт им действия людей, на стенде это temporalsvc.Client.
 type Workflows interface {
 	Start(ctx context.Context, queue, id, workflow string, args ...any) error
+	Update(ctx context.Context, id, update string, arg any) error
 }
 
 type ApplicationUseCase interface {
@@ -37,6 +29,11 @@ type ApplicationUseCase interface {
 	// StartProcess запускает ApplicationWorkflow заявки, id процесса равен id заявки.
 	// Второй запуск для той же заявки даёт ErrConflict.
 	StartProcess(ctx context.Context, id uuid.UUID) error
+	// Act передаёт действие человека процессу заявки и ждёт, пока тот его исполнит.
+	// Действие не к месту: ErrIllegalTransition, устаревшая карточка: ErrConflict.
+	Act(ctx context.Context, id uuid.UUID, update string, a domain.Action) error
+	// Escalate отмечает в журнале, что SLA андеррайтера прошёл.
+	Escalate(ctx context.Context, id uuid.UUID) error
 
 	// Create заводит черновик по ИНН. Компании ещё нет у нас: берём её из ЕГРЮЛ,
 	// и автор становится представителем. Чужую компанию так присвоить нельзя.
@@ -80,6 +77,20 @@ func (u *applicationUseCase) StartProcess(ctx context.Context, id uuid.UUID) err
 		return fmt.Errorf("%w: процесс заявки уже запущен", domain.ErrConflict)
 	}
 	return err
+}
+
+func (u *applicationUseCase) Act(ctx context.Context, id uuid.UUID, update string, a domain.Action) error {
+	// сотрудник видит все заявки, клиент только свои: чужая для него не существует
+	if a.Actor.Role == domain.RoleClient {
+		if _, err := u.apps.Card(ctx, id, &a.Actor.ID); err != nil {
+			return err
+		}
+	}
+	return fromProcess(u.workflows.Update(ctx, id.String(), update, a))
+}
+
+func (u *applicationUseCase) Escalate(ctx context.Context, id uuid.UUID) error {
+	return u.apps.Escalate(ctx, id)
 }
 
 func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m domain.Move) error {

@@ -70,7 +70,7 @@ func (e *testEnv) source(src domain.Source, b behavior) {
 		fetch().Return(domain.CheckOK, nil).Once()
 	case refuses:
 		failed = string(src) + ": 403"
-		err := temporal.NewNonRetryableApplicationError(failed, activity.ForbiddenErrorType, nil)
+		err := temporal.NewNonRetryableApplicationError(failed, usecase.ForbiddenErrorType, nil)
 		fetch().Return(domain.CheckStatus(""), err).Once()
 	}
 	e.fetches += attempts
@@ -123,7 +123,7 @@ func TestApplicationWorkflow(t *testing.T) {
 // переход не по таблице повторять бесполезно: workflow падает, в источники не ходит
 func TestApplicationWorkflowIllegal(t *testing.T) {
 	e := newEnv()
-	err := temporal.NewNonRetryableApplicationError("illegal", activity.IllegalTransitionErrorType, nil)
+	err := temporal.NewNonRetryableApplicationError("illegal", usecase.IllegalTransitionErrorType, nil)
 	e.OnActivity(e.apps.Transition, mock.Anything, e.id, toChecking).Return(err).Once()
 
 	e.ExecuteWorkflow(workflow.ApplicationWorkflow, e.id)

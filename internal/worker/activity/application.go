@@ -4,7 +4,6 @@ package activity
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 	"go.temporal.io/sdk/temporal"
@@ -12,26 +11,6 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 )
-
-// Типы неповторяемых ошибок: workflow по ним понимает, что повтор не поможет.
-const (
-	NotFoundErrorType          = "NotFoundError"
-	IllegalTransitionErrorType = "IllegalTransitionError"
-	VersionConflictErrorType   = "VersionConflictError"
-	ForbiddenErrorType         = "ForbiddenError"
-	InvalidErrorType           = "InvalidError"
-)
-
-var nonRetryable = []struct {
-	err     error
-	errType string
-}{
-	{domain.ErrNotFound, NotFoundErrorType},
-	{domain.ErrIllegalTransition, IllegalTransitionErrorType},
-	{domain.ErrConflict, VersionConflictErrorType},
-	{domain.ErrForbidden, ForbiddenErrorType},
-	{domain.ErrInvalid, InvalidErrorType},
-}
 
 // ApplicationActivities шаги ApplicationWorkflow, которые трогают заявку.
 type ApplicationActivities struct {
@@ -47,11 +26,10 @@ func (a *ApplicationActivities) Transition(ctx context.Context, id uuid.UUID, m 
 	return classify(a.apps.Transition(ctx, id, m))
 }
 
+// classify помечает ошибки, которые повторять бесполезно, остальные повторит RetryPolicy.
 func classify(err error) error {
-	for _, nr := range nonRetryable {
-		if errors.Is(err, nr.err) {
-			return temporal.NewNonRetryableApplicationError(err.Error(), nr.errType, err)
-		}
+	if typ := usecase.ErrorType(err); typ != "" {
+		return temporal.NewNonRetryableApplicationError(err.Error(), typ, err)
 	}
 	return err
 }
