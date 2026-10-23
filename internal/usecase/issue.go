@@ -25,7 +25,10 @@ const (
 	codeSpace = 1_000_000
 )
 
-var errCodeGone = fmt.Errorf("%w: код больше не действует, запросите новый", domain.ErrInvalid)
+// wrongCode это ответ на неверный или сгоревший код: ошибка на поле формы, API отдаст 422
+func wrongCode(msg string) error {
+	return domain.FieldErrors{{Field: "code", Message: msg}}
+}
 
 // IssueUseCase всё после решения: принятие условий, договор, код подписи, выдача.
 type IssueUseCase interface {
@@ -37,7 +40,7 @@ type IssueUseCase interface {
 	// RequestCode выдаёт новый код подписи вместо старого. Только в signing.
 	RequestCode(ctx context.Context, actor domain.Actor, id uuid.UUID) (string, domain.SigningCode, error)
 	// Sign сверяет код и только верный передаёт процессу, без самого кода: аргументы
-	// Update остаются в истории Temporal. Неверный код: ErrInvalid и минус попытка.
+	// Update остаются в истории Temporal. Неверный код: FieldErrors по полю code и минус попытка.
 	Sign(ctx context.Context, actor domain.Actor, id uuid.UUID, code string) error
 	// Payout моделирует выдачу суммы из решения, повтор ничего не меняет.
 	Payout(ctx context.Context, id uuid.UUID) error
@@ -136,9 +139,9 @@ func (u *issueUseCase) Sign(ctx context.Context, actor domain.Actor, id uuid.UUI
 	case err != nil:
 		return err
 	case !ok && left > 0:
-		return fmt.Errorf("%w: неверный код, осталось попыток: %d", domain.ErrInvalid, left)
+		return wrongCode(fmt.Sprintf("неверный код, осталось попыток: %d", left))
 	case !ok:
-		return errCodeGone
+		return wrongCode("код больше не действует, запросите новый")
 	}
 	return u.apps.Act(ctx, id, UpdateSign, domain.Action{Actor: actor})
 }

@@ -29,6 +29,9 @@ p, client, /api/applications/:id, PATCH
 p, client, /api/applications/:id/cancel, POST
 p, client, /api/applications/:id/submit, POST
 p, client, /api/applications/:id/provide-info, POST
+p, client, /api/applications/:id/accept, POST
+p, client, /api/applications/:id/signing-code, POST
+p, client, /api/applications/:id/sign, POST
 p, client, /api/applications/:id/documents, POST
 p, client, /api/documents/:id/confirm, POST
 p, client, /api/applications/:id/history, GET

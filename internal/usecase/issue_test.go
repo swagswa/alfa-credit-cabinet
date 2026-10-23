@@ -52,6 +52,16 @@ func (e *appEnv) code(id uuid.UUID) (hash []byte, attempts int, expires time.Tim
 	return hash, attempts, expires
 }
 
+// wrongCode: код не подошёл, ошибка на поле code, в форме подсветится поле ввода
+func wrongCode(t *testing.T, err error, msg string) {
+	t.Helper()
+	var fields domain.FieldErrors
+	require.ErrorAs(t, err, &fields)
+	require.Len(t, fields, 1)
+	require.Equal(t, "code", fields[0].Field)
+	require.Contains(t, fields[0].Message, msg)
+}
+
 func TestRequestCode(t *testing.T) {
 	e := newAppEnv(t)
 	uc := e.issue()
@@ -87,7 +97,7 @@ func TestSign(t *testing.T) {
 	ctx := t.Context()
 	id := e.offer(domain.StatusSigning)
 
-	require.ErrorIs(t, uc.Sign(ctx, e.client, id, "123456"), domain.ErrInvalid, "кода ещё не просили")
+	wrongCode(t, uc.Sign(ctx, e.client, id, "123456"), "запросите новый") // кода ещё не просили
 
 	code, _, err := uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
@@ -96,11 +106,9 @@ func TestSign(t *testing.T) {
 		wrong = "111111"
 	}
 	for _, left := range []string{"осталось попыток: 2", "осталось попыток: 1", "запросите новый"} {
-		signErr := uc.Sign(ctx, e.client, id, wrong)
-		require.ErrorIs(t, signErr, domain.ErrInvalid)
-		require.ErrorContains(t, signErr, left)
+		wrongCode(t, uc.Sign(ctx, e.client, id, wrong), left)
 	}
-	require.ErrorIs(t, uc.Sign(ctx, e.client, id, code), domain.ErrInvalid, "три ошибки сожгли код")
+	wrongCode(t, uc.Sign(ctx, e.client, id, code), "запросите новый") // три ошибки сожгли код
 	require.Nil(t, e.wf.args, "до процесса неверный код не доходит")
 
 	code, _, err = uc.RequestCode(ctx, e.client, id)
@@ -111,16 +119,14 @@ func TestSign(t *testing.T) {
 
 	// двойной клик: второй раз тем же кодом уже не подписать
 	e.wf.args = nil
-	require.ErrorIs(t, uc.Sign(ctx, e.client, id, code), domain.ErrInvalid)
+	wrongCode(t, uc.Sign(ctx, e.client, id, code), "запросите новый")
 	require.Nil(t, e.wf.args)
 
 	code, _, err = uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
 	_, err = e.pool.Exec(ctx, "UPDATE signing_codes SET expires_at = now() - interval '1 second'")
 	require.NoError(t, err)
-	err = uc.Sign(ctx, e.client, id, code)
-	require.ErrorIs(t, err, domain.ErrInvalid)
-	require.ErrorContains(t, err, "запросите новый")
+	wrongCode(t, uc.Sign(ctx, e.client, id, code), "запросите новый")
 }
 
 func TestAccept(t *testing.T) {

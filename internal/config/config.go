@@ -100,6 +100,8 @@ type API struct {
 	// CORSOrigin нужен только dev-серверу Vite, в compose фронт ходит через nginx
 	CORSOrigin string `env:"CORS_ORIGIN"`
 	AIEnabled  bool   `env:"AI_ENABLED"  envDefault:"false"`
+	// SigningCodeTTL сколько живёт код подписи, на проде как у SMS-кода
+	SigningCodeTTL time.Duration `env:"SIGNING_CODE_TTL" envDefault:"5m"`
 	// SeedDemo заводит тестовые учётки и демо-компании, на стенде для жюри включён
 	SeedDemo bool `env:"SEED_DEMO" envDefault:"false"`
 }
