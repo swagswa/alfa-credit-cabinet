@@ -80,7 +80,7 @@ AI_ENABLED=true docker compose --profile ai up -d --build --wait
 | `docs-worker` | распознаёт выписки и отчётность, отдельно, потому что тяжёлый и с другим образом |
 | `mocks` | симулятор ЕГРЮЛ/ЕГРИП, ФНС, БКИ и внутренних данных банка |
 
-Код разложен по слоям: `internal/domain` (сущности и правила без I/O), `internal/repo` (SQL через sqlc), `internal/usecase` (логика и транзакции), `internal/api` и `internal/worker` (вход снаружи). Переиспользуемая инфраструктура в `pkg/`. Контракт API в `api/openapi.yaml`, статусы заявки в `docs/state-diagram.md`, модель данных в `docs/data-model.md`.
+Код разложен по слоям: `internal/domain` (сущности и правила без I/O), `internal/repo` (SQL через sqlc), `internal/usecase` (логика и транзакции), `internal/api` и `internal/worker` (вход снаружи). Переиспользуемая инфраструктура в `pkg/`. Контракт API в `api/openapi.yaml`, статусы заявки в `docs/state-diagram.md`, модель данных в `docs/data-model.md`. Логи у всех процессов JSON через `pkg/logger`, ФИО и логины там маскируются на уровне core (поля `fio`, `full_name`, `login` целиком, ФИО в строках и текстах ошибок по шаблону), ИНН компании и id остаются.
 
 Почему продукт устроен так, а не иначе: боли клиентов и банка, источники и границы MVP в [docs/research.md](docs/research.md).
 
