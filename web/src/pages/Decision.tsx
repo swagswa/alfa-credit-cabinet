@@ -59,7 +59,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         <tr><th>Срок</th><td>{card.term_months} мес.</td><td>{card.offer.term_months} мес.</td></tr>
       </tbody></table></div></MotionDetails>
       <p>{card.offer.rate_bp / 100}% годовых. Платёж: {money(card.offer.monthly_payment_kop)}.</p>
-      <p>Предложение действительно до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.</p>
+      {card.allowed_next.includes('accepted') && <p>Предложение действительно до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.</p>}
       {card.offer.guarantor_required && <p>Нужно поручительство собственника: он отвечает по обязательствам компании.</p>}
       {card.offer.pledge_required && <p>Покупаемое оборудование потребуется передать в залог.</p>}
       {card.offer.msp_guarantee && <p>Поручительство Корпорации МСП.</p>}

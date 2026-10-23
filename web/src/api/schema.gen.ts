@@ -1231,11 +1231,12 @@ export interface components {
              */
             id: number;
             /**
-             * @description escalation это истёк SLA ручного рассмотрения, статус при этом не меняется
+             * @description escalation это истёк SLA ручного рассмотрения, signing шаг подписания (код выдан, неверный код),
+             *     статус при них не меняется
              * @example transition
              * @enum {string}
              */
-            kind: "transition" | "escalation" | "override";
+            kind: "transition" | "escalation" | "override" | "signing";
             from_status?: components["schemas"]["ApplicationStatus"];
             to_status?: components["schemas"]["ApplicationStatus"];
             actor_role: components["schemas"]["ActorRole"];

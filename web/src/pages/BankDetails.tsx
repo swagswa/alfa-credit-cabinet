@@ -37,7 +37,7 @@ export function BankDetails({ card, role }: { card: components['schemas']['Appli
     <Button size={40} onClick={() => setRevision((value) => value + 1)}>Обновить историю</Button>
     {state === 'ready' && !history.length && <p>Событий пока нет.</p>}
     <ol>{history.map((event) => <li key={event.id}>
-      <time>{new Date(event.created_at).toLocaleString('ru-RU')}</time>: {event.actor_name ?? actors[event.actor_role]}, {({transition:'Смена этапа',override:'Отклонение от рекомендации',escalation:'Превышен срок рассмотрения'})[event.kind]}
+      <time>{new Date(event.created_at).toLocaleString('ru-RU')}</time>: {event.actor_name ?? actors[event.actor_role]}, {({transition:'Смена этапа',override:'Отклонение от рекомендации',escalation:'Превышен срок рассмотрения',signing:'Подписание'})[event.kind]}
       {event.from_status && <>: {labels[event.from_status]}</>}{event.to_status && <> → {labels[event.to_status]}</>}
       {event.comment && <p>{event.comment}</p>}
       {!!event.reason_codes?.length && <p>Причины: {event.reason_codes.join(', ')}</p>}
