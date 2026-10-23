@@ -96,13 +96,20 @@ func (u *productUseCase) offer(code domain.ProductCode, q RecommendQuery, primar
 		TermMonths: min(max(q.TermMonths, p.TermMinMonths), p.TermMaxMonths),
 		RateBP:     p.BaseRateBP,
 	}
-	r := float64(o.RateBP) / bpInOne / monthsInYear
-	amount := float64(o.AmountKop)
-	if p.Repayment == domain.AutoDebit {
-		// у овердрафта тело гасится поступлениями, ориентир это проценты за месяц при полном лимите
-		o.MonthlyPaymentKop = int64(math.Round(amount * r))
-	} else {
-		o.MonthlyPaymentKop = int64(math.Round(amount * r / (1 - math.Pow(1+r, -float64(o.TermMonths)))))
-	}
+	o.MonthlyPaymentKop = payment(o.AmountKop, o.RateBP, o.TermMonths, p.Repayment)
 	return o
+}
+
+// factor это платёж в месяц на копейку долга. У овердрафта тело гасится поступлениями,
+// ориентир это проценты за месяц при полном лимите.
+func factor(rateBP, months int, rp domain.Repayment) float64 {
+	r := float64(rateBP) / bpInOne / monthsInYear
+	if rp == domain.AutoDebit {
+		return r
+	}
+	return r / (1 - math.Pow(1+r, -float64(months)))
+}
+
+func payment(amountKop int64, rateBP, months int, rp domain.Repayment) int64 {
+	return int64(math.Round(float64(amountKop) * factor(rateBP, months, rp)))
 }

@@ -12,7 +12,7 @@ products:
       A: {action: auto, revenue_mult: 4, max_term: 36}
       B: {action: auto, revenue_mult: 3, max_term: 36}
       C: {action: auto, revenue_mult: 2, max_term: 24, guarantor_over_rub: 1500000}
-      D: {action: manual, revenue_mult: 1, max_term: 12, guarantor_over_rub: 0}
+      D: {action: manual, revenue_mult: 1, max_term: 12, guarantor_over_rub: 300000} # минимум продукта, то есть всегда
       E: {action: reject}
   overdraft:
     auto_limit_rub: 3000000
@@ -58,6 +58,15 @@ stop_factors:
   - {code: SF_AML_FLAG, input: aml_high_risk, eq: true, outcome: manual_review}
   - {code: SF_DOC_MISMATCH, input: doc_revenue_mismatch, gt: 0.2, outcome: manual_review}
   - {code: SF_SOURCE_UNAVAILABLE, input: sources_unavailable, gt: 0, outcome: manual_review}
+
+# как назвать вид документа клиенту, для {doc} в SF_DOCS_MISSING
+document_names:
+  passport: паспорт руководителя
+  power_of_attorney: доверенность
+  statement: выписка по счёту из другого банка
+  financials: бухгалтерская отчётность или декларация
+  supply_contract: счёт или договор поставки оборудования
+  tax_receipt: квитанция о сдаче декларации
 
 # тексты клиенту, шаблоны с подстановкой; у мягких стоп-факторов, кроме SF_DOC_MISMATCH, текста нет:
 # клиент видит R_MANUAL_RISK, причину видит только банк
