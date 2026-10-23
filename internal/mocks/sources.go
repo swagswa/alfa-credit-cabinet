@@ -9,7 +9,9 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.yaml.in/yaml/v3"
 
@@ -83,15 +85,17 @@ func (s *sim) routes(e *echo.Echo) {
 
 func (s *sim) bki(c echo.Context) error {
 	var req struct {
-		INN       string `json:"inn"`
-		ConsentID string `json:"consent_id"`
+		INN       string    `json:"inn"`
+		ConsentID uuid.UUID `json:"consent_id"`
+		GivenAt   time.Time `json:"consent_given_at"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	// бюро без согласия субъекта отчёт не отдаёт (218-ФЗ)
-	if req.ConsentID == "" {
-		return echo.NewHTTPError(http.StatusForbidden, "нет согласия на запрос в бюро")
+	// бюро без действующего согласия субъекта отчёт не отдаёт (218-ФЗ, ст. 6)
+	if !(domain.BKIConsent{ID: req.ConsentID, GivenAt: req.GivenAt}).Valid(time.Now()) {
+		return echo.NewHTTPError(http.StatusForbidden,
+			fmt.Sprintf("нет действующего согласия на запрос в бюро, оно живёт %d месяцев", domain.BKIConsentMonths))
 	}
 	return s.respond(c, domain.SourceBKI, req.INN)
 }

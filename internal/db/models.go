@@ -89,6 +89,13 @@ type ApplicationEvent struct {
 	CreatedAt     time.Time
 }
 
+type BkiConsent struct {
+	ID            uuid.UUID
+	ApplicationID uuid.UUID
+	GivenAt       time.Time
+	CreatedAt     time.Time
+}
+
 type CheckResult struct {
 	ID            int64
 	ApplicationID uuid.UUID

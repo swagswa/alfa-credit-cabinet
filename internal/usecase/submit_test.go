@@ -3,10 +3,13 @@ package usecase_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 )
 
 func TestSubmit(t *testing.T) {
@@ -63,6 +66,18 @@ func TestSubmitOnce(t *testing.T) {
 	require.Equal(t, []string{app.ID.String()}, e.wf.started)
 	_, _, events := e.state(app.ID)
 	require.Equal(t, 1, events)
+
+	// согласие из анкеты стало записью ровно одной, дата та, что поставил клиент
+	consent, err := repo.NewApplication(db.New(e.pool)).BKIConsent(t.Context(), app.ID)
+	require.NoError(t, err)
+	var givenAt time.Time
+	var n int
+	err = e.pool.QueryRow(t.Context(), `SELECT a.bki_consent_at, count(c.id) FROM applications a
+		JOIN bki_consents c ON c.application_id = a.id WHERE a.id = $1 GROUP BY a.id`, app.ID).Scan(&givenAt, &n)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.True(t, givenAt.Equal(consent.GivenAt))
+	require.True(t, consent.Valid(time.Now()))
 
 	// воркер уже перевёл в checking, повтор всё так же ничего не ломает
 	_, err = e.pool.Exec(t.Context(), "UPDATE applications SET status = 'checking' WHERE id = $1", app.ID)

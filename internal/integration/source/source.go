@@ -39,12 +39,12 @@ func (c *Client) Fetch(
 	ctx context.Context,
 	src domain.Source,
 	inn string,
-	consentID uuid.UUID,
+	consent domain.BKIConsent,
 ) (json.RawMessage, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	req, err := c.request(ctx, src, inn, consentID)
+	req, err := c.request(ctx, src, inn, consent)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", src, err)
 	}
@@ -75,7 +75,9 @@ func (c *Client) Fetch(
 	return body, nil
 }
 
-func (c *Client) request(ctx context.Context, src domain.Source, inn string, consent uuid.UUID) (*http.Request, error) {
+func (c *Client) request(
+	ctx context.Context, src domain.Source, inn string, consent domain.BKIConsent,
+) (*http.Request, error) {
 	path := url.PathEscape(inn)
 	method, body := http.MethodGet, io.Reader(http.NoBody)
 	var target string
@@ -87,8 +89,8 @@ func (c *Client) request(ctx context.Context, src domain.Source, inn string, con
 	case domain.SourceInternal:
 		target = c.urls.Bank + "/internal/" + path
 	case domain.SourceBKI:
-		// бюро отвечает только по согласию, оно дано в анкете заявки
-		raw, err := json.Marshal(bkiRequest{INN: inn, ConsentID: consent})
+		// бюро отвечает только по действующему согласию, срок оно считает от даты получения
+		raw, err := json.Marshal(bkiRequest{INN: inn, ConsentID: consent.ID, GivenAt: consent.GivenAt})
 		if err != nil {
 			return nil, fmt.Errorf("bki body: %w", err)
 		}
@@ -110,4 +112,5 @@ func (c *Client) request(ctx context.Context, src domain.Source, inn string, con
 type bkiRequest struct {
 	INN       string    `json:"inn"`
 	ConsentID uuid.UUID `json:"consent_id"`
+	GivenAt   time.Time `json:"consent_given_at"`
 }
