@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -56,6 +57,9 @@ type ApplicationUseCase interface {
 	// ProvideInfo это ответ клиента на запрос банка. Документы годятся подтверждённые
 	// или те, что не распознаём (паспорт, доверенность). Выручку пишем до перехода.
 	ProvideInfo(ctx context.Context, actor domain.Actor, id uuid.UUID, a Answer) error
+	// Decide это решение андеррайтера по заявке на ручном рассмотрении. Условия проверяем
+	// по продукту, как анкету при подаче, платёж считаем сами. К месту ли решение, решает процесс.
+	Decide(ctx context.Context, id uuid.UUID, a domain.Action) error
 }
 
 // Answer это то, что клиент прислал на запрос уточнений.
@@ -119,6 +123,11 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 			return fmt.Errorf("%w: заявка уже изменилась, обновите карточку", domain.ErrConflict)
 		case !domain.CanTransition(app.Status, m.To, m.Actor.Role):
 			return fmt.Errorf("%w: из %s в %s ролью %s", domain.ErrIllegalTransition, app.Status, m.To, m.Actor.Role)
+		}
+		if m.Decision != nil {
+			if err := apps.SaveDecision(ctx, id, &m); err != nil {
+				return err
+			}
 		}
 		if err := apps.Move(ctx, app, m); err != nil {
 			return err
@@ -192,7 +201,10 @@ func (u *applicationUseCase) company(
 
 func (u *applicationUseCase) Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
 	app, err := u.card(ctx, actor, id)
-	if err != nil || actor.Role == domain.RoleClient {
+	if err != nil {
+		return app, err
+	}
+	if app.Decision, err = u.apps.Decision(ctx, id); err != nil || actor.Role == domain.RoleClient {
 		return app, err
 	}
 	app.Checks, err = u.apps.Checks(ctx, id)
@@ -343,6 +355,37 @@ func (u *applicationUseCase) ProvideInfo(ctx context.Context, actor domain.Actor
 	return fromProcess(
 		u.workflows.Update(ctx, id.String(), UpdateProvideInfo, domain.Action{Actor: actor, Comment: a.Comment}),
 	)
+}
+
+func (u *applicationUseCase) Decide(ctx context.Context, id uuid.UUID, a domain.Action) error {
+	switch {
+	case strings.TrimSpace(a.Comment) == "":
+		return domain.FieldErrors{{Field: "comment", Message: "объясните решение в комментарии"}}
+	case a.Outcome == domain.StatusRejected:
+		if len(a.Codes) == 0 {
+			return domain.FieldErrors{{Field: "reason_codes", Message: "для отказа нужна хотя бы одна причина"}}
+		}
+		a.Terms = nil
+	case a.Terms == nil:
+		return domain.FieldErrors{{Field: "terms", Message: "для одобрения и контрпредложения нужны условия"}}
+	default:
+		app, err := u.apps.Card(ctx, id, nil)
+		if err != nil {
+			return err
+		}
+		t := a.Terms
+		// условия андеррайтера проходят те же рамки продукта, что и анкета
+		d := domain.Draft{
+			Product: t.Product, AmountKop: t.AmountKop, TermMonths: t.TermMonths,
+			EquipmentCostKop: app.EquipmentCostKop, BKIConsent: true, PDConsent: true,
+		}
+		if errs := u.catalog.Ready(&d); errs != nil {
+			return errs
+		}
+		p, _ := u.catalog.Product(t.Product)
+		t.PaymentKop = payment(t.AmountKop, t.RateBP, t.TermMonths, p.Repayment)
+	}
+	return u.Act(ctx, id, UpdateDecide, a)
 }
 
 // owner: клиент видит заявки только своих компаний, сотрудник банка все

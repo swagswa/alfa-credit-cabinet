@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"path/filepath"
 
 	sdkworker "go.temporal.io/sdk/worker"
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
+	"github.com/swagswa/alfa-credit-cabinet/internal/rules"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/activity"
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
@@ -41,9 +43,24 @@ func main() {
 	sources := source.New(source.URLs{
 		EGRUL: cfg.EGRULURL, FNS: cfg.FNSURL, BKI: cfg.BKIURL, Bank: cfg.BankURL,
 	}, cfg.Sources.Timeout)
-	deadlines := domain.Deadlines{NeedInfo: cfg.NeedInfoTTL, Review: cfg.ReviewSLA}
+	// кривой yaml роняет старт: решать по неполным правилам хуже, чем не решать
+	catalog, err := rules.Products(filepath.Join(cfg.RulesDir, "products.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
+	scoring, err := rules.Scoring(filepath.Join(cfg.RulesDir, "scoring.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
+	policy, err := rules.Policy(filepath.Join(cfg.RulesDir, "policy.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
+
+	deadlines := domain.Deadlines{NeedInfo: cfg.NeedInfoTTL, Review: cfg.ReviewSLA, Offer: cfg.OfferTTL}
 	appActs := activity.NewApplicationActivities(
-		usecase.NewApplication(db, appRepo, nil, tc, domain.Catalog{}),
+		usecase.NewApplication(db, appRepo, nil, tc, catalog),
+		usecase.NewDecision(catalog, scoring, policy),
 		deadlines,
 	)
 	checkActs := activity.NewCheckActivities(usecase.NewCheck(appRepo, repo.NewCheck(q), sources))

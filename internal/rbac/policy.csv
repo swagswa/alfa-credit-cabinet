@@ -46,3 +46,4 @@ p, underwriter, /api/applications/:id/history, GET
 p, manager, /api/applications/:id/request-info, POST
 p, manager, /api/applications/:id/retry-checks, POST
 p, underwriter, /api/applications/:id/request-info, POST
+p, underwriter, /api/applications/:id/decision, POST

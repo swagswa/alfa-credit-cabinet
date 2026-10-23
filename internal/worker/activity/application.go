@@ -4,6 +4,7 @@ package activity
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"go.temporal.io/sdk/temporal"
@@ -15,17 +16,32 @@ import (
 // ApplicationActivities шаги ApplicationWorkflow, которые трогают заявку.
 type ApplicationActivities struct {
 	apps      usecase.ApplicationUseCase
+	decisions usecase.DecisionUseCase
 	deadlines domain.Deadlines
 }
 
-func NewApplicationActivities(apps usecase.ApplicationUseCase, deadlines domain.Deadlines) *ApplicationActivities {
-	return &ApplicationActivities{apps: apps, deadlines: deadlines}
+func NewApplicationActivities(
+	apps usecase.ApplicationUseCase,
+	decisions usecase.DecisionUseCase,
+	deadlines domain.Deadlines,
+) *ApplicationActivities {
+	return &ApplicationActivities{apps: apps, decisions: decisions, deadlines: deadlines}
 }
 
 // Deadlines отдаёт сроки из конфига воркера. Процесс берёт их один раз, и они
 // ложатся в историю: смена конфига не ломает реплей идущих заявок.
 func (a *ApplicationActivities) Deadlines(context.Context) (domain.Deadlines, error) {
 	return a.deadlines, nil
+}
+
+// Decide считает решение по последним проверкам и ничего не пишет: решение ложится
+// в базу вместе с переходом, поэтому повтор безопасен.
+func (a *ApplicationActivities) Decide(ctx context.Context, id uuid.UUID) (domain.Decision, error) {
+	app, err := a.apps.Get(ctx, domain.Actor{Role: domain.RoleSystem}, id)
+	if err != nil {
+		return domain.Decision{}, classify(err)
+	}
+	return a.decisions.Decide(&app, time.Now())
 }
 
 func (a *ApplicationActivities) Escalate(ctx context.Context, id uuid.UUID) error {

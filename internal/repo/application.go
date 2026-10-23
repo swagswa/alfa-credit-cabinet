@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -21,6 +22,11 @@ type ApplicationRepository interface {
 	Move(ctx context.Context, app domain.Application, m domain.Move) error
 	// Escalate пишет в журнал, что SLA андеррайтера прошёл. Статус не меняется.
 	Escalate(ctx context.Context, id uuid.UUID) error
+	// SaveDecision пишет m.Decision, его условия становятся текущими. Звать до Move:
+	// approved без условий база не пропустит.
+	SaveDecision(ctx context.Context, id uuid.UUID, m *domain.Move) error
+	// Decision отдаёт последнее решение по заявке, nil, если решений ещё не было.
+	Decision(ctx context.Context, id uuid.UUID) (*domain.Decision, error)
 
 	// Company находит компанию по ИНН и говорит, представляет ли её userID.
 	Company(ctx context.Context, userID uuid.UUID, inn string) (id uuid.UUID, member bool, err error)
@@ -107,6 +113,83 @@ func (r *applicationRepo) Escalate(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("escalate %s: %w", id, err)
 	}
 	return nil
+}
+
+func (r *applicationRepo) SaveDecision(ctx context.Context, id uuid.UUID, m *domain.Move) error {
+	d := m.Decision
+	reasons := d.Reasons
+	if reasons == nil {
+		reasons = []domain.Reason{}
+	}
+	p := db.AddDecisionParams{
+		ApplicationID:  id,
+		Stage:          d.Stage,
+		Outcome:        string(d.Outcome),
+		ReasonCodes:    d.Codes(),
+		Reasons:        jsonb(&reasons),
+		ScoreBreakdown: jsonb(d.Score),
+		Terms:          jsonb(d.Terms),
+		Recommendation: jsonb(d.Recommendation),
+		ScoringVersion: text(d.ScoringVersion),
+		PolicyVersion:  text(d.PolicyVersion),
+		IsOverride:     d.Override,
+	}
+	if d.Stage == domain.StageUnderwriter {
+		p.DecidedBy = optUUID(&m.Actor.ID)
+		p.Comment = text(m.Comment)
+	}
+	o := db.SetOfferParams{ID: id, ScoringVersion: p.ScoringVersion, PolicyVersion: p.PolicyVersion}
+	if s := d.Score; s != nil {
+		p.Score = pgtype.Int2{Int16: int16(s.Points), Valid: true} //nolint:gosec // балл 0..100
+		p.Grade = text(s.Grade)
+		o.Score, o.Grade = p.Score, p.Grade
+	}
+	if t := d.Terms; t != nil {
+		o.Product = text(string(t.Product))
+		o.AmountKop, o.PaymentKop = kop(t.AmountKop), kop(t.PaymentKop)
+		o.TermMonths = pgtype.Int4{Int32: int32(t.TermMonths), Valid: true} //nolint:gosec // 3..60
+		o.RateBp = pgtype.Int4{Int32: int32(t.RateBP), Valid: true}         //nolint:gosec // б.п.
+		o.Guarantor, o.Pledge = t.Guarantor, t.Pledge
+	}
+	if err := r.q.AddDecision(ctx, p); err != nil {
+		return fmt.Errorf("decision %s: %w", id, err)
+	}
+	if err := r.q.SetOffer(ctx, o); err != nil {
+		return fmt.Errorf("offer %s: %w", id, err)
+	}
+	return nil
+}
+
+func (r *applicationRepo) Decision(ctx context.Context, id uuid.UUID) (*domain.Decision, error) {
+	row, err := r.q.LatestDecision(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil //nolint:nilnil // решений ещё не было, это не ошибка
+	}
+	if err != nil {
+		return nil, fmt.Errorf("decision %s: %w", id, err)
+	}
+	d := &domain.Decision{
+		Stage:          row.Stage,
+		Outcome:        domain.Status(row.Outcome),
+		ScoringVersion: row.ScoringVersion.String,
+		PolicyVersion:  row.PolicyVersion.String,
+		Override:       row.IsOverride,
+	}
+	return d, errors.Join(
+		unmarshal(row.Reasons, &d.Reasons),
+		unmarshal(row.ScoreBreakdown, &d.Score),
+		unmarshal(row.Terms, &d.Terms),
+		unmarshal(row.Recommendation, &d.Recommendation),
+	)
+}
+
+// jsonb: nil остаётся NULL
+func jsonb[T any](v *T) []byte {
+	if v == nil {
+		return nil
+	}
+	b, _ := json.Marshal(v)
+	return b
 }
 
 func (r *applicationRepo) Company(ctx context.Context, userID uuid.UUID, inn string) (uuid.UUID, bool, error) {

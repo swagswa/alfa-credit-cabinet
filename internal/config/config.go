@@ -110,9 +110,12 @@ type Worker struct {
 	Temporal
 	Sources
 
-	// по умолчанию сроки демо, на проде 5 рабочих дней и 1 рабочий день
+	RulesDir string `env:"RULES_DIR" envDefault:"rules"`
+
+	// по умолчанию сроки демо, на проде 5, 1 и 10 рабочих дней
 	NeedInfoTTL time.Duration `env:"NEED_INFO_TTL" envDefault:"3m"`
 	ReviewSLA   time.Duration `env:"REVIEW_SLA"    envDefault:"5m"`
+	OfferTTL    time.Duration `env:"OFFER_TTL"     envDefault:"5m"`
 }
 
 type DocsWorker struct {

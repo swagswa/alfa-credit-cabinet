@@ -4,9 +4,13 @@ import "math"
 
 // Стадии решения, как stage в таблице decisions.
 const (
-	StageChecks = "checks"
-	StagePolicy = "policy"
+	StageChecks      = "checks"
+	StagePolicy      = "policy"
+	StageUnderwriter = "underwriter"
 )
+
+// Verdicts это исходы, которые может выбрать андеррайтер.
+var Verdicts = []Status{StatusApproved, StatusCounterOffer, StatusRejected}
 
 // Facts это данные проверок, приведённые к виду, на который смотрят правила.
 // Собираются из check_results, анкеты и подтверждённых документов, суммы в копейках.
@@ -115,6 +119,7 @@ type StopHit struct {
 // FactorScore это вклад одного фактора скоринга. Reason пустой, если бин без кода.
 type FactorScore struct {
 	Code   string  `json:"code"`
+	Name   string  `json:"name"`
 	Value  float64 `json:"value"`
 	Points int     `json:"points"`
 	Max    int     `json:"max"`
@@ -150,7 +155,8 @@ type Reason struct {
 
 // Decision это результат стадии. Outcome совпадает со статусом, в который идёт заявка;
 // у checks без запретов он пустой, дальше скоринг. Terms у approved и counter_offer,
-// Recommendation у manual_review.
+// Recommendation у manual_review. Решение андеррайтера несёт балл и рекомендацию
+// политики, на которые он смотрел; Override, если разошёлся с рекомендацией.
 type Decision struct {
 	Stage          string
 	Outcome        Status
@@ -161,6 +167,7 @@ type Decision struct {
 	Reasons        []Reason
 	ScoringVersion string
 	PolicyVersion  string
+	Override       bool
 }
 
 // Codes для decisions.reason_codes.

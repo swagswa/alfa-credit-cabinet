@@ -42,7 +42,7 @@ func TestTransition(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := activity.NewApplicationActivities(fakeApps{err: tt.err}, domain.Deadlines{})
+			a := activity.NewApplicationActivities(fakeApps{err: tt.err}, nil, domain.Deadlines{})
 			err := a.Transition(t.Context(), uuid.New(), domain.Move{To: domain.StatusChecking})
 
 			var appErr *temporal.ApplicationError
@@ -59,7 +59,7 @@ func TestTransition(t *testing.T) {
 
 	require.NoError(
 		t,
-		activity.NewApplicationActivities(fakeApps{}, domain.Deadlines{}).
+		activity.NewApplicationActivities(fakeApps{}, nil, domain.Deadlines{}).
 			Transition(t.Context(), uuid.New(), domain.Move{}),
 	)
 }

@@ -18,11 +18,18 @@ import (
 var system = domain.Actor{Role: domain.RoleSystem}
 
 // update это действие человека: куда оно ведёт заявку и из каких статусов
-// его принимают. Кому можно, решает таблица переходов.
+// его принимают. Кому можно, решает таблица переходов. Пустой to: исход в самом действии.
 type update struct {
 	name string
 	to   domain.Status
 	from []domain.Status
+}
+
+func (u update) target(a domain.Action) domain.Status {
+	if u.to == "" {
+		return a.Outcome
+	}
+	return u.to
 }
 
 var updates = []update{
@@ -34,6 +41,7 @@ var updates = []update{
 	},
 	{usecase.UpdateRetryChecks, domain.StatusChecking, []domain.Status{domain.StatusManualReview}},
 	{usecase.UpdateCancel, domain.StatusCancelledByClient, nil},
+	{usecase.UpdateDecide, "", []domain.Status{domain.StatusManualReview}},
 }
 
 // process это то, что workflow помнит о заявке между шагами.
@@ -46,6 +54,8 @@ type process struct {
 	busy bool
 	// infoRequest пришёл во время проверок, исполним его после них
 	infoRequest *domain.Action
+	// decision последнего расчёта, на него смотрит андеррайтер
+	decision *domain.Decision
 }
 
 // ApplicationWorkflow ведёт заявку от подачи до выдачи, id workflow равен id заявки.
@@ -89,8 +99,11 @@ func (p *process) run(ctx workflow.Context) error {
 	}
 	for {
 		if p.status == domain.StatusChecking {
-			if waiting, err := p.check(ctx); err != nil || !waiting {
-				// не ждём людей: дальше стоп-факторы, скоринг и решение
+			waiting, err := p.check(ctx)
+			if err == nil && !waiting {
+				err = p.decide(ctx)
+			}
+			if err != nil {
 				return err
 			}
 			continue
@@ -143,6 +156,27 @@ func (p *process) check(ctx workflow.Context) (bool, error) {
 	return false, nil
 }
 
+// decide считает решение и ведёт заявку в исход. Стоп-факторы останавливают
+// ещё на checking, иначе заявка проходит через scoring.
+func (p *process) decide(ctx workflow.Context) error {
+	var a *activity.ApplicationActivities
+
+	var d domain.Decision
+	// пока считаем, запрос сотрудника не принимаем: исполнить его было бы некогда
+	p.busy = true
+	err := workflow.ExecuteActivity(WithDBActivityOptions(ctx), a.Decide, p.id).Get(ctx, &d)
+	p.busy = false
+	if err != nil {
+		return fmt.Errorf("decide: %w", err)
+	}
+	if d.Stage == domain.StagePolicy {
+		if err := p.move(ctx, domain.Move{To: domain.StatusScoring, Actor: system}); err != nil {
+			return err
+		}
+	}
+	return p.move(ctx, domain.Move{To: d.Outcome, Actor: system, Codes: d.Codes(), Decision: &d})
+}
+
 // waitClient ждёт ответа или отмены. Не дождались за срок: заявка истекает.
 func (p *process) waitClient(ctx workflow.Context) error {
 	left, err := workflow.AwaitWithTimeout(ctx, p.deadlines.NeedInfo, p.left(domain.StatusNeedInfo))
@@ -191,9 +225,13 @@ func (p *process) validate(u update, a domain.Action) error {
 		}
 	case u.name == usecase.UpdateRetryChecks && !slices.Contains(p.codes, domain.CodeSourceUnavailable):
 		return rejected("повторять проверки стоит, только если источник не ответил")
+	case u.name == usecase.UpdateDecide && (!slices.Contains(domain.Verdicts, a.Outcome) || a.Comment == "" ||
+		a.Outcome != domain.StatusRejected && a.Terms == nil):
+		// API это уже проверил, но без условий или комментария база решение не примет
+		return rejected("решение это одобрение, контрпредложение с условиями или отказ, всегда с комментарием")
 	}
-	if !domain.CanTransition(p.status, u.to, a.Actor.Role) {
-		return rejected(fmt.Sprintf("роль %s не может перевести заявку из %s в %s", a.Actor.Role, p.status, u.to))
+	if to := u.target(a); !domain.CanTransition(p.status, to, a.Actor.Role) {
+		return rejected(fmt.Sprintf("роль %s не может перевести заявку из %s в %s", a.Actor.Role, p.status, to))
 	}
 	return nil
 }
@@ -205,7 +243,34 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 		p.infoRequest = &a
 		return nil
 	}
-	return p.move(ctx, domain.Move{To: u.to, Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment})
+	m := domain.Move{To: u.target(a), Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment}
+	if u.name == usecase.UpdateDecide {
+		m.Decision = p.verdict(a)
+	}
+	return p.move(ctx, m)
+}
+
+// verdict это решение андеррайтера поверх расчёта, который он видел. Тексты причин
+// берём из расчёта: они там с числами заявки. Причину, которой в расчёте не было,
+// клиент не увидит, банк увидит код.
+func (p *process) verdict(a domain.Action) *domain.Decision {
+	var d domain.Decision
+	if p.decision != nil {
+		d = *p.decision
+	}
+	rec := d.Recommendation
+	d.Override = rec != nil && (a.Terms == nil || *a.Terms != *rec)
+	reasons := make([]domain.Reason, 0, len(a.Codes))
+	for _, c := range a.Codes {
+		i := slices.IndexFunc(d.Reasons, func(r domain.Reason) bool { return r.Code == c })
+		if i < 0 {
+			reasons = append(reasons, domain.Reason{Code: c})
+			continue
+		}
+		reasons = append(reasons, d.Reasons[i])
+	}
+	d.Stage, d.Outcome, d.Terms, d.Reasons = domain.StageUnderwriter, a.Outcome, a.Terms, reasons
+	return &d
 }
 
 // move переводит заявку. Срок нового шага считаем здесь же, его увидят клиент и очередь.
@@ -215,6 +280,8 @@ func (p *process) move(ctx workflow.Context, m domain.Move) error {
 	ttl := map[domain.Status]time.Duration{
 		domain.StatusNeedInfo:     p.deadlines.NeedInfo,
 		domain.StatusManualReview: p.deadlines.Review,
+		domain.StatusApproved:     p.deadlines.Offer,
+		domain.StatusCounterOffer: p.deadlines.Offer,
 	}
 	if d, ok := ttl[m.To]; ok {
 		due := workflow.Now(ctx).Add(d)
@@ -228,6 +295,10 @@ func (p *process) move(ctx workflow.Context, m domain.Move) error {
 		return err //nolint:wrapcheck // см. выше
 	}
 	p.status, p.codes = m.To, m.Codes
+	if m.Decision != nil || m.To == domain.StatusChecking {
+		// новые проверки: старый расчёт андеррайтеру уже не основание
+		p.decision = m.Decision
+	}
 	return nil
 }
 
