@@ -140,6 +140,10 @@ services:
     command: ["/app/worker"]
     environment:
       <<: *backend-env
+      EGRUL_URL: http://mocks:8081
+      FNS_URL: http://mocks:8081
+      BKI_URL: http://mocks:8081
+      BANK_URL: http://mocks:8081
     depends_on:
       api:
         condition: service_healthy
