@@ -26,7 +26,7 @@ func fetch(t *testing.T, inn string) []domain.CheckResult {
 
 	var out []domain.CheckResult
 	for _, src := range domain.Sources {
-		body, err := c.Fetch(t.Context(), src, inn, uuid.New())
+		body, err := c.Fetch(t.Context(), src, inn, domain.BKIConsent{ID: uuid.New(), GivenAt: time.Now()})
 		switch {
 		case err == nil:
 			out = append(out, domain.CheckResult{Source: src, Status: domain.CheckOK, Payload: body})
