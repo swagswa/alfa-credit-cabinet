@@ -39,6 +39,7 @@
 |---|---|---|
 | react, react-dom | 19.3.1 | MIT |
 | react-router | 7.18.4 | MIT |
+| Motion for React (`motion`) | 14.6.0 | MIT |
 | @alfalab/core-components | 50.37.0 | MIT |
 | openapi-fetch | 0.17.0 | MIT |
 
@@ -76,3 +77,7 @@
 - бюро кредитных историй;
 - внутренние данные банка (обороты, продукты, история);
 - подписание документов и выдача кредита.
+
+Зависимости разработки мока API: yaml 2.9.1 (ISC), @types/node 26.6.5 (MIT).
+
+Playwright 1.64.1, Apache-2.0, браузерные проверки разработки.
