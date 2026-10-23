@@ -16,3 +16,4 @@ export type DashboardSnapshot = {
   counts: Record<ApplicationGroup, number>;
 };
 export const defaultApplicationKey = JSON.stringify(['applications', false, 0, null, null, null, '-created_at']);
+export const isCompleted = (status: Status) => applicationGroups.completed.statuses.some(item => item === status);

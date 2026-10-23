@@ -1,11 +1,10 @@
 import { money, products } from '../api/presentation';
+import { isCompleted } from '../api/dashboard';
 import { Value } from '../motion/Value';
-import { motion, useMotionDisabled } from '../motion';
+import { Button, MotionDetails, motion, useMotionDisabled } from '../motion';
 import { OutcomePanel } from '../motion/OutcomePanel';
-import { MotionDetails } from '../motion';
 import { BottomNotice, notify } from '../BottomNotice';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button } from '../motion';
 import { Input } from '@alfalab/core-components/input';
 import { api } from '../api/client';
 import type { components } from '../api/schema.gen';
@@ -17,7 +16,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
   const [issued, setIssued] = useState<components['schemas']['SigningCode'] | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (['issued', 'closed', 'rejected', 'cancelled_by_client', 'expired'].includes(card.status) || (!issued && !card.offer)) return;
+    if (isCompleted(card.status) || (!issued && !card.offer)) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [card.status, card.offer, issued]);
@@ -83,8 +82,3 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
     {card.status === 'cancelled_by_client' && <p>Вы отменили заявку. Можно подать новую.</p>}
   </motion.section>;
 }
-
-
-
-
-

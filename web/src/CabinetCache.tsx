@@ -37,13 +37,13 @@ class CabinetCache {
   }
 }
 const Context = createContext<CabinetCache | null>(null);
-// The provider is keyed by authenticated user. Nothing survives logout or account changes.
+// App пересоздаёт провайдер при смене пользователя, чужие данные после выхода не всплывут
 export function CabinetCacheProvider({ children }: { children: ReactNode }) {
   const [cache] = useState(() => new CabinetCache());
   return <Context.Provider value={cache}>{children}</Context.Provider>;
 }
 export function useCabinetCache() {
   const cache = useContext(Context);
-  if (!cache) throw new Error('CabinetCacheProvider is required');
+  if (!cache) throw new Error('нет CabinetCacheProvider выше по дереву');
   return cache;
 }

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
 import { Button } from '../motion';
 import { api } from '../api/client';
+import { kop } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 const fields = {
   revenue_kop: 'Выручка, ₽ (строка 2110)', net_profit_kop: 'Чистая прибыль, ₽ (строка 2400)',
@@ -15,7 +16,7 @@ export function FinancialsForm({ documentId, inn, refresh, initial }: { document
   const [error, setError] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
-    const amounts = Object.fromEntries(Object.keys(fields).map((key) => [key, Math.round(Number(values[key]) * 100)]));
+    const amounts = Object.fromEntries(Object.keys(fields).map((key) => [key, kop(values[key])]));
     if (Object.values(amounts).some((value) => !Number.isSafeInteger(value)) || Math.abs(amounts.net_profit_kop) > amounts.revenue_kop || amounts.balance_total_kop < amounts.liabilities_long_kop + amounts.liabilities_short_kop) { setError('Проверьте прибыль, выручку и сумму обязательств относительно баланса.'); return; }
     setBusy(true); setError('');
     try {
@@ -36,5 +37,3 @@ export function FinancialsForm({ documentId, inn, refresh, initial }: { document
     <Button type="submit" loading={busy}>Подтвердить отчётность</Button>
   </form>;
 }
-
-

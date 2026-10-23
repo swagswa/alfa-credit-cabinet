@@ -1,4 +1,4 @@
-// Seconds; short responses never wait for a decorative sequence.
+// длительности в секундах, как ждёт motion
 export const springs = {
   press: { type: 'spring', stiffness: 650, damping: 34, mass: 0.65 },
   layout: { type: 'spring', stiffness: 440, damping: 38, mass: 0.85 },

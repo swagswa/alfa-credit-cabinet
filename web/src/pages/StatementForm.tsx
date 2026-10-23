@@ -1,11 +1,12 @@
 import { notify } from '../BottomNotice';
 import { CalendarInput } from '@alfalab/core-components/calendar-input';
-import type { components } from '../api/schema.gen';
-import { validDate } from '../api/date';
 import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
 import { Button } from '../motion';
 import { api } from '../api/client';
+import { validDate } from '../api/date';
+import { kop } from '../api/presentation';
+import type { components } from '../api/schema.gen';
 const fields = { opening_balance_kop: 'Остаток на начало, ₽', turnover_in_kop: 'Поступления за период, ₽', turnover_out_kop: 'Списания за период, ₽', closing_balance_kop: 'Остаток на конец, ₽' };
 export function StatementForm({ documentId, inn, refresh, initial }: { documentId: string; inn: string; refresh: () => void; initial?: components["schemas"]["StatementValues"] }) {
   const [from, setFrom] = useState(initial?.period_from ?? ''); const [to, setTo] = useState(initial?.period_to ?? '');
@@ -20,8 +21,8 @@ export function StatementForm({ documentId, inn, refresh, initial }: { documentI
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
-    const amounts = Object.fromEntries(Object.keys(fields).map((key) => [key, Math.round(Number(values[key]) * 100)]));
-    const monthly_in = months.map((month) => ({ month, amount_kop: Math.round(Number(monthly[month]) * 100) }));
+    const amounts = Object.fromEntries(Object.keys(fields).map((key) => [key, kop(values[key])]));
+    const monthly_in = months.map((month) => ({ month, amount_kop: kop(monthly[month]) }));
     if (!months.length || months.length > 13 || to > new Date().toISOString().slice(0, 10) || [...Object.values(amounts), ...monthly_in.map((item) => item.amount_kop)].some((value) => !Number.isSafeInteger(value)) || amounts.turnover_in_kop <= 0 || amounts.turnover_out_kop < 0 || monthly_in.some((item) => item.amount_kop < 0) || Math.abs(amounts.opening_balance_kop + amounts.turnover_in_kop - amounts.turnover_out_kop - amounts.closing_balance_kop) > 100 || Math.abs(monthly_in.reduce((sum, item) => sum + item.amount_kop, 0) - amounts.turnover_in_kop) > months.length * 100) { setError('Проверьте период, остатки и суммы: поступления по месяцам должны совпадать с итогом.'); return; }
     setBusy(true); setError('');
     try {
@@ -39,6 +40,3 @@ export function StatementForm({ documentId, inn, refresh, initial }: { documentI
     {error && <p role="alert">{error}</p>}<Button type="submit" loading={busy}>Подтвердить выписку</Button>
   </form>;
 }
-
-
-

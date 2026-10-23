@@ -1,20 +1,16 @@
-import { money, products } from '../api/presentation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { api } from '../api/client';
-import { labels } from '../api/labels';
+import { api, useHistory } from '../api/client';
+import { fieldNames, goals, kinds, labels, money, products, representatives } from '../api/presentation';
 import type { components } from '../api/schema.gen';
-import { Progress } from './Progress';
+import { Progress, steps } from './Progress';
 import { Decision } from './Decision';
 import { MotionDetails } from '../motion';
 
 type App = components['schemas']['ApplicationView'];
-const goals = { purchase: 'Закупка товара и сырья', cash_gap: 'Оплата текущих расходов', equipment: 'Оборудование и транспорт', renovation: 'Ремонт и открытие точки', other: 'Другая цель' };
-const kinds = { passport: 'Паспорт', power_of_attorney: 'Доверенность', statement: 'Выписка по счёту', financials: 'Финансовая отчётность', supply_contract: 'Договор поставки', tax_receipt: 'Квитанция о сдаче декларации' };
 const date = (value: string) => new Date(value).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
 function Field({ title, children }: { title: string; children: ReactNode }) {
   return <div><dt>{title}</dt><dd>{children}</dd></div>;
 }
-export const isCompleted = (status: App['status']) => ['issued', 'closed', 'rejected', 'expired', 'cancelled_by_client'].includes(status);
 
 function SavedDocumentValues({ id }: { id: string }) {
   const [document, setDocument] = useState<components['schemas']['Document']>();
@@ -28,9 +24,8 @@ function SavedDocumentValues({ id }: { id: string }) {
     return () => { active = false; };
   }, [id]);
   const values = document?.confirmed?.statement ?? document?.confirmed?.financials;
-  const names: Record<string, string> = { inn: 'ИНН', period_from: 'Начало периода', period_to: 'Конец периода', year: 'Отчётный год', opening_balance_kop: 'Остаток на начало', closing_balance_kop: 'Остаток на конец', turnover_in_kop: 'Поступления', turnover_out_kop: 'Списания', revenue_kop: 'Выручка', net_profit_kop: 'Чистая прибыль', liabilities_long_kop: 'Долгосрочные обязательства', liabilities_short_kop: 'Краткосрочные обязательства', balance_total_kop: 'Итог баланса' };
   return <MotionDetails className="saved-document-values"><summary>Посмотреть подтверждённые данные</summary>
-    {failed ? <p role="alert">Не удалось загрузить данные документа.</p> : !document ? <p role="status">Загружаем данные…</p> : !values ? <p>Подтверждённые значения не сохранены.</p> : <dl className="archive-fields">{Object.entries(values).filter(([key]) => key in names).map(([key, value]) => <Field key={key} title={names[key]}>{key.endsWith('_kop') && typeof value === 'number' ? money(value) : String(value)}</Field>)}
+    {failed ? <p role="alert">Не удалось загрузить данные документа.</p> : !document ? <p role="status">Загружаем данные…</p> : !values ? <p>Подтверждённые значения не сохранены.</p> : <dl className="archive-fields">{Object.entries(values).filter(([key]) => key in fieldNames).map(([key, value]) => <Field key={key} title={fieldNames[key]}>{key.endsWith('_kop') && typeof value === 'number' ? money(value) : String(value)}</Field>)}
       {document.confirmed?.statement?.monthly_in.map(month => <Field key={month.month} title={`Поступления за ${month.month}`}>{money(month.amount_kop)}</Field>)}
     </dl>}
   </MotionDetails>;
@@ -38,28 +33,18 @@ function SavedDocumentValues({ id }: { id: string }) {
 
 export function CompletedJourney({ card }: { card: App }) {
   const [step, setStep] = useState(4);
-  const [history, setHistory] = useState<components['schemas']['ApplicationEvent'][]>([]);
-  const [historyState, setHistoryState] = useState<'loading' | 'ready' | 'error'>('loading');
-  useEffect(() => {
-    let active = true;
-    api.GET('/applications/{id}/history', { params: { path: { id: card.id } } }).then(({ data }) => {
-      if (!active) return;
-      if (data) { setHistory(data); setHistoryState('ready'); }
-      else setHistoryState('error');
-    }).catch(() => { if (active) setHistoryState('error'); });
-    return () => { active = false; };
-  }, [card.id, card.version]);
+  const { history, state: historyState } = useHistory(card.id, card.version);
   const issued = ['issued', 'closed'].includes(card.status);
   return <>
     <Progress card={card} selected={step} onSelect={setStep} />
     <h2>Заявка № {card.number}</h2>
-    <div id="journey-view" className="journey-view" role="region" aria-label={['Заполнение', 'Рассмотрение', 'Предложение банка', 'Документы и подпись', 'Результат'][step]}>
+    <div id="journey-view" className="journey-view" role="region" aria-label={steps[step]}>
       {step !== 4 && <p className="archive-caption">Заявка завершена · Только просмотр</p>}
       {step === 0 && <section className="archive-panel"><h3>Данные заявки</h3><dl className="archive-fields">
         <Field title="Компания">{card.company.short_name}</Field><Field title="ИНН">{card.company.inn}</Field>
         <Field title="Цель">{goals[card.purpose]}</Field><Field title="Продукт">{products[card.product]}</Field>
         <Field title="Запрошенная сумма">{money(card.amount_kop)}</Field><Field title="Запрошенный срок">{card.term_months} мес.</Field>
-        <Field title="Представитель">{card.representative_role === 'proxy' ? 'По доверенности' : card.representative_role === 'owner_ip' ? 'Индивидуальный предприниматель' : 'Руководитель компании'}</Field>
+        <Field title="Представитель">{representatives[card.representative_role]}</Field>
         <Field title="Согласие на запрос кредитной истории">{card.bki_consent ? 'Предоставлено' : 'Не предоставлено'}</Field>
         {card.monthly_revenue_kop !== undefined && <Field title="Среднемесячная выручка">{money(card.monthly_revenue_kop)}</Field>}
         {card.equipment_cost_kop !== undefined && <Field title="Стоимость оборудования">{money(card.equipment_cost_kop)}</Field>}
