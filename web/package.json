@@ -9,10 +9,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/api/schema.gen.ts"
+    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/api/schema.gen.ts",
+    "dev:mock": "vite --mode mock",
+    "test:browser": "node tests/run.mjs"
   },
   "dependencies": {
     "@alfalab/core-components": "50.37.0",
+    "motion": "14.6.0",
     "openapi-fetch": "0.17.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -20,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
@@ -27,8 +31,10 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.13.0",
     "openapi-typescript": "7.13.0",
+    "playwright": "1.64.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.0",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "yaml": "2.9.1"
   }
 }
