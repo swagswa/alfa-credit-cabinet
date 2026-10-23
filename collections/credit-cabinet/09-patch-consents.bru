@@ -1,0 +1,29 @@
+meta {
+  name: 09 Согласия в черновике
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/applications/{{appId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+body:json {
+  {
+    "version": {{version}},
+    "bki_consent": true,
+    "pd_consent": true
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.bki_consent: eq true
+  res.body.pd_consent: eq true
+}

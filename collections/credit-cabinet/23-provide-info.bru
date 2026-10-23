@@ -1,0 +1,27 @@
+meta {
+  name: 23 Ответ клиента
+  type: http
+  seq: 23
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/provide-info
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+body:json {
+  {
+    "monthly_revenue_kop": 95000000,
+    "comment": "Выручка за последний квартал выросла"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq checking
+}

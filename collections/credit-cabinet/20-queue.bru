@@ -1,0 +1,38 @@
+meta {
+  name: 20 Очередь банка
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/applications?status=manual_review&sort=due_at
+  body: none
+  auth: none
+}
+
+params:query {
+  status: manual_review
+  sort: due_at
+}
+
+headers {
+  Cookie: {{bankCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:pre-request {
+  await bru.sleep(Number(bru.getEnvVar("checksWaitMs")));
+}
+
+tests {
+  test("заявка в очереди", function () {
+    expect(res.body.items.map((i) => i.id)).to.include(bru.getVar("northId"));
+  });
+}
+
+docs {
+  Пауза ждёт, пока процесс исчерпает ретраи ЕГРЮЛ и отдаст заявку в manual_review.
+}

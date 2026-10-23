@@ -1,0 +1,20 @@
+meta {
+  name: 03 Текущий пользователь
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.companies[0].company.inn: eq "{{clientInn}}"
+}

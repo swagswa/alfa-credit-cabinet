@@ -1,0 +1,20 @@
+meta {
+  name: 25 Журнал у менеджера
+  type: http
+  seq: 25
+}
+
+get {
+  url: {{baseUrl}}/applications/{{northId}}/history
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bankCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.length: gte 6
+}

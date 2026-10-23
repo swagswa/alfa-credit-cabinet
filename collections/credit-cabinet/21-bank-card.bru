@@ -1,0 +1,21 @@
+meta {
+  name: 21 Карточка у менеджера
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/applications/{{northId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bankCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq manual_review
+  res.body.checks.length: gt 0
+}

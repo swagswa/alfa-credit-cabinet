@@ -1,0 +1,26 @@
+meta {
+  name: 05 Подбор по цели
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/products/recommendation?goal=purchase&amount_kop=250000000&term_months=12
+  body: none
+  auth: none
+}
+
+params:query {
+  goal: purchase
+  amount_kop: 250000000
+  term_months: 12
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.items[0].primary: eq true
+}
