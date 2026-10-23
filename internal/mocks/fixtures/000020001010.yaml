@@ -1,0 +1,52 @@
+# Логистика: ИП, нагрузка высокая, контрпредложение на меньшую сумму и дольше.
+egrul:
+  inn: "000020001010"
+  ogrn: "300000020001010"
+  kind: IP
+  full_name: Индивидуальный предприниматель Лебедев Сергей Николаевич
+  short_name: ИП Лебедев С. Н.
+  status: active
+  registered_at: "2024-04-10"
+  address: {region_code: "50", text: "Московская обл., г. Подольск, ул. Заводская, д. 4"}
+  okved_main: {code: "49.41", name: Деятельность автомобильного грузового транспорта}
+  okved_extra: [{code: "52.29", name: Деятельность вспомогательная, связанная с перевозками}]
+  unreliable: []
+fns:
+  msp_category: micro
+  tax_regime: USN
+  avg_headcount: 4
+  taxes_paid_last_year: 1440000
+  arrears: {tax: 0, penalty: 0, fine: 0, as_of: "2026-10-01"}
+  mass_address: false
+  mass_director: false
+  disqualified_director: false
+  account_blocks: []
+  tax_offenses_count: 0
+bki:
+  summary:
+    accounts_total: 3
+    accounts_open: 2
+    accounts_overdue_30: 0
+    debt_total: 5600000
+    overdue_total: 0
+    monthly_payments_total: 380000
+    inquiries_30d: 1
+    inquiries_90d: 4
+    inquiries_365d: 7
+    applications_refused_365d: 1
+    bankruptcy_5y: false
+  loans:
+    - {lender_type: leasing, kind: leasing, role: borrower, opened_at: "2024-09-01", closed_at: null, amount: 4800000,
+       balance: 3400000, monthly_payment: 250000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "1-29", status: active}
+    - {lender_type: bank, kind: loan, role: borrower, opened_at: "2025-06-20", closed_at: null, amount: 3000000,
+       balance: 2200000, monthly_payment: 130000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: active}
+    - {lender_type: mfo, kind: loan, role: borrower, opened_at: "2024-05-15", closed_at: "2024-11-15", amount: 300000,
+       balance: 0, monthly_payment: 0, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: closed}
+  # у ИП собственник он же заёмщик
+  owner: {pkr: 655, worst_dpd_12m: 12, current_dpd: 0}
+internal:
+  is_client: true
+  account_opened_at: "2026-02-10"
+  products: [account]
+  past_loans: []
+  aml_high_risk: false

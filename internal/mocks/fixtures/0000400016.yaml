@@ -1,0 +1,56 @@
+# Стройка: выручка падает, нагрузка большая, класс E и отказ. Стоп-факторов нет:
+# недоимка 250 тыс это около 6% месячной выручки, порог 10%.
+egrul:
+  inn: "0000400016"
+  ogrn: "1000000400016"
+  kpp: "000101001"
+  kind: UL
+  full_name: Общество с ограниченной ответственностью «Стройснаб»
+  short_name: ООО «Стройснаб»
+  status: active
+  registered_at: "2020-12-01"
+  address: {region_code: "16", text: "г. Казань, ул. Промышленная, д. 7"}
+  okved_main: {code: "41.20", name: Строительство жилых и нежилых зданий}
+  okved_extra: [{code: "43.99", name: Работы строительные специализированные прочие}]
+  director: {fio: Морозов Олег Игоревич, inn: "000040000198", position: Генеральный директор, since: "2020-12-01"}
+  founders: [{name: Морозов Олег Игоревич, inn: "000040000198", share_pct: 100, is_foreign: false}]
+  capital_rub: 100000
+  unreliable: []
+fns:
+  msp_category: small
+  tax_regime: OSN
+  avg_headcount: 46
+  taxes_paid_last_year: 3900000
+  arrears: {tax: 250000, penalty: 18000, fine: 5000, as_of: "2026-10-01"}
+  mass_address: false
+  mass_director: false
+  disqualified_director: false
+  account_blocks: []
+  tax_offenses_count: 1
+bki:
+  summary:
+    accounts_total: 5
+    accounts_open: 3
+    accounts_overdue_30: 1
+    debt_total: 21000000
+    overdue_total: 0
+    monthly_payments_total: 1400000
+    inquiries_30d: 4
+    inquiries_90d: 9
+    inquiries_365d: 14
+    applications_refused_365d: 2
+    bankruptcy_5y: false
+  loans:
+    - {lender_type: bank, kind: loan, role: borrower, opened_at: "2023-03-01", closed_at: null, amount: 15000000,
+       balance: 11000000, monthly_payment: 800000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "30-59", status: active}
+    - {lender_type: leasing, kind: leasing, role: borrower, opened_at: "2024-07-15", closed_at: null, amount: 9000000,
+       balance: 7000000, monthly_payment: 400000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "1-29", status: active}
+    - {lender_type: bank, kind: credit_line, role: borrower, opened_at: "2025-01-10", closed_at: null, amount: 5000000,
+       balance: 3000000, monthly_payment: 200000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: active}
+  owner: {pkr: 590, worst_dpd_12m: 0, current_dpd: 0}
+internal:
+  is_client: true
+  account_opened_at: "2023-10-01"
+  products: [account, salary]
+  past_loans: [{amount: 6000000, closed_at: "2024-12-20", worst_dpd: 0}]
+  aml_high_risk: false
