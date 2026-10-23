@@ -1,0 +1,40 @@
+meta {
+  name: 08 Повтор с тем же ключом
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/applications
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+  Idempotency-Key: {{draftKey}}
+}
+
+body:json {
+  {
+    "inn": "{{clientInn}}",
+    "representative_role": "director",
+    "product": "working_capital",
+    "purpose": "purchase",
+    "amount_kop": 250000000,
+    "term_months": 12,
+    "comment": "Закупка к зимнему сезону"
+  }
+}
+
+assert {
+  res.body.id: eq {{appId}}
+}
+
+script:post-response {
+  bru.setVar("version", res.body.version);
+}
+
+docs {
+  Тот же Idempotency-Key и то же тело: второй заявки нет, приходит первая.
+}

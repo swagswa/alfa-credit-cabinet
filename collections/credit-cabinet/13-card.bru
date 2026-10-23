@@ -1,0 +1,29 @@
+meta {
+  name: 13 Карточка заявки
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/applications/{{appId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: neq submitted
+  res.body.documents.length: eq 1
+}
+
+script:pre-request {
+  await bru.sleep(3000);
+}
+
+docs {
+  Пауза даёт процессу пройти проверки в источниках. Ход процесса виден в Temporal UI, id процесса равен id заявки.
+}

@@ -1,0 +1,20 @@
+meta {
+  name: 12 Подача
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/applications/{{appId}}/submit
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: neq draft
+}

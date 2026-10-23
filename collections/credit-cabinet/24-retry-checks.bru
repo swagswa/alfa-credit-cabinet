@@ -1,0 +1,29 @@
+meta {
+  name: 24 Повтор проверок
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/retry-checks
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bankCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq checking
+}
+
+script:pre-request {
+  await bru.sleep(Number(bru.getEnvVar("checksWaitMs")));
+}
+
+docs {
+  ЕГРЮЛ у этой компании лежит всегда: после ответа клиента заявка снова уходит в manual_review,
+  менеджер перезапускает проверки.
+}

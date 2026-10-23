@@ -1,0 +1,41 @@
+meta {
+  name: 07 Черновик
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/applications
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+  Idempotency-Key: {{draftKey}}
+}
+
+body:json {
+  {
+    "inn": "{{clientInn}}",
+    "representative_role": "director",
+    "product": "working_capital",
+    "purpose": "purchase",
+    "amount_kop": 250000000,
+    "term_months": 12,
+    "comment": "Закупка к зимнему сезону"
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq draft
+}
+
+script:pre-request {
+  bru.setVar("draftKey", "draft-" + Date.now());
+}
+
+script:post-response {
+  bru.setVar("appId", res.body.id);
+}

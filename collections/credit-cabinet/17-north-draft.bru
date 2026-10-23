@@ -1,0 +1,42 @@
+meta {
+  name: 17 Черновик с согласиями
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/applications
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+  Idempotency-Key: {{northKey}}
+}
+
+body:json {
+  {
+    "inn": "{{northInn}}",
+    "representative_role": "director",
+    "product": "working_capital",
+    "purpose": "renovation",
+    "amount_kop": 150000000,
+    "term_months": 18,
+    "monthly_revenue_kop": 90000000,
+    "bki_consent": true,
+    "pd_consent": true
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:pre-request {
+  bru.setVar("northKey", "north-" + Date.now());
+}
+
+script:post-response {
+  bru.setVar("northId", res.body.id);
+}

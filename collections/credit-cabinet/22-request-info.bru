@@ -1,0 +1,27 @@
+meta {
+  name: 22 Запрос уточнений
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/request-info
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{bankCookie}}
+}
+
+body:json {
+  {
+    "documents": ["statement"],
+    "comment": "Реестр не отвечает, уточните среднемесячную выручку"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq need_info
+}

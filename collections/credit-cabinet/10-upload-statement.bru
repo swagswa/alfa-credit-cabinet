@@ -1,0 +1,33 @@
+meta {
+  name: 10 Загрузка выписки
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/applications/{{appId}}/documents
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+body:multipart-form {
+  kind: statement
+  file: @file(../../testdata/documents/0000100012_statement_a.pdf)
+}
+
+assert {
+  res.status: eq 201
+  res.body.kind: eq statement
+}
+
+script:post-response {
+  bru.setVar("docId", res.body.id);
+}
+
+docs {
+  Без профиля ai выписка сразу skipped, с ним recognizing, итог приходит событием document в SSE.
+}

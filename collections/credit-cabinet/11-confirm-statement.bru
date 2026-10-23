@@ -1,0 +1,52 @@
+meta {
+  name: 11 Подтверждение итогов выписки
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/documents/{{docId}}/confirm
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+body:json {
+  {
+    "statement": {
+      "inn": "{{clientInn}}",
+      "period_from": "2025-10-01",
+      "period_to": "2026-09-30",
+      "opening_balance_kop": 58088139,
+      "turnover_in_kop": 1439999900,
+      "turnover_out_kop": 1414780059,
+      "closing_balance_kop": 83307980,
+      "monthly_in": [
+        {"month": "2025-10", "amount_kop": 124641500},
+        {"month": "2025-11", "amount_kop": 79565800},
+        {"month": "2025-12", "amount_kop": 112643800},
+        {"month": "2026-01", "amount_kop": 97398800},
+        {"month": "2026-02", "amount_kop": 173732000},
+        {"month": "2026-03", "amount_kop": 114457100},
+        {"month": "2026-04", "amount_kop": 101733800},
+        {"month": "2026-05", "amount_kop": 121919700},
+        {"month": "2026-06", "amount_kop": 180247200},
+        {"month": "2026-07", "amount_kop": 94404000},
+        {"month": "2026-08", "amount_kop": 96843700},
+        {"month": "2026-09", "amount_kop": 142412500}
+      ]
+    }
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq confirmed
+}
+
+docs {
+  Итоги из testdata/documents/0000100012_statement_a.truth.json, в копейках.
+}

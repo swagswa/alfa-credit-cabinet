@@ -1,0 +1,19 @@
+meta {
+  name: 26 Выход
+  type: http
+  seq: 26
+}
+
+post {
+  url: {{baseUrl}}/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 204
+}

@@ -1,0 +1,19 @@
+meta {
+  name: 18 Подача
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/submit
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+}

@@ -1,0 +1,51 @@
+meta {
+  name: 15 Второй черновик и отмена
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/applications/{{cancelId}}/cancel
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+body:json {
+  {
+    "reason": "Передумали, возьмём позже"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq cancelled_by_client
+}
+
+script:pre-request {
+  const r = await bru.sendRequest({
+    method: "POST",
+    url: bru.interpolate("{{baseUrl}}/applications"),
+    headers: {
+      "Content-Type": "application/json",
+      "Cookie": bru.getVar("clientCookie"),
+      "Idempotency-Key": "cancel-" + Date.now(),
+    },
+    data: {
+      inn: bru.getEnvVar("clientInn"),
+      representative_role: "director",
+      product: "overdraft",
+      purpose: "cash_gap",
+      amount_kop: 50000000,
+      term_months: 12,
+    },
+  });
+  bru.setVar("cancelId", r.data.id);
+}
+
+docs {
+  Черновик заводится в pre-request, сам запрос его отменяет.
+}

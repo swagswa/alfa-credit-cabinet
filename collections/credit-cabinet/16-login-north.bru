@@ -1,0 +1,27 @@
+meta {
+  name: 16 Вход клиента с недоступным ЕГРЮЛ
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "{{northLogin}}",
+    "password": "{{password}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  const c = res.getHeader("set-cookie");
+  bru.setVar("northCookie", [].concat(c)[0].split(";")[0]);
+}

@@ -1,0 +1,28 @@
+meta {
+  name: 02 Вход клиента
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "{{clientLogin}}",
+    "password": "{{password}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.user.role: eq client
+}
+
+script:post-response {
+  const c = res.getHeader("set-cookie");
+  bru.setVar("clientCookie", [].concat(c)[0].split(";")[0]);
+}

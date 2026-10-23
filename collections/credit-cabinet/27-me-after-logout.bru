@@ -1,0 +1,19 @@
+meta {
+  name: 27 Сессия после выхода
+  type: http
+  seq: 27
+}
+
+get {
+  url: {{baseUrl}}/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 401
+}
