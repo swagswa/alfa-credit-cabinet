@@ -54,8 +54,8 @@ func TestQueue(t *testing.T) {
 		want  []string
 		total int
 	}{
-		{"менеджер видит всех", manager, domain.ApplicationFilter{}, []string{"i3", "i2", "i1", "c2", "c1"}, 5},
-		{"андеррайтер тоже", underwriter, domain.ApplicationFilter{}, []string{"i3", "i2", "i1", "c2", "c1"}, 5},
+		{"менеджер без черновиков", manager, domain.ApplicationFilter{}, []string{"i3", "i2", "i1", "c1"}, 4},
+		{"андеррайтер тоже", underwriter, domain.ApplicationFilter{}, []string{"i3", "i2", "i1", "c1"}, 4},
 		{"клиент только свои", e.client, domain.ApplicationFilter{}, []string{"c2", "c1"}, 2},
 		{"ручное рассмотрение", admin, domain.ApplicationFilter{Statuses: []domain.Status{domain.StatusManualReview}},
 			[]string{"i1", "c1"}, 2},
@@ -67,20 +67,20 @@ func TestQueue(t *testing.T) {
 		{"фильтр клиенту не расширяет", e.client, domain.ApplicationFilter{Product: domain.WorkingCapital},
 			[]string{"c1"}, 1},
 		{"старые сверху", manager, domain.ApplicationFilter{Sort: "created_at"},
-			[]string{"c1", "c2", "i1", "i2", "i3"}, 5},
+			[]string{"c1", "i1", "i2", "i3"}, 4},
 		{"по сумме", manager, domain.ApplicationFilter{Sort: "-amount_kop"},
-			[]string{"i2", "c1", "i3", "i1", "c2"}, 5},
+			[]string{"i2", "c1", "i3", "i1"}, 4},
 		{"по сумме вверх", manager, domain.ApplicationFilter{Sort: "amount_kop"},
-			[]string{"c2", "i1", "i3", "c1", "i2"}, 5},
+			[]string{"i1", "i3", "c1", "i2"}, 4},
 		// без срока в конце, среди них новые сверху
 		{"горящие сроки", manager, domain.ApplicationFilter{Sort: "due_at"},
-			[]string{"i1", "c1", "i3", "i2", "c2"}, 5},
+			[]string{"i1", "c1", "i3", "i2"}, 4},
 		{"рискованные сверху", manager, domain.ApplicationFilter{Sort: "score"},
-			[]string{"i1", "c1", "i3", "i2", "c2"}, 5},
+			[]string{"i1", "c1", "i3", "i2"}, 4},
 		{"надёжные сверху", manager, domain.ApplicationFilter{Sort: "-score"},
-			[]string{"i3", "c1", "i1", "i2", "c2"}, 5},
+			[]string{"i3", "c1", "i1", "i2"}, 4},
 		{"страница", manager, domain.ApplicationFilter{Sort: "created_at", Limit: 2, Offset: 2},
-			[]string{"i1", "i2"}, 5},
+			[]string{"i2", "i3"}, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -131,6 +131,12 @@ func TestStaffCard(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, own.Checks)
 	_, err = e.uc.Get(t.Context(), e.client, ids["i1"])
+	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	// черновик до подачи банку не виден, ни карточка, ни журнал
+	_, err = e.uc.Get(t.Context(), manager, ids["c2"])
+	require.ErrorIs(t, err, domain.ErrNotFound)
+	_, err = e.uc.History(t.Context(), manager, ids["c2"])
 	require.ErrorIs(t, err, domain.ErrNotFound)
 }
 

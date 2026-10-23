@@ -168,7 +168,7 @@ func (q *Queries) ApplicationCard(ctx context.Context, arg ApplicationCardParams
 const applicationCards = `-- name: ApplicationCards :many
 SELECT v.id, v.number, v.company_id, v.status, v.version, v.product, v.purpose, v.amount_kop, v.term_months, v.monthly_revenue_kop, v.equipment_cost_kop, v.bki_consent, v.comment, v.score, v.grade, v.due_at, v.submitted_at, v.created_at, v.updated_at, v.inn, v.short_name, v.kind, v.simulated, v.representative_role, v.pd_consent, count(*) OVER () AS total
 FROM application_cards v
-WHERE ($1::uuid IS NULL OR EXISTS (
+WHERE ($1::uuid IS NULL AND v.status <> 'draft' OR EXISTS (
           SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = $1))
   AND ($2::text[] IS NULL OR v.status = ANY ($2::text[]))
   AND ($3::text[] IS NULL OR v.grade = ANY ($3::text[]))
@@ -200,6 +200,7 @@ type ApplicationCardsRow struct {
 	Total           int64
 }
 
+// без owner это очередь банка: черновик до подачи и согласий видит только клиент
 // порядок из параметра sort, по одной строке на вариант: у столбцов разные типы,
 // один CASE на всех не собрать. Без срока и без балла всегда в конце
 func (q *Queries) ApplicationCards(ctx context.Context, arg ApplicationCardsParams) ([]ApplicationCardsRow, error) {

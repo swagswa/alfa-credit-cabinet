@@ -70,10 +70,11 @@ WHERE v.id = @id
   AND (sqlc.narg(owner)::uuid IS NULL OR EXISTS (
       SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = sqlc.narg(owner)));
 
+-- без owner это очередь банка: черновик до подачи и согласий видит только клиент
 -- name: ApplicationCards :many
 SELECT sqlc.embed(v), count(*) OVER () AS total
 FROM application_cards v
-WHERE (sqlc.narg(owner)::uuid IS NULL OR EXISTS (
+WHERE (sqlc.narg(owner)::uuid IS NULL AND v.status <> 'draft' OR EXISTS (
           SELECT 1 FROM company_members o WHERE o.company_id = v.company_id AND o.user_id = sqlc.narg(owner)))
   AND (sqlc.narg(statuses)::text[] IS NULL OR v.status = ANY (sqlc.narg(statuses)::text[]))
   AND (sqlc.narg(grades)::text[] IS NULL OR v.grade = ANY (sqlc.narg(grades)::text[]))

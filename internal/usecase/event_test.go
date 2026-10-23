@@ -34,19 +34,19 @@ func TestEvents(t *testing.T) {
 	}, 10*time.Second, 50*time.Millisecond)
 
 	uc := usecase.NewEvent(events, repo.NewUser(db.New(e.pool)))
-	id := e.app(domain.StatusSubmitted)
+	id, draft := e.app(domain.StatusSubmitted), e.app(domain.StatusDraft)
 
 	tests := []struct {
 		name, login string
 		app         uuid.UUID
-		want        bool
+		want, draft bool
 	}{
-		{"своя заявка", "coffee", uuid.Nil, true},
-		{"своя по фильтру", "coffee", id, true},
-		{"чужой клиент", "logistics", uuid.Nil, false},
-		{"менеджер видит всё", "manager", uuid.Nil, true},
-		{"андеррайтер видит всё", "underwriter", uuid.Nil, true},
-		{"фильтр по другой заявке", "manager", uuid.New(), false},
+		{"своя заявка", "coffee", uuid.Nil, true, true},
+		{"своя по фильтру", "coffee", id, true, false},
+		{"чужой клиент", "logistics", uuid.Nil, false, false},
+		{"менеджер без черновиков", "manager", uuid.Nil, true, false},
+		{"андеррайтер тоже", "underwriter", uuid.Nil, true, false},
+		{"фильтр по другой заявке", "manager", uuid.New(), false, false},
 	}
 	subs := make([]<-chan domain.Event, len(tests))
 	for i, tt := range tests {
@@ -57,10 +57,23 @@ func TestEvents(t *testing.T) {
 		subs[i] = ch
 	}
 
+	// документ к черновику шлёт событие со статусом draft, оно приходит первым
+	_, err := e.pool.Exec(t.Context(), `
+		INSERT INTO documents (application_id, kind, file_name, content_type, size_bytes, sha256, content, uploaded_by)
+		VALUES ($1, 'passport', 'p.pdf', 'application/pdf', 1, sha256('x'), 'x', $2)`, draft, e.client.ID)
+	require.NoError(t, err)
 	require.NoError(t, e.uc.Transition(t.Context(), id, domain.Move{To: domain.StatusChecking, Actor: system}))
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.draft {
+				select {
+				case ev := <-subs[i]:
+					require.Equal(t, []any{draft, domain.StatusDraft}, []any{ev.ApplicationID, ev.Status})
+				case <-time.After(time.Second):
+					require.Fail(t, "событие черновика не пришло")
+				}
+			}
 			select {
 			case ev := <-subs[i]:
 				require.True(t, tt.want, "лишнее событие %+v", ev)

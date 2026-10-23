@@ -167,7 +167,7 @@ func TestOwnership(t *testing.T) {
 	}{
 		{"автор", e.client, nil},
 		{"другой клиент", logistics, domain.ErrNotFound},
-		{"сотрудник банка", manager, nil},
+		{"сотрудник банка до подачи не видит", manager, domain.ErrNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
