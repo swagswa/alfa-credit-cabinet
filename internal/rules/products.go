@@ -74,21 +74,28 @@ type condYAML struct {
 // Products читает rules/products.yaml. Неизвестное поле или кривое значение это ошибка:
 // опечатка в правилах должна ронять старт, а не молча менять подбор.
 func Products(path string) (domain.Catalog, error) {
+	return load(path, (*productsFile).catalog)
+}
+
+// load строго разбирает yaml в F и переводит в доменный вид, ошибки с путём к файлу
+func load[F, R any](path string, conv func(*F) (R, error)) (R, error) {
+	var (
+		f   F
+		res R
+	)
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return domain.Catalog{}, fmt.Errorf("rules: %w", err)
+		return res, fmt.Errorf("rules: %w", err)
 	}
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
-	var f productsFile
 	if err = dec.Decode(&f); err != nil {
-		return domain.Catalog{}, fmt.Errorf("rules %s: %w", path, err)
+		return res, fmt.Errorf("rules %s: %w", path, err)
 	}
-	c, err := f.catalog()
-	if err != nil {
-		return domain.Catalog{}, fmt.Errorf("rules %s: %w", path, err)
+	if res, err = conv(&f); err != nil {
+		return res, fmt.Errorf("rules %s: %w", path, err)
 	}
-	return c, nil
+	return res, nil
 }
 
 func (f *productsFile) catalog() (domain.Catalog, error) {
