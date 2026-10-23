@@ -58,6 +58,8 @@ func problem(err error) oapi.Problem {
 		return newProblem(http.StatusConflict, oapi.ProblemCodeIdempotencyConflict, err.Error())
 	case errors.Is(err, domain.ErrConflict):
 		return newProblem(http.StatusConflict, oapi.ProblemCodeVersionConflict, err.Error())
+	case errors.Is(err, domain.ErrTooLarge):
+		return newProblem(http.StatusRequestEntityTooLarge, oapi.ProblemCodeTooLarge, err.Error())
 	case errors.Is(err, domain.ErrInvalid):
 		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation, err.Error())
 	case errors.Is(err, domain.ErrUnauthorized):

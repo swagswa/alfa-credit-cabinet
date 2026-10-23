@@ -100,6 +100,7 @@ linters:
       extra-ignore-sigs:
         - .JSON(
         - .NoContent(
+        - .Blob(
         - .WithTx(
         - (github.com/jackc/pgx/v5.Tx).Commit(
       ignore-sig-regexps:

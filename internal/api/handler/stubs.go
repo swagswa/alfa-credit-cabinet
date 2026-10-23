@@ -20,13 +20,6 @@ func (h *Handler) DecideApplication(
 	return nil, errNotImplemented
 }
 
-func (h *Handler) UploadDocument(
-	context.Context,
-	oapi.UploadDocumentRequestObject,
-) (oapi.UploadDocumentResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) ListApplicationEvents(
 	context.Context,
 	oapi.ListApplicationEventsRequestObject,
@@ -60,31 +53,6 @@ func (h *Handler) RequestSigningCode(
 	return nil, errNotImplemented
 }
 
-func (h *Handler) GetDocument(context.Context, oapi.GetDocumentRequestObject) (oapi.GetDocumentResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) ConfirmDocument(
-	context.Context,
-	oapi.ConfirmDocumentRequestObject,
-) (oapi.ConfirmDocumentResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) DownloadDocument(
-	context.Context,
-	oapi.DownloadDocumentRequestObject,
-) (oapi.DownloadDocumentResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) ListFeed(context.Context, oapi.ListFeedRequestObject) (oapi.ListFeedResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) GetSampleDocument(
-	context.Context,
-	oapi.GetSampleDocumentRequestObject,
-) (oapi.GetSampleDocumentResponseObject, error) {
 	return nil, errNotImplemented
 }

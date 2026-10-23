@@ -5,6 +5,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     // api в compose слушает 8080, cookie сессии ходит через тот же origin
-    proxy: { '/api': 'http://localhost:8080' },
+    proxy: { '/api/samples': 'http://localhost:8081', '/api': 'http://localhost:8080' },
   },
 });

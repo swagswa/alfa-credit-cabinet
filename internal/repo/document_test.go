@@ -2,6 +2,7 @@ package repo_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -43,14 +44,14 @@ func TestDocumentRecognition(t *testing.T) {
 	ctx := t.Context()
 	id := upload(t, pool)
 
-	d, err := docs.ForRecognition(ctx, id)
+	d, err := docs.File(ctx, id, nil)
 	require.NoError(t, err)
 	require.Equal(t, domain.DocFile{
-		Kind: domain.DocStatement, Status: domain.DocUploaded, ContentType: "application/pdf",
+		Kind: domain.DocStatement, Status: domain.DocUploaded, FileName: "vypiska.pdf", ContentType: "application/pdf",
 		Content: []byte("pdf"), INN: "0000100012",
 	}, d)
 
-	_, err = docs.ForRecognition(ctx, uuid.New())
+	_, err = docs.File(ctx, uuid.New(), nil)
 	require.ErrorIs(t, err, domain.ErrNotFound)
 
 	rec := &domain.Recognition{
@@ -115,6 +116,41 @@ func TestDocumentRecognized(t *testing.T) {
 		"liabilities_long_kop":0,"liabilities_short_kop":0,"balance_total_kop":0}}`, extracted)
 	require.Nil(t, problems)
 	require.Equal(t, "recognized", status(ctx, t, pool, id))
+}
+
+// событие document уходит в тот же канал, что и заявки, только при смене статуса
+func TestDocumentEvents(t *testing.T) {
+	pool := testenv.Postgres(t, migrations.FS)
+	docs := repo.NewDocument(pool)
+	ctx := t.Context()
+	id := upload(t, pool)
+
+	conn, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	defer conn.Release()
+	_, err = conn.Exec(ctx, "LISTEN applications")
+	require.NoError(t, err)
+
+	require.NoError(t, docs.SetStatus(ctx, id, domain.DocRecognizing, ""))
+	require.NoError(t, docs.SetStatus(ctx, id, domain.DocRecognizing, "тот же статус, события нет"))
+	require.NoError(t, docs.SetStatus(ctx, id, domain.DocFailed, "не вышло"))
+
+	for _, want := range []domain.DocStatus{domain.DocRecognizing, domain.DocFailed} {
+		wctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		n, werr := conn.Conn().WaitForNotification(wctx)
+		cancel()
+		require.NoError(t, werr)
+		var ev domain.Event
+		require.NoError(t, json.Unmarshal([]byte(n.Payload), &ev))
+		require.Equal(t, id, ev.DocumentID)
+		require.Equal(t, want, ev.DocumentStatus)
+		require.Equal(t, domain.StatusDraft, ev.Status)
+		require.Equal(t, uuid.MustParse("01930000-0000-7000-8000-000000000101"), ev.CompanyID)
+	}
+	wctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+	defer cancel()
+	_, err = conn.Conn().WaitForNotification(wctx)
+	require.Error(t, err, "лишнее событие")
 }
 
 func status(ctx context.Context, t *testing.T, pool *pgxpool.Pool, id uuid.UUID) string {

@@ -57,12 +57,17 @@ func (h *Handler) Events(c echo.Context) error {
 			if !ok {
 				return nil
 			}
-			data, _ := json.Marshal(oapi.StreamEvent{
+			se, name := oapi.StreamEvent{
 				ApplicationId: ev.ApplicationID,
 				Status:        new(oapi.ApplicationStatus(ev.Status)),
 				Version:       ev.Version,
-			})
-			_, _ = fmt.Fprintf(w, "event: status\ndata: %s\n\n", data)
+			}, "status"
+			if ev.DocumentID != uuid.Nil {
+				se.DocumentId, se.DocumentStatus = &ev.DocumentID, new(oapi.DocumentStatus(ev.DocumentStatus))
+				name = "document"
+			}
+			data, _ := json.Marshal(se)
+			_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", name, data)
 		}
 	}
 }

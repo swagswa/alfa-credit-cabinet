@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,7 +29,22 @@ type Extractor interface {
 // по нему в documents видно, каким конвейером распознан документ
 const extractorVersion = "1"
 
+// RecognizeWorkflowName регистрирует docs-worker, id процесса doc-<id документа>
+const RecognizeWorkflowName = "RecognizeWorkflow"
+
+// docTypes: что принимаем, тип определяем по содержимому, а не по заголовку от браузера
+var docTypes = map[string]bool{"application/pdf": true, "image/png": true, "image/jpeg": true}
+
 type DocumentUseCase interface {
+	// Upload принимает документ к черновику или по запросу банка. Выписку и
+	// отчётность сразу отдаёт на распознавание, без ИИ они skipped.
+	Upload(ctx context.Context, actor domain.Actor, appID uuid.UUID, kind domain.DocKind, name string, file []byte) (
+		domain.Document, error)
+	Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Document, error)
+	File(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.DocFile, error)
+	// Confirm сохраняет итоги, которые клиент проверил или ввёл сам. В скоринг идут только они.
+	Confirm(ctx context.Context, actor domain.Actor, id uuid.UUID, v domain.DocValues) (domain.Document, error)
+
 	// Read распознаёт файл и проверяет поля против ИНН заявки. Ошибка с
 	// domain.ErrInvalid значит, что повтор не поможет, а rec заполнен, насколько
 	// дошли: его сохраняем для разбора. Остальные ошибки это недоступный OCR или модель.
@@ -46,14 +62,95 @@ type DocumentUseCase interface {
 }
 
 type documentUseCase struct {
-	docs    repo.DocumentRepository
-	text    TextReader
-	llm     Extractor
-	enabled bool
+	docs      repo.DocumentRepository
+	apps      repo.ApplicationRepository
+	workflows Workflows
+	text      TextReader
+	llm       Extractor
+	enabled   bool
 }
 
-func NewDocument(docs repo.DocumentRepository, text TextReader, llm Extractor, enabled bool) DocumentUseCase {
-	return &documentUseCase{docs: docs, text: text, llm: llm, enabled: enabled}
+// NewDocument собирает usecase документов. api нужны apps и workflows, docs-worker нужны text и llm, остальное можно nil.
+func NewDocument(
+	docs repo.DocumentRepository, apps repo.ApplicationRepository, workflows Workflows,
+	text TextReader, llm Extractor, enabled bool,
+) DocumentUseCase {
+	return &documentUseCase{docs: docs, apps: apps, workflows: workflows, text: text, llm: llm, enabled: enabled}
+}
+
+func (u *documentUseCase) Upload(
+	ctx context.Context, actor domain.Actor, appID uuid.UUID, kind domain.DocKind, name string, file []byte,
+) (domain.Document, error) {
+	ct := http.DetectContentType(file)
+	switch {
+	case len(file) > domain.MaxDocSize:
+		return domain.Document{}, domain.ErrTooLarge
+	case len(file) == 0:
+		return domain.Document{}, fmt.Errorf("%w: файл пустой", domain.ErrInvalid)
+	case !docTypes[ct]:
+		return domain.Document{}, fmt.Errorf("%w: принимаем PDF, PNG или JPEG", domain.ErrInvalid)
+	}
+	app, err := u.apps.Card(ctx, appID, owner(actor))
+	if err != nil {
+		return domain.Document{}, err
+	}
+	if app.Status != domain.StatusDraft && app.Status != domain.StatusNeedInfo {
+		return domain.Document{}, fmt.Errorf("%w: документы принимаем в черновике или по запросу банка",
+			domain.ErrIllegalTransition)
+	}
+
+	f := domain.DocFile{Kind: kind, Status: domain.DocUploaded, FileName: name, ContentType: ct, Content: file}
+	if kind.Recognizable() {
+		f.Status = domain.DocSkipped
+		if u.enabled {
+			f.Status = domain.DocRecognizing
+		}
+	}
+	id, err := u.docs.Add(ctx, appID, actor.ID, &f)
+	if err != nil {
+		return domain.Document{}, err
+	}
+	if f.Status == domain.DocRecognizing {
+		// заявка от распознавания не зависит: Temporal недоступен, клиент вводит итоги руками,
+		// а что Temporal лежит, видно в health
+		err = u.workflows.Start(ctx, QueueDocs, "doc-"+id.String(), RecognizeWorkflowName, id)
+		if err != nil {
+			err = u.docs.SetStatus(ctx, id, domain.DocFailed, "распознавание сейчас недоступно, введите итоги вручную")
+		}
+		if err != nil {
+			return domain.Document{}, err
+		}
+	}
+	return u.Get(ctx, actor, id)
+}
+
+func (u *documentUseCase) Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Document, error) {
+	return u.docs.Card(ctx, id, owner(actor))
+}
+
+func (u *documentUseCase) File(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.DocFile, error) {
+	return u.docs.File(ctx, id, owner(actor))
+}
+
+func (u *documentUseCase) Confirm(
+	ctx context.Context, actor domain.Actor, id uuid.UUID, v domain.DocValues,
+) (domain.Document, error) {
+	d, err := u.Get(ctx, actor, id)
+	switch {
+	case err != nil:
+		return d, err
+	case d.Status == domain.DocConfirmed:
+		return d, fmt.Errorf("%w: документ уже подтверждён", domain.ErrIllegalTransition)
+	case !v.Fits(d.Kind):
+		return d, fmt.Errorf("%w: заполните итоги под вид документа %s", domain.ErrInvalid, d.Kind)
+	}
+	if p := v.Check(d.INN, time.Now()); len(p) > 0 {
+		return d, domain.FieldErrors(p)
+	}
+	if err := u.docs.Confirm(ctx, id, v, v.Edited(d.Extracted), actor.ID); err != nil {
+		return d, err
+	}
+	return u.Get(ctx, actor, id)
 }
 
 func (u *documentUseCase) Read(
@@ -80,13 +177,12 @@ func (u *documentUseCase) Read(
 }
 
 func (u *documentUseCase) Recognize(ctx context.Context, id uuid.UUID) error {
-	d, err := u.docs.ForRecognition(ctx, id)
+	d, err := u.docs.File(ctx, id, nil)
 	if err != nil {
 		return err
 	}
 	// повтор activity, клиент уже ввёл итоги сам или документ не из распознаваемых
-	if d.Status != domain.DocUploaded && d.Status != domain.DocRecognizing ||
-		d.Kind != domain.DocStatement && d.Kind != domain.DocFinancials {
+	if d.Status != domain.DocUploaded && d.Status != domain.DocRecognizing || !d.Kind.Recognizable() {
 		return nil
 	}
 	if !u.enabled {

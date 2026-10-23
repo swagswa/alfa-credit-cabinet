@@ -7,33 +7,213 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const documentForRecognition = `-- name: DocumentForRecognition :one
-SELECT d.kind, d.status, d.content_type, d.content, c.inn
+const addDocument = `-- name: AddDocument :one
+INSERT INTO documents (application_id, kind, status, file_name, content_type, size_bytes, sha256, content, uploaded_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id
+`
+
+type AddDocumentParams struct {
+	ApplicationID uuid.UUID
+	Kind          string
+	Status        string
+	FileName      string
+	ContentType   string
+	SizeBytes     int32
+	Sha256        []byte
+	Content       []byte
+	UploadedBy    uuid.UUID
+}
+
+func (q *Queries) AddDocument(ctx context.Context, arg AddDocumentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, addDocument,
+		arg.ApplicationID,
+		arg.Kind,
+		arg.Status,
+		arg.FileName,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.Sha256,
+		arg.Content,
+		arg.UploadedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const applicationDocuments = `-- name: ApplicationDocuments :many
+SELECT id, kind, status, file_name
+FROM documents
+WHERE application_id = $1
+ORDER BY created_at
+`
+
+type ApplicationDocumentsRow struct {
+	ID       uuid.UUID
+	Kind     string
+	Status   string
+	FileName string
+}
+
+func (q *Queries) ApplicationDocuments(ctx context.Context, applicationID uuid.UUID) ([]ApplicationDocumentsRow, error) {
+	rows, err := q.db.Query(ctx, applicationDocuments, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApplicationDocumentsRow
+	for rows.Next() {
+		var i ApplicationDocumentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Status,
+			&i.FileName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const confirmDocument = `-- name: ConfirmDocument :execrows
+UPDATE documents
+SET status        = 'confirmed',
+    confirmed     = $1,
+    edited_fields = coalesce($2::text[], '{}'),
+    confirmed_by  = $3,
+    confirmed_at  = now()
+WHERE id = $4 AND status <> 'confirmed'
+`
+
+type ConfirmDocumentParams struct {
+	Confirmed    []byte
+	EditedFields []string
+	ConfirmedBy  pgtype.UUID
+	ID           uuid.UUID
+}
+
+// Подтверждают один раз: второе подтверждение из другой вкладки ничего не меняет
+func (q *Queries) ConfirmDocument(ctx context.Context, arg ConfirmDocumentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, confirmDocument,
+		arg.Confirmed,
+		arg.EditedFields,
+		arg.ConfirmedBy,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const documentCard = `-- name: DocumentCard :one
+SELECT d.id, d.application_id, d.kind, d.status, d.file_name, d.content_type, d.size_bytes, d.sha256, c.inn,
+       d.text_source, d.extracted, d.confirmed, d.edited_fields, d.validation_errors, d.error, d.model,
+       d.created_at, d.confirmed_at
 FROM documents d
 JOIN applications a ON a.id = d.application_id
 JOIN companies c ON c.id = a.company_id
 WHERE d.id = $1
+  AND ($2::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM company_members o WHERE o.company_id = a.company_id AND o.user_id = $2))
 `
 
-type DocumentForRecognitionRow struct {
+type DocumentCardParams struct {
+	ID    uuid.UUID
+	Owner pgtype.UUID
+}
+
+type DocumentCardRow struct {
+	ID               uuid.UUID
+	ApplicationID    uuid.UUID
+	Kind             string
+	Status           string
+	FileName         string
+	ContentType      string
+	SizeBytes        int32
+	Sha256           []byte
+	Inn              string
+	TextSource       pgtype.Text
+	Extracted        []byte
+	Confirmed        []byte
+	EditedFields     []string
+	ValidationErrors []byte
+	Error            pgtype.Text
+	Model            pgtype.Text
+	CreatedAt        time.Time
+	ConfirmedAt      pgtype.Timestamptz
+}
+
+func (q *Queries) DocumentCard(ctx context.Context, arg DocumentCardParams) (DocumentCardRow, error) {
+	row := q.db.QueryRow(ctx, documentCard, arg.ID, arg.Owner)
+	var i DocumentCardRow
+	err := row.Scan(
+		&i.ID,
+		&i.ApplicationID,
+		&i.Kind,
+		&i.Status,
+		&i.FileName,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.Inn,
+		&i.TextSource,
+		&i.Extracted,
+		&i.Confirmed,
+		&i.EditedFields,
+		&i.ValidationErrors,
+		&i.Error,
+		&i.Model,
+		&i.CreatedAt,
+		&i.ConfirmedAt,
+	)
+	return i, err
+}
+
+const documentFile = `-- name: DocumentFile :one
+SELECT d.kind, d.status, d.file_name, d.content_type, d.content, c.inn
+FROM documents d
+JOIN applications a ON a.id = d.application_id
+JOIN companies c ON c.id = a.company_id
+WHERE d.id = $1
+  AND ($2::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM company_members o WHERE o.company_id = a.company_id AND o.user_id = $2))
+`
+
+type DocumentFileParams struct {
+	ID    uuid.UUID
+	Owner pgtype.UUID
+}
+
+type DocumentFileRow struct {
 	Kind        string
 	Status      string
+	FileName    string
 	ContentType string
 	Content     []byte
 	Inn         string
 }
 
-func (q *Queries) DocumentForRecognition(ctx context.Context, id uuid.UUID) (DocumentForRecognitionRow, error) {
-	row := q.db.QueryRow(ctx, documentForRecognition, id)
-	var i DocumentForRecognitionRow
+// owner задан у клиента: чужой документ для него просто не находится, как и заявка
+func (q *Queries) DocumentFile(ctx context.Context, arg DocumentFileParams) (DocumentFileRow, error) {
+	row := q.db.QueryRow(ctx, documentFile, arg.ID, arg.Owner)
+	var i DocumentFileRow
 	err := row.Scan(
 		&i.Kind,
 		&i.Status,
+		&i.FileName,
 		&i.ContentType,
 		&i.Content,
 		&i.Inn,

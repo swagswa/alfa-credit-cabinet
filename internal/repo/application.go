@@ -168,7 +168,17 @@ func (r *applicationRepo) Card(ctx context.Context, id uuid.UUID, owner *uuid.UU
 	if err != nil {
 		return domain.Application{}, notFound(err, "application "+id.String())
 	}
-	return card(&row), nil
+	app := card(&row)
+	docs, err := r.q.ApplicationDocuments(ctx, id)
+	if err != nil {
+		return app, fmt.Errorf("application %s documents: %w", id, err)
+	}
+	for _, d := range docs {
+		app.Documents = append(app.Documents, domain.Document{
+			ID: d.ID, Kind: domain.DocKind(d.Kind), Status: domain.DocStatus(d.Status), FileName: d.FileName,
+		})
+	}
+	return app, nil
 }
 
 func (r *applicationRepo) List(ctx context.Context, f domain.ApplicationFilter) ([]domain.Application, int, error) {

@@ -43,7 +43,7 @@ func main() {
 	}
 	w := temporalsvc.NewWorker(tc, usecase.QueueDocs, opts, func(r sdkworker.Registry) {
 		// регистрация идёт в Init воркера, к этому моменту пул postgres уже поднят
-		docs := usecase.NewDocument(repo.NewDocument(db.Pool), text, llm, cfg.AIEnabled)
+		docs := usecase.NewDocument(repo.NewDocument(db.Pool), nil, nil, text, llm, cfg.AIEnabled)
 		r.RegisterWorkflow(workflow.RecognizeWorkflow)
 		r.RegisterActivity(activity.NewDocumentActivities(docs))
 	})

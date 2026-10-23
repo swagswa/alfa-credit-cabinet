@@ -60,6 +60,8 @@ type Application struct {
 	SubmittedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// Documents только в карточке и только id, вид, статус и имя файла
+	Documents []Document
 }
 
 // Draft это анкета, клиент правит её, пока заявка в draft. Нули значат «не заполнено»,
@@ -112,4 +114,7 @@ type Event struct {
 	CompanyID     uuid.UUID `json:"company_id"`
 	Status        Status    `json:"status"`
 	Version       int       `json:"version"`
+	// у события document, его шлёт триггер на documents
+	DocumentID     uuid.UUID `json:"document_id"`
+	DocumentStatus DocStatus `json:"document_status"`
 }

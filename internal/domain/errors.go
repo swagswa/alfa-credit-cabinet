@@ -23,6 +23,7 @@ var (
 	ErrKeyReused = errors.New("idempotency key reused")
 	// ErrIncomplete: анкету нельзя подать, что именно не так, в FieldErrors
 	ErrIncomplete = errors.New("анкета заполнена не полностью")
+	ErrTooLarge   = errors.New("файл больше 10 МБ")
 )
 
 // FieldErrors копит ошибки по полям. Как error это неполная анкета при подаче.

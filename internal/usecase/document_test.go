@@ -10,17 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 )
 
 type fakeDocs struct {
+	repo.DocumentRepository
 	doc      domain.DocFile
 	statuses []domain.DocStatus
 	saved    *domain.Recognition
 	reason   string
 }
 
-func (f *fakeDocs) ForRecognition(context.Context, uuid.UUID) (domain.DocFile, error) {
+func (f *fakeDocs) File(context.Context, uuid.UUID, *uuid.UUID) (domain.DocFile, error) {
 	return f.doc, nil
 }
 
@@ -96,7 +98,7 @@ func TestRecognize(t *testing.T) {
 				INN: "0000100012",
 			}}
 			text := &fakeText{err: tt.textErr}
-			uc := usecase.NewDocument(docs, text, &tt.llm, !tt.disabled)
+			uc := usecase.NewDocument(docs, nil, nil, text, &tt.llm, !tt.disabled)
 
 			require.ErrorIs(t, uc.Recognize(t.Context(), uuid.New()), tt.wantErr)
 			require.Equal(t, tt.want, docs.statuses)

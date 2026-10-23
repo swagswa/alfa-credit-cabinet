@@ -17,18 +17,15 @@ func TestAllowed(t *testing.T) {
 		ok                 bool
 	}{
 		{rbac.Anonymous, "/api/health", "GET", true},
-		{rbac.Anonymous, "/api/samples/0000100012", "GET", true},
 		{rbac.Anonymous, "/api/me", "GET", false},
 		{"client", "/api/me", "GET", true},
 		{"client", "/api/me", "POST", false},
-		// вошедший не теряет того, что может аноним: иначе повторный вход,
-		// health в браузере и «Взять пример выписки» отдают 403
+		// вошедший не теряет того, что может аноним: иначе повторный вход
+		// и health в браузере отдают 403
 		{"client", "/api/login", "POST", true},
 		{"client", "/api/health", "GET", true},
-		{"client", "/api/samples/0000100012", "GET", true},
 		{"manager", "/api/login", "POST", true},
 		{"underwriter", "/api/health", "GET", true},
-		{"admin", "/api/samples/0000100012", "GET", true},
 		{"manager", "/api/companies/0000100012", "GET", false},
 		{"admin", "/api/me", "GET", true},
 		{"client", "/api/applications", "POST", true},
@@ -42,6 +39,13 @@ func TestAllowed(t *testing.T) {
 		{rbac.Anonymous, "/api/events", "GET", false},
 		{"client", "/api/events", "GET", true},
 		{"underwriter", "/api/events", "GET", true},
+		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/documents", "POST", true},
+		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/documents", "POST", false},
+		{"underwriter", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52", "GET", true},
+		{"underwriter", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/file", "GET", true},
+		{"client", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/confirm", "POST", true},
+		{"underwriter", "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/confirm", "POST", false},
+		{rbac.Anonymous, "/api/documents/0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52/file", "GET", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+" "+tt.method+" "+tt.path, func(t *testing.T) {
