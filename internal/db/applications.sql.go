@@ -13,6 +13,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addBKIConsent = `-- name: AddBKIConsent :exec
+INSERT INTO bki_consents (application_id, given_at)
+SELECT a.id, a.bki_consent_at
+FROM applications a
+WHERE a.id = $1
+ON CONFLICT (application_id) DO NOTHING
+`
+
+// согласие из анкеты становится записью при подаче, повтор ничего не меняет
+func (q *Queries) AddBKIConsent(ctx context.Context, applicationID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, addBKIConsent, applicationID)
+	return err
+}
+
 const addCompany = `-- name: AddCompany :one
 INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, address, registered_at, simulated)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -306,6 +320,24 @@ func (q *Queries) ApplicationEvents(ctx context.Context, applicationID uuid.UUID
 		return nil, err
 	}
 	return items, nil
+}
+
+const bKIConsent = `-- name: BKIConsent :one
+SELECT id, given_at
+FROM bki_consents
+WHERE application_id = $1
+`
+
+type BKIConsentRow struct {
+	ID      uuid.UUID
+	GivenAt time.Time
+}
+
+func (q *Queries) BKIConsent(ctx context.Context, applicationID uuid.UUID) (BKIConsentRow, error) {
+	row := q.db.QueryRow(ctx, bKIConsent, applicationID)
+	var i BKIConsentRow
+	err := row.Scan(&i.ID, &i.GivenAt)
+	return i, err
 }
 
 const companyByINN = `-- name: CompanyByINN :one

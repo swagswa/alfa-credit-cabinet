@@ -3,6 +3,7 @@ package mocks_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,7 +18,14 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/mocks/synth"
 )
 
-const consent = `"consent_id":"01930000-0000-7000-8000-0000000000aa"`
+const consentID = `"consent_id":"01930000-0000-7000-8000-0000000000aa"`
+
+// согласие, полученное months месяцев назад
+func consentAgo(months int) string {
+	return fmt.Sprintf(`%s,"consent_given_at":%q`, consentID, time.Now().AddDate(0, -months, 0).Format(time.RFC3339))
+}
+
+var consent = consentAgo(1)
 
 func call(t *testing.T, e *echo.Echo, method, path, body string) (code int, got map[string]any) {
 	t.Helper()
@@ -67,6 +75,9 @@ func TestSources(t *testing.T) {
 			"summary.monthly_payments_total": 1400000.0, "summary.inquiries_90d": 9.0,
 		}},
 		{"бки без согласия", "POST", "/bki/report", `{"inn":"0000100012"}`, 403, nil},
+		{"согласие без даты", "POST", "/bki/report", `{"inn":"0000100012",` + consentID + `}`, 403, nil},
+		{"согласие истекло", "POST", "/bki/report", `{"inn":"0000100012",` + consentAgo(7) + `}`, 403, nil},
+		{"кривой id согласия", "POST", "/bki/report", `{"inn":"0000100012","consent_id":"x"}`, 400, nil},
 		{"кофейня клиент банка", "GET", "/internal/0000100012", "", 200, map[string]any{"is_client": true}},
 		{"у it-компании нет счёта", "GET", "/internal/0000300011", "", 404, nil},
 		{"егрюл тихой компании лежит", "GET", "/egrul/0000500010", "", 503, nil},

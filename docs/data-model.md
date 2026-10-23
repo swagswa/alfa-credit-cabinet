@@ -11,6 +11,7 @@ erDiagram
     applications ||--o{ application_events : "журнал"
     applications ||--o{ documents : ""
     applications ||--o{ check_results : ""
+    applications ||--o| bki_consents : ""
     applications ||--o{ decisions : ""
     users |o--o{ application_events : "actor"
     users |o--o{ decisions : "decided_by"
@@ -117,6 +118,12 @@ erDiagram
         timestamptz confirmed_at
         timestamptz created_at
     }
+    bki_consents {
+        uuid id PK
+        uuid application_id FK
+        timestamptz given_at
+        timestamptz created_at
+    }
     check_results {
         bigint id PK
         uuid application_id FK
@@ -161,6 +168,8 @@ erDiagram
 **application_events.** Журнал аудита, только дописывается: UPDATE и DELETE падают на триггере. `transition` пишется на каждый переход в той же транзакции, `escalation` когда истёк SLA ручного рассмотрения, `override` когда андеррайтер отошёл от рекомендации политики. У `system` нет `actor_id`, у людей есть. Запрос уточнений хранит в `payload` список нужных документов, из него собирается карточка «Нужно от вас».
 
 **documents.** Файл (до 10 МБ, в `bytea`) и всё про распознавание: что вернула модель как есть, что прошло проверку, ошибки проверки, что подтвердил клиент и какие поля он поправил, модель и её digest. Распознаются только `statement` и `financials`, остальные виды всегда `uploaded`. В скоринг идёт только `confirmed`. Смену статуса триггер `documents_notify` шлёт в тот же канал `applications`, что и переходы заявки: статус меняют и api, и docs-worker, а забыть уведомление так нельзя.
+
+**bki_consents.** Согласие на запрос в БКИ, одно на заявку: заводится при подаче, `given_at` берётся из `applications.bki_consent_at`. Бюро получает id и дату и отказывает, если согласию больше полугода. Срок не храним, его считает `domain.BKIConsent`, тем же правилом пользуется мок бюро.
 
 **check_results.** Ответы моков ЕГРЮЛ, ФНС, БКИ и внутренних данных по заявке. После `need_info` источники запрашиваются заново новой строкой, актуален последний по каждому источнику, старые остаются для аудита.
 

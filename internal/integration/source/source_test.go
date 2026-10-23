@@ -17,7 +17,10 @@ import (
 const inn = "0000100012"
 
 func TestFetch(t *testing.T) {
-	consent := uuid.MustParse("01930000-0000-7000-8000-0000000000aa")
+	consent := domain.BKIConsent{
+		ID:      uuid.MustParse("01930000-0000-7000-8000-0000000000aa"),
+		GivenAt: time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC),
+	}
 	tests := []struct {
 		name     string
 		src      domain.Source
@@ -43,7 +46,8 @@ func TestFetch(t *testing.T) {
 			domain.SourceBKI,
 			http.StatusOK,
 			0,
-			`POST /bki/report {"inn":"0000100012","consent_id":"01930000-0000-7000-8000-0000000000aa"}`,
+			`POST /bki/report {"inn":"0000100012","consent_id":"01930000-0000-7000-8000-0000000000aa",` +
+				`"consent_given_at":"2026-10-01T10:00:00Z"}`,
 			`{"status":"active"}`,
 			nil,
 		},

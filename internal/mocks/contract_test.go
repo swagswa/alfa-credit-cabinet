@@ -33,8 +33,9 @@ func TestClientsReadMocks(t *testing.T) {
 			require.Equal(t, name, c.ShortName)
 			require.False(t, c.Simulated, "фикстура, а не генератор")
 
+			consent := domain.BKIConsent{ID: uuid.New(), GivenAt: time.Now().AddDate(0, -1, 0)}
 			for _, s := range domain.Sources {
-				_, err := src.Fetch(t.Context(), s, inn, uuid.New())
+				_, err := src.Fetch(t.Context(), s, inn, consent)
 				if s == domain.SourceInternal && inn == "0000300011" {
 					require.ErrorIs(t, err, domain.ErrNotFound)
 					continue

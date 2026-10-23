@@ -120,7 +120,13 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		case !domain.CanTransition(app.Status, m.To, m.Actor.Role):
 			return fmt.Errorf("%w: из %s в %s ролью %s", domain.ErrIllegalTransition, app.Status, m.To, m.Actor.Role)
 		}
-		return apps.Move(ctx, app, m)
+		if err := apps.Move(ctx, app, m); err != nil {
+			return err
+		}
+		if m.To == domain.StatusSubmitted {
+			return apps.AddBKIConsent(ctx, id)
+		}
+		return nil
 	})
 }
 

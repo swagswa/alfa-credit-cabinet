@@ -40,6 +40,9 @@ type ApplicationRepository interface {
 	SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error
 	// SetRevenue пишет уточнённую выручку, пока заявка в need_info, иначе ErrIllegalTransition.
 	SetRevenue(ctx context.Context, id uuid.UUID, kop int64) error
+	// AddBKIConsent делает согласие из анкеты записью, повтор ничего не меняет.
+	AddBKIConsent(ctx context.Context, id uuid.UUID) error
+	BKIConsent(ctx context.Context, id uuid.UUID) (domain.BKIConsent, error)
 }
 
 type applicationRepo struct {
@@ -352,4 +355,19 @@ func strs[T ~string](vs []T) []string {
 		out[i] = string(v)
 	}
 	return out
+}
+
+func (r *applicationRepo) AddBKIConsent(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.AddBKIConsent(ctx, id); err != nil {
+		return fmt.Errorf("bki consent %s: %w", id, err)
+	}
+	return nil
+}
+
+func (r *applicationRepo) BKIConsent(ctx context.Context, id uuid.UUID) (domain.BKIConsent, error) {
+	row, err := r.q.BKIConsent(ctx, id)
+	if err != nil {
+		return domain.BKIConsent{}, notFound(err, "bki consent "+id.String())
+	}
+	return domain.BKIConsent{ID: row.ID, GivenAt: row.GivenAt}, nil
 }
