@@ -23,3 +23,10 @@ type Deadlines struct {
 	// Offer сколько ждём, пока клиент примет условия
 	Offer time.Duration
 }
+
+// SigningCode это код подписи без самого кода: сверяем по хэшу.
+type SigningCode struct {
+	Hash         []byte
+	AttemptsLeft int
+	ExpiresAt    time.Time
+}

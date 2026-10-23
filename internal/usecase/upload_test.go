@@ -63,6 +63,7 @@ func TestUpload(t *testing.T) {
 		{name: "паспорт не распознаём", ai: true, kind: "passport", file: pdf, want: domain.DocUploaded},
 		{name: "temporal лежит, вводят руками", ai: true, wfErr: errors.New("unavailable"), file: pdf,
 			want: domain.DocFailed, started: true},
+		{name: "договор формирует банк", kind: domain.DocLoanAgreement, file: pdf, wantErr: domain.ErrInvalid},
 		{name: "больше 10 МБ", file: big, wantErr: domain.ErrTooLarge},
 		{name: "пустой файл", file: []byte{}, wantErr: domain.ErrInvalid},
 		{name: "не pdf и не картинка", file: []byte("<html><body>выписка</body></html>"), wantErr: domain.ErrInvalid},

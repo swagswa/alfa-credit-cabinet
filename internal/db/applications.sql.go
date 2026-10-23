@@ -80,6 +80,34 @@ func (q *Queries) AddEscalation(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const addNote = `-- name: AddNote :exec
+WITH e AS (
+    INSERT INTO application_events (application_id, kind, actor_id, actor_role, comment)
+    VALUES ($1, 'signing', $2, $3, $4)
+)
+SELECT pg_notify('applications', json_build_object(
+    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
+FROM applications a
+WHERE a.id = $1
+`
+
+type AddNoteParams struct {
+	ID        uuid.UUID
+	ActorID   pgtype.UUID
+	ActorRole string
+	Comment   pgtype.Text
+}
+
+func (q *Queries) AddNote(ctx context.Context, arg AddNoteParams) error {
+	_, err := q.db.Exec(ctx, addNote,
+		arg.ID,
+		arg.ActorID,
+		arg.ActorRole,
+		arg.Comment,
+	)
+	return err
+}
+
 const addTransitionEvent = `-- name: AddTransitionEvent :exec
 INSERT INTO application_events (application_id, from_status, to_status, actor_id, actor_role, reason_codes, comment)
 VALUES ($1, $2, $3, $4, $5,

@@ -19,6 +19,8 @@ type DocKind string
 const (
 	DocStatement  DocKind = "statement"
 	DocFinancials DocKind = "financials"
+	// DocLoanAgreement договор с графиком, его формирует процесс после принятия условий
+	DocLoanAgreement DocKind = "loan_agreement"
 )
 
 // Recognizable значит, что итоги есть только у выписки и отчётности, их и распознаём, и подтверждаем.
