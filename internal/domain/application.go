@@ -60,7 +60,7 @@ type Application struct {
 	SubmittedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	// Documents только в карточке и только id, вид, статус и имя файла
+	// Documents только в карточке: id, вид, статус, имя файла и подтверждённые итоги
 	Documents []Document
 	// Checks только для сотрудников банка, последний ответ по каждому источнику
 	Checks []CheckResult
