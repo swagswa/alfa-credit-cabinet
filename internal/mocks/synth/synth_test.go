@@ -63,6 +63,20 @@ func TestNewGenerated(t *testing.T) {
 	}
 }
 
+func TestQuality(t *testing.T) {
+	var share float64
+	for _, tr := range mix.tiers {
+		share += tr.share
+	}
+	require.InDelta(t, 1, share, 1e-9)
+	prev := -1.0
+	for u := 0.0; u < 1; u += 0.001 {
+		q := mix.quality(u)
+		require.True(t, q >= prev && q <= 1, "q(%.3f) = %.3f", u, q)
+		prev = q
+	}
+}
+
 func TestNewInvalid(t *testing.T) {
 	for _, inn := range []string{"", "123", "0000100013", "00001000120"} {
 		_, err := New(inn)

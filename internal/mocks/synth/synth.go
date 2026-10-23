@@ -1,6 +1,7 @@
 // Package synth считает синтетические финансы компании по ИНН. Это один источник
 // для моков (ФНС, обороты в банке) и для генератора документов, поэтому выписка
-// по любому ИНН сходится с ответом мока ФНС.
+// по любому ИНН сходится с ответом мока ФНС. Для ИНН не из демо тут же собираются
+// ответы всех четырёх источников (Sources).
 package synth
 
 import (
@@ -36,6 +37,8 @@ type Company struct {
 	LiabilitiesLong  int64
 	LiabilitiesShort int64
 	BalanceTotal     int64
+
+	q float64
 }
 
 // Income это выручка за прошлый год в моке ФНС. Упрощение: равна поступлениям
@@ -87,19 +90,19 @@ func New(inn string) (Company, error) {
 		return Company{}, fmt.Errorf("инн %q: неверная длина или контрольные цифры", inn)
 	}
 	rng := RNG(inn + Version)
-	q := rng.Float64() // скрытое качество компании, от него коррелированно всё остальное
+	q := mix.quality(rng.Float64()) // скрытое качество компании, от него коррелированно всё остальное
 
 	p, ok := demo(inn)
 	if !ok {
 		p = profile{
 			name:  name(rng, len(inn) == 12),
-			avg:   math.Round(400_000 * math.Exp2(4*q+rng.NormFloat64()/2)),
-			trend: clamp(0.7+0.6*q+rng.NormFloat64()/10, 0.5, 1.6),
-			cv:    clamp(0.6-0.4*q+rng.NormFloat64()/12, 0.08, 0.75),
+			avg:   math.Round(400_000 * math.Exp2(mix.avgLog2.draw(rng, q))),
+			trend: mix.trend.draw(rng, q),
+			cv:    mix.cv.draw(rng, q),
 		}
 	}
 
-	c := Company{INN: inn, Name: p.name, Year: 2025, Opening: kop(p.avg * (0.1 + 0.4*rng.Float64()))}
+	c := Company{INN: inn, Name: p.name, Year: 2025, Opening: kop(p.avg * (0.1 + 0.4*rng.Float64())), q: q}
 	start := time.Date(2025, time.October, 1, 0, 0, 0, 0, time.UTC)
 	for i, v := range series(rng, p) {
 		in := rub(p.avg * v)
@@ -158,15 +161,21 @@ func series(rng *rand.Rand, p profile) []float64 {
 
 func name(rng *rand.Rand, ip bool) string {
 	if ip {
-		last := []string{"Карпов", "Белов", "Зуев", "Орлов", "Титов", "Гусев"}
-		first := []string{"Андрей", "Илья", "Олег", "Павел", "Роман"}
-		mid := []string{"Ильич", "Олегович", "Андреевич", "Павлович"}
-		return "ИП " + last[rng.IntN(len(last))] + " " + first[rng.IntN(len(first))] + " " + mid[rng.IntN(len(mid))]
+		return "ИП " + fio(rng)
 	}
 	a := []string{"Северный", "Новый", "Первый", "Городской", "Восточный", "Деловой"}
 	b := []string{"Двор", "Ряд", "Склад", "Маршрут", "Цех", "Квартал"}
-	return "ООО «" + a[rng.IntN(len(a))] + " " + b[rng.IntN(len(b))] + "»"
+	return "ООО «" + pick(rng, a) + " " + pick(rng, b) + "»"
 }
+
+func fio(rng *rand.Rand) string {
+	last := []string{"Карпов", "Белов", "Зуев", "Орлов", "Титов", "Гусев"}
+	first := []string{"Андрей", "Илья", "Олег", "Павел", "Роман"}
+	mid := []string{"Ильич", "Олегович", "Андреевич", "Павлович"}
+	return pick(rng, last) + " " + pick(rng, first) + " " + pick(rng, mid)
+}
+
+func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.IntN(len(xs))] }
 
 // kop переводит рубли в копейки, rub ещё и округляет до целых рублей
 func kop(x float64) int64 { return int64(math.Round(x * domain.KopInRub)) }
