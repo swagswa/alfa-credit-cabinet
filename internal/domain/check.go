@@ -26,3 +26,11 @@ const (
 	CodeNotFound          = "SF_NOT_FOUND"
 	CodeSourceUnavailable = "SF_SOURCE_UNAVAILABLE"
 )
+
+// CheckResult это ответ источника для записи. Payload ответ как есть, только у ok.
+type CheckResult struct {
+	Source  Source
+	Status  CheckStatus
+	Payload []byte
+	Error   string
+}
