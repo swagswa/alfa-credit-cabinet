@@ -1,19 +1,15 @@
-import { ListItem } from '../motion';
-import { motion, AnimatePresence, StatusText, useMotionDisabled } from '../motion';
+import { motion, AnimatePresence, Button, ListItem, Select, StatusText, useMotionDisabled } from '../motion';
 import { BottomNotice, notify } from '../BottomNotice';
 import { useState, type FormEvent } from 'react';
-import { Button } from '../motion';
 import { Input } from '@alfalab/core-components/input';
 import { Attach } from '@alfalab/core-components/attach';
-import { Select } from '../motion';
 import { api } from '../api/client';
+import { kinds, kop } from '../api/presentation';
 import { DocumentDetails } from './DocumentDetails';
-
 import type { components } from '../api/schema.gen';
 
 type App = components['schemas']['ApplicationView'];
 type Kind = components['schemas']['DocumentKind'];
-const kinds: Record<Kind, string> = { passport: 'Паспорт', power_of_attorney: 'Доверенность', statement: 'Выписка по счёту', financials: 'Финансовая отчётность', supply_contract: 'Договор поставки', tax_receipt: 'Квитанция о сдаче декларации' };
 const statuses: Record<components['schemas']['DocumentStatus'], string> = { uploaded: 'Загружен', recognizing: 'Распознаём', recognized: 'Проверьте и подтвердите значения', failed: 'Не удалось распознать, нужен ручной ввод', skipped: 'Распознавание выключено, нужен ручной ввод', confirmed: 'Подтверждён' };
 
 export function Documents({ card, bank, refresh }: { card: App; bank: boolean; refresh: () => void }) {
@@ -53,7 +49,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
     setBusy(true); setError('');
     try {
       const { data, error } = await api.POST('/applications/{id}/provide-info', {
-        params: { path: { id: card.id } }, body: { comment, document_ids: card.documents.filter((doc) => doc.status === 'confirmed' || !['statement', 'financials'].includes(doc.kind)).map((doc) => doc.id), ...(revenue ? { monthly_revenue_kop: Math.round(Number(revenue) * 100) } : {}) },
+        params: { path: { id: card.id } }, body: { comment, document_ids: card.documents.filter((doc) => doc.status === 'confirmed' || !['statement', 'financials'].includes(doc.kind)).map((doc) => doc.id), ...(revenue ? { monthly_revenue_kop: kop(revenue) } : {}) },
       });
       if (data) { notify('Сведения отправлены банку.'); refresh(); } else setError(error?.title ?? 'Не удалось отправить сведения.');
     } catch { setError('Нет связи с сервером. Попробуйте ещё раз.'); }
@@ -85,13 +81,3 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
     </form>}
   </section>;
 }
-
-
-
-
-
-
-
-
-
-

@@ -1,24 +1,18 @@
-import { money } from '../api/presentation';
+import { goals, kop, labels, money, options, products as productNames, representatives } from '../api/presentation';
 import { Icon, PageHeading, StatusBadge, FieldPair } from '../ui/Workspace';
 import { useCabinetCache } from '../CabinetCache';
-import { applicationGroups, isApplicationGroup } from '../api/dashboard';
-import { CompletedJourney, isCompleted } from './CompletedJourney';
-import { ListItem } from '../motion';
+import { applicationGroups, isApplicationGroup, isCompleted } from '../api/dashboard';
+import { CompletedJourney } from './CompletedJourney';
 import { Value } from '../motion/Value';
-import { motion, AnimatePresence, StatusText, useMotionDisabled } from '../motion';
-import { MotionDetails } from '../motion';
+import { motion, AnimatePresence, Button, Checkbox, ListItem, MotionDetails, Select, StatusText, useMotionDisabled } from '../motion';
 import { BottomNotice, notify } from '../BottomNotice';
-import { labels } from '../api/labels';
 import { Progress } from './Progress';
 import { BankDetails } from './BankDetails';
 import { Decision } from './Decision';
 import { Documents } from './Documents';
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { Button } from '../motion';
 import { Input } from '@alfalab/core-components/input';
-import { Checkbox } from '../motion';
-import { Select } from '../motion';
 import { api } from '../api/client';
 import type { components, operations } from '../api/schema.gen';
 
@@ -31,7 +25,7 @@ const sorts = [
   { key: 'due_at', content: 'По ближайшему сроку' },
 ];
 
-export function Applications({ bank = false, createOnly = false }: { bank?: boolean; createOnly?: boolean }) {
+export function Applications({ bank = false, createOnly = false, role }: { bank?: boolean; createOnly?: boolean; role?: components['schemas']['Role'] }) {
   const reduced = useMotionDisabled();
   const cache = useCabinetCache();
   const { id } = useParams();
@@ -100,7 +94,7 @@ export function Applications({ bank = false, createOnly = false }: { bank?: bool
     const version = ++recommendationVersion.current;
     setRecommendBusy(true); setError('');
     try {
-      const { data, error } = await api.GET('/products/recommendation', { params: { query: { goal, amount_kop: Math.round(Number(amount) * 100), term_months: Number(term), ...(revenue ? { monthly_revenue_kop: Math.round(Number(revenue) * 100) } : {}) } } });
+      const { data, error } = await api.GET('/products/recommendation', { params: { query: { goal, amount_kop: kop(amount), term_months: Number(term), ...(revenue ? { monthly_revenue_kop: kop(revenue) } : {}) } } });
       if (version !== recommendationVersion.current) return;
       if (data) setRecommendation(data);
       else setError(error?.title ?? 'Не удалось подобрать продукт.');
@@ -145,8 +139,8 @@ export function Applications({ bank = false, createOnly = false }: { bank?: bool
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !company || company.inn !== inn || !selectedProduct) return;
-    const kop = Math.round(Number(amount) * 100);
-    if (!Number.isSafeInteger(kop) || kop < selectedProduct.amount_min_kop || kop > selectedProduct.amount_max_kop || !Number.isInteger(Number(term)) || Number(term) < selectedProduct.term_min_months || Number(term) > selectedProduct.term_max_months) {
+    const amountKop = kop(amount);
+    if (!Number.isSafeInteger(amountKop) || amountKop < selectedProduct.amount_min_kop || amountKop > selectedProduct.amount_max_kop || !Number.isInteger(Number(term)) || Number(term) < selectedProduct.term_min_months || Number(term) > selectedProduct.term_max_months) {
       setError('Сумма или срок не подходят выбранному продукту. Проверьте указанные диапазоны.'); return;
     }
     setBusy(true); setError('');
@@ -154,7 +148,7 @@ export function Applications({ bank = false, createOnly = false }: { bank?: bool
     try {
       const { data, error: problem } = await api.POST('/applications', {
         params: { header: { 'Idempotency-Key': key.current } },
-        body: { inn, amount_kop: Math.round(Number(amount) * 100), term_months: Number(term), product: chosenProduct, purpose: goal, representative_role: proxy ? 'proxy' : company.kind === 'IP' ? 'owner_ip' : 'director', bki_consent: consent, pd_consent: personalConsent, ...(revenue ? { monthly_revenue_kop: Math.round(Number(revenue) * 100) } : {}), ...(chosenProduct === 'equipment' && equipmentCost ? { equipment_cost_kop: Math.round(Number(equipmentCost) * 100) } : {}) },
+        body: { inn, amount_kop: amountKop, term_months: Number(term), product: chosenProduct, purpose: goal, representative_role: proxy ? 'proxy' : company.kind === 'IP' ? 'owner_ip' : 'director', bki_consent: consent, pd_consent: personalConsent, ...(revenue ? { monthly_revenue_kop: kop(revenue) } : {}), ...(chosenProduct === 'equipment' && equipmentCost ? { equipment_cost_kop: kop(equipmentCost) } : {}) },
       });
       if (!data) { setError(problem?.title ?? 'Не удалось сохранить черновик.'); return; }
       cache.rememberApplication(data, true); notify('Черновик создан.'); key.current = null; setAmount(''); navigate(root + '/applications/' + data.id);
@@ -185,20 +179,20 @@ export function Applications({ bank = false, createOnly = false }: { bank?: bool
         <p>{({ draft: 'Проверьте сведения и отправьте заявку в банк.', submitted: 'Заявка получена банком.', checking: 'Проверяем сведения. Пока от вас ничего не требуется.', scoring: 'Оцениваем условия финансирования.', need_info: 'Ответьте на запрос банка ниже.', manual_review: 'Сотрудник банка рассматривает заявку.', approved: 'Проверьте и примите условия ниже.', counter_offer: 'Сравните предложенные условия с вашим запросом.', accepted: 'Готовим документы для подписания.', signing: 'Подпишите документы кодом ниже.', rejected: 'Банк не одобрил заявку. Причины указаны ниже.', issued: 'Выдача завершена.', closed: 'Заявка завершена.', cancelled_by_client: 'Заявка отменена.', expired: 'Срок действия заявки истёк.' })[card.status]}</p>
         {!bank && card.status === 'draft' && <MotionDetails className="edit-panel"><summary>Изменить данные заявки</summary><DraftEditor key={card.id} card={card} onSaved={data => { cache.rememberApplication(data); setCard(data); }} /></MotionDetails>}
         {!bank && card.allowed_next.includes('submitted') && <Button view="primary" loading={busy} onClick={submit}>Отправить в банк</Button>}
-      <>{!bank && <Decision key={card.id} card={card} refresh={() => setRevision((value) => value + 1)} />}</>
-{bank && <BankDetails key={`bank-${card.id}`} card={card} />}
-<Documents key={`documents-${card.id}`} card={card} bank={bank} refresh={() => setRevision((value) => value + 1)} /></>}
+        {!bank && <Decision key={card.id} card={card} refresh={() => setRevision((value) => value + 1)} />}
+        {bank && <BankDetails key={`bank-${card.id}`} card={card} role={role} />}
+        <Documents key={`documents-${card.id}`} card={card} bank={bank} refresh={() => setRevision((value) => value + 1)} /></>}
 </article>}
     </> : <>{!createOnly && <>
-      <div className="filters"><Select block label="Статус заявки" options={[{ key: 'all', content: 'Все статусы' }, ...Object.entries(applicationGroups).map(([key, value]) => ({key:`group:${key}`,content:value.label})), ...Object.entries(labels).map(([key, content]) => ({ key, content }))]} selected={status ?? (group ? `group:${group}` : 'all')} onChange={({ selected }) => { setOffset(0); const key = selected?.key; if (key?.startsWith('group:')) { setStatus(undefined); setSearch({group:key.slice(6)}); } else { setStatus(key === 'all' ? undefined : key as components['schemas']['ApplicationStatus']); setSearch({}); } }} />
+      <div className="filters"><Select block label="Статус заявки" options={[{ key: 'all', content: 'Все статусы' }, ...Object.entries(applicationGroups).map(([key, value]) => ({key:`group:${key}`,content:value.label})), ...options(labels)]} selected={status ?? (group ? `group:${group}` : 'all')} onChange={({ selected }) => { setOffset(0); const key = selected?.key; if (key?.startsWith('group:')) { setStatus(undefined); setSearch({group:key.slice(6)}); } else { setStatus(key === 'all' ? undefined : key as components['schemas']['ApplicationStatus']); setSearch({}); } }} />
       {bank && <>
-        <Select block label="Продукт" options={[{ key: 'all', content: 'Все продукты' }, { key: 'working_capital', content: 'Оборотный кредит' }, { key: 'overdraft', content: 'Овердрафт' }, { key: 'equipment', content: 'Кредит на оборудование' }]} selected={product ?? 'all'} onChange={({ selected }) => { setOffset(0); setProduct(selected?.key === 'all' ? undefined : selected?.key as components['schemas']['ProductCode']); }} />
+        <Select block label="Продукт" options={[{ key: 'all', content: 'Все продукты' }, ...options(productNames)]} selected={product ?? 'all'} onChange={({ selected }) => { setOffset(0); setProduct(selected?.key === 'all' ? undefined : selected?.key as components['schemas']['ProductCode']); }} />
         <Select block label="Класс риска" options={[{ key: 'all', content: 'Все классы' }, ...['A', 'B', 'C', 'D', 'E'].map((key) => ({ key, content: `Класс ${key}` }))]} selected={grade ?? 'all'} onChange={({ selected }) => { setOffset(0); setGrade(selected?.key === 'all' ? undefined : selected?.key as components['schemas']['Grade']); }} />
       </>}
       <Select block label="Порядок заявок" options={sorts} selected={sort} onChange={({ selected }) => { setOffset(0); setSort((selected?.key ?? '-created_at') as Sort); }} />
       </div>
       {!loading && <>
-      {!loading && !items.length && <p>{status || product || grade || group ? 'По выбранным условиям заявок нет.' : 'Заявок пока нет.'}</p>}
+      {!items.length && <p>{status || product || grade || group ? 'По выбранным условиям заявок нет.' : 'Заявок пока нет.'}</p>}
       <motion.ul layout={reduced ? false : "position"} className="applications-list"><AnimatePresence initial={false}>{items.map((item) => <ListItem className="application-card" key={item.id}><Link to={`${root}/applications/${item.id}`}>№ {item.number}: {item.company.short_name}</Link><StatusBadge status={item.status} /><strong className="application-amount"><Value text={money(item.amount_kop)} /></strong><span>{item.term_months} мес.</span></ListItem>)}</AnimatePresence></motion.ul>
       <p>Всего заявок: {total}. Страница {Math.floor(offset / 20) + 1}</p>
       <Button size={40} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>Назад</Button>
@@ -209,19 +203,19 @@ export function Applications({ bank = false, createOnly = false }: { bank?: bool
         <Input block label="ИНН компании" value={inn} onChange={(event) => { lookupVersion.current++; setLookupBusy(false); setCompany(null); key.current = null; setInn(event.target.value); }} required pattern="[0-9]{10}([0-9]{2})?" disabled={busy} />
         <Button type="button" loading={lookupBusy} disabled={busy || !/^\d{10}(\d{2})?$/.test(inn)} onClick={lookup}>Найти компанию</Button>
         {company && <div className="company-result"><span className="hint">Компания найдена · Демо-данные</span><br/><strong>{company.short_name}</strong><p>{company.address}</p><p>Основная деятельность: {company.okved_main.name}</p><p>Данные реестра доступны только для чтения.</p></div>}
-        <h2>2. Финансирование</h2><Select block label="На что нужны деньги" options={[{ key: 'purchase', content: 'Закупка товара и сырья' }, { key: 'cash_gap', content: 'Оплата расходов до поступления денег' }, { key: 'equipment', content: 'Оборудование и транспорт' }, { key: 'renovation', content: 'Ремонт и открытие точки' }, { key: 'other', content: 'Другая цель' }]} selected={goal} disabled={busy || recommendBusy} onChange={({ selected }) => { setGoal(selected!.key as components['schemas']['Goal']); key.current = null; setRecommendation(null); }} />
+        <h2>2. Финансирование</h2><Select block label="На что нужны деньги" options={options(goals)} selected={goal} disabled={busy || recommendBusy} onChange={({ selected }) => { setGoal(selected!.key as components['schemas']['Goal']); key.current = null; setRecommendation(null); }} />
         <FieldPair>
         <Input block label="Сумма, ₽" type="number" min={1} step="0.01" value={amount} onChange={(event) => { key.current = null; setAmount(event.target.value); }} required disabled={busy} />
         <Input block label="Срок, месяцев" type="number" min={1} max={60} value={term} onChange={(event) => { key.current = null; setTerm(event.target.value); }} required disabled={busy} />
         </FieldPair>
         <Input block label="Среднемесячная выручка, ₽" type="number" min={1} step="0.01" value={revenue} onChange={(event) => setRevenue(event.target.value)} disabled={busy} />
         <Button type="button" loading={recommendBusy} disabled={busy || Number(amount) <= 0 || !amount || Number(term) < 1 || Number(term) > 60} onClick={recommend}>Подобрать продукт</Button>
-        {recommendation && <div><p>Предварительный расчёт, окончательные условия определит банк.</p>{recommendation.items.map((item, index) => <p key={`${item.product}-${index}`}>{item.primary ? 'Рекомендация' : 'Альтернатива'}: {item.product === 'equipment' ? 'Кредит на оборудование' : item.product === 'overdraft' ? 'Овердрафт' : 'Оборотный кредит'}, {money(item.amount_kop)}, {item.term_months} мес., {item.rate_bp / 100}% годовых. Ориентир платежа: {money(item.monthly_payment_kop)}.</p>)}</div>}
+        {recommendation && <div><p>Предварительный расчёт, окончательные условия определит банк.</p>{recommendation.items.map((item, index) => <p key={`${item.product}-${index}`}>{item.primary ? 'Рекомендация' : 'Альтернатива'}: {productNames[item.product]}, {money(item.amount_kop)}, {item.term_months} мес., {item.rate_bp / 100}% годовых. Ориентир платежа: {money(item.monthly_payment_kop)}.</p>)}</div>}
         {catalogError && <p role="alert">{catalogError}</p>}
         <Select block label="Выбранный продукт" options={products.map((item) => ({ key: item.code, content: item.name }))} selected={chosenProduct} disabled={busy || !products.length} onChange={({ selected }) => { key.current = null; setChosenProduct(selected!.key as components['schemas']['ProductCode']); }} />
         {selectedProduct && <div className="product-terms">
           <h3>Условия продукта</h3><p>Подходит для выбранной цели. Окончательные условия банк определит после рассмотрения заявки.</p>
-          <p>Сумма кредита: {money(selectedProduct.amount_min_kop)} — {money(selectedProduct.amount_max_kop)}. Срок: {selectedProduct.term_min_months}–{selectedProduct.term_max_months} месяцев.</p>
+          <p>Сумма кредита: от {money(selectedProduct.amount_min_kop)} до {money(selectedProduct.amount_max_kop)}. Срок: от {selectedProduct.term_min_months} до {selectedProduct.term_max_months} месяцев.</p>
           <p>Ставка: от {selectedProduct.rate_min_bp / 100}% до {selectedProduct.rate_max_bp / 100}% годовых. Возраст бизнеса: от {selectedProduct.min_business_age_months} мес.</p>
           <ul>{selectedProduct.requirements.map((requirement) => <li key={requirement}>{requirement}</li>)}</ul>
           <p>{selectedProduct.repayment === 'auto_debit' ? 'Задолженность погашается автоматически из поступлений на счёт.' : 'Погашение равными ежемесячными платежами.'}</p>
@@ -236,6 +230,8 @@ export function Applications({ bank = false, createOnly = false }: { bank?: bool
   </section></div>;
 }
 
+const draftDetails = (card: App) => ({ product: card.product, purpose: card.purpose, representative_role: card.representative_role, monthly_revenue_kop: card.monthly_revenue_kop ? String(card.monthly_revenue_kop / 100) : '', equipment_cost_kop: card.equipment_cost_kop ? String(card.equipment_cost_kop / 100) : '', comment: card.comment ?? '' });
+
 function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => void }) {
   const [snapshot, setSnapshot] = useState(card);
   const [amount, setAmount] = useState(String(card.amount_kop / 100));
@@ -243,7 +239,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
   const [consent, setConsent] = useState(card.bki_consent);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [details, setDetails] = useState({ product: card.product, purpose: card.purpose, representative_role: card.representative_role, monthly_revenue_kop: card.monthly_revenue_kop ? String(card.monthly_revenue_kop / 100) : '', equipment_cost_kop: card.equipment_cost_kop ? String(card.equipment_cost_kop / 100) : '', comment: card.comment ?? '' });
+  const [details, setDetails] = useState(() => draftDetails(card));
   const stale = snapshot.version !== card.version;
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -252,7 +248,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
     try {
       const { data, response, error } = await api.PATCH('/applications/{id}', {
         params: { path: { id: card.id } },
-        body: { version: snapshot.version, amount_kop: Math.round(Number(amount) * 100), term_months: Number(term), bki_consent: consent, product: details.product, purpose: details.purpose, representative_role: details.representative_role, comment: details.comment, ...(details.monthly_revenue_kop ? { monthly_revenue_kop: Math.round(Number(details.monthly_revenue_kop) * 100) } : {}), ...(details.equipment_cost_kop ? { equipment_cost_kop: Math.round(Number(details.equipment_cost_kop) * 100) } : {}) },
+        body: { version: snapshot.version, amount_kop: kop(amount), term_months: Number(term), bki_consent: consent, product: details.product, purpose: details.purpose, representative_role: details.representative_role, comment: details.comment, ...(details.monthly_revenue_kop ? { monthly_revenue_kop: kop(details.monthly_revenue_kop) } : {}), ...(details.equipment_cost_kop ? { equipment_cost_kop: kop(details.equipment_cost_kop) } : {}) },
       });
       if (data) { setSnapshot(data); onSaved(data); setMessage(''); notify('Изменения сохранены.'); }
       else setMessage(response.status === 409 ? 'Данные изменились. Обновите карточку и проверьте поля перед повторным сохранением.' : error?.title ?? 'Не удалось сохранить изменения.');
@@ -260,13 +256,13 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
     finally { setBusy(false); }
   }
   function reset() {
-    setSnapshot(card); setAmount(String(card.amount_kop / 100)); setTerm(String(card.term_months)); setConsent(card.bki_consent); setDetails({ product: card.product, purpose: card.purpose, representative_role: card.representative_role, monthly_revenue_kop: card.monthly_revenue_kop ? String(card.monthly_revenue_kop / 100) : '', equipment_cost_kop: card.equipment_cost_kop ? String(card.equipment_cost_kop / 100) : '', comment: card.comment ?? '' }); setMessage('');
+    setSnapshot(card); setAmount(String(card.amount_kop / 100)); setTerm(String(card.term_months)); setConsent(card.bki_consent); setDetails(draftDetails(card)); setMessage('');
   }
   return <form onSubmit={save}>
     <h3>Изменить черновик</h3>
-    <Select block label="Продукт черновика" selected={details.product} options={[{ key: 'working_capital', content: 'Оборотный кредит' }, { key: 'overdraft', content: 'Овердрафт' }, { key: 'equipment', content: 'Кредит на оборудование' }]} disabled={busy} onChange={({ selected }) => setDetails({ ...details, product: selected!.key as App['product'] })} />
-    <Select block label="Цель черновика" selected={details.purpose} options={[{ key: 'purchase', content: 'Закупка' }, { key: 'cash_gap', content: 'Текущие расходы' }, { key: 'equipment', content: 'Оборудование' }, { key: 'renovation', content: 'Ремонт' }, { key: 'other', content: 'Другое' }]} disabled={busy} onChange={({ selected }) => setDetails({ ...details, purpose: selected!.key as App['purpose'] })} />
-    <Select block label="Полномочия представителя" selected={details.representative_role} options={[{ key: 'director', content: 'Руководитель' }, { key: 'owner_ip', content: 'Индивидуальный предприниматель' }, { key: 'proxy', content: 'По доверенности' }]} disabled={busy} onChange={({ selected }) => setDetails({ ...details, representative_role: selected!.key as App['representative_role'] })} />
+    <Select block label="Продукт черновика" selected={details.product} options={options(productNames)} disabled={busy} onChange={({ selected }) => setDetails({ ...details, product: selected!.key as App['product'] })} />
+    <Select block label="Цель черновика" selected={details.purpose} options={options(goals)} disabled={busy} onChange={({ selected }) => setDetails({ ...details, purpose: selected!.key as App['purpose'] })} />
+    <Select block label="Полномочия представителя" selected={details.representative_role} options={options(representatives)} disabled={busy} onChange={({ selected }) => setDetails({ ...details, representative_role: selected!.key as App['representative_role'] })} />
     <Input block label="Выручка черновика за месяц, ₽" type="number" min={1} step="0.01" value={details.monthly_revenue_kop} disabled={busy} onChange={(event) => setDetails({ ...details, monthly_revenue_kop: event.target.value })} />
     <Input block label="Стоимость оборудования в черновике, ₽" type="number" min={1} step="0.01" value={details.equipment_cost_kop} disabled={busy} onChange={(event) => setDetails({ ...details, equipment_cost_kop: event.target.value })} />
     <Input block label="Комментарий к заявке" maxLength={1000} value={details.comment} disabled={busy} onChange={(event) => setDetails({ ...details, comment: event.target.value })} />
@@ -279,14 +275,3 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
     {stale && <Button type="button" disabled={busy} onClick={reset}>Заменить мой ввод актуальными данными</Button>}
   </form>;
 }
-
-
-
-
-
-
-
-
-
-
-
