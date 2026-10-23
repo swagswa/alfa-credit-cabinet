@@ -41,7 +41,11 @@ func main() {
 	sources := source.New(source.URLs{
 		EGRUL: cfg.EGRULURL, FNS: cfg.FNSURL, BKI: cfg.BKIURL, Bank: cfg.BankURL,
 	}, cfg.Sources.Timeout)
-	appActs := activity.NewApplicationActivities(usecase.NewApplication(db, appRepo, nil, tc, domain.Catalog{}))
+	deadlines := domain.Deadlines{NeedInfo: cfg.NeedInfoTTL, Review: cfg.ReviewSLA}
+	appActs := activity.NewApplicationActivities(
+		usecase.NewApplication(db, appRepo, nil, tc, domain.Catalog{}),
+		deadlines,
+	)
 	checkActs := activity.NewCheckActivities(usecase.NewCheck(appRepo, repo.NewCheck(q), sources))
 
 	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {
