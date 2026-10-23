@@ -64,6 +64,8 @@ type Application struct {
 	Documents []Document
 	// Checks только для сотрудников банка, последний ответ по каждому источнику
 	Checks []CheckResult
+	// Decision последнее решение, только в карточке
+	Decision *Decision
 }
 
 // AuditEntry это строка журнала заявки. ActorName пустой у системы.
@@ -121,6 +123,8 @@ type Move struct {
 	Comment string
 	// DueAt срок нового шага, его считает workflow вместе с таймером. nil снимает срок.
 	DueAt *time.Time
+	// Decision пишется вместе с переходом, условия из него становятся текущими
+	Decision *Decision
 }
 
 // Event это уведомление об изменении заявки для SSE. Теги под payload

@@ -145,6 +145,7 @@ type Decision struct {
 	IsOverride     bool
 	Comment        pgtype.Text
 	CreatedAt      time.Time
+	Reasons        []byte
 }
 
 type Document struct {

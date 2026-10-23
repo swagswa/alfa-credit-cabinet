@@ -3,12 +3,15 @@ package domain
 import "time"
 
 // Action это действие человека над идущей заявкой: ответ клиента, запрос сотрудника,
-// отмена. Version карточки, которую он видел, сверяет Transition.
+// отмена, решение андеррайтера. Version карточки, которую он видел, сверяет Transition.
 type Action struct {
 	Actor   Actor
 	Version int
 	Codes   []string
 	Comment string
+	// Outcome и Terms только у решения андеррайтера
+	Outcome Status
+	Terms   *Terms
 }
 
 // Deadlines сроки шагов, которые ведёт процесс. На стенде минуты, на проде рабочие дни.
@@ -17,4 +20,6 @@ type Deadlines struct {
 	NeedInfo time.Duration
 	// Review SLA андеррайтера: по нему только эскалация, статус не меняется
 	Review time.Duration
+	// Offer сколько ждём, пока клиент примет условия
+	Offer time.Duration
 }

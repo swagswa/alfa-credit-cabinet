@@ -12,7 +12,7 @@ import (
 func (u *decisionUseCase) Score(f *domain.Facts) domain.Score {
 	s := domain.Score{Version: u.scoring.Version}
 	for _, fc := range u.scoring.Factors {
-		fs := domain.FactorScore{Code: fc.Code, Max: fc.Max}
+		fs := domain.FactorScore{Code: fc.Code, Name: fc.Name, Max: fc.Max}
 		v, _ := f.Input(fc.Input)
 		switch v := v.(type) {
 		case float64:
