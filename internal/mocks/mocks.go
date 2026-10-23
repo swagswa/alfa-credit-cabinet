@@ -22,6 +22,13 @@ func New() *echo.Echo {
 	e.GET("/health", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	// «Взять пример выписки»: nginx отдаёт этот путь сюда, мимо api
 	e.GET("/api/samples/:inn", sample)
+
+	s, err := newSim()
+	if err != nil {
+		// фикстуры встроены в бинарник: сломаться они могут только при сборке, тест это ловит
+		panic(err)
+	}
+	s.routes(e)
 	return e
 }
 

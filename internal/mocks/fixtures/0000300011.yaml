@@ -1,0 +1,44 @@
+# IT: молодая, растёт, счёта у нас нет: запрос выписки, потом ручное рассмотрение.
+egrul:
+  inn: "0000300011"
+  ogrn: "1000000300011"
+  kpp: "000101001"
+  kind: UL
+  full_name: Общество с ограниченной ответственностью «Кодовая база»
+  short_name: ООО «Кодовая база»
+  status: active
+  registered_at: "2025-02-20"
+  address: {region_code: "78", text: "г. Санкт-Петербург, Лиговский пр., д. 50"}
+  okved_main: {code: "62.01", name: Разработка компьютерного программного обеспечения}
+  okved_extra: [{code: "62.02", name: Деятельность консультативная в области компьютерных технологий}]
+  director: {fio: Орлов Дмитрий Андреевич, inn: "000030000167", position: Генеральный директор, since: "2025-02-20"}
+  founders: [{name: Орлов Дмитрий Андреевич, inn: "000030000167", share_pct: 100, is_foreign: false}]
+  capital_rub: 10000
+  unreliable: []
+fns:
+  msp_category: micro
+  tax_regime: USN
+  avg_headcount: 14
+  taxes_paid_last_year: 2100000
+  arrears: {tax: 30000, penalty: 1200, fine: 0, as_of: "2026-10-01"}
+  mass_address: false
+  mass_director: false
+  disqualified_director: false
+  account_blocks: []
+  tax_offenses_count: 0
+bki:
+  summary:
+    accounts_total: 0
+    accounts_open: 0
+    accounts_overdue_30: 0
+    debt_total: 0
+    overdue_total: 0
+    monthly_payments_total: 0
+    inquiries_30d: 3
+    inquiries_90d: 7
+    inquiries_365d: 9
+    applications_refused_365d: 0
+    bankruptcy_5y: false
+  loans: []
+  owner: {pkr: 724, worst_dpd_12m: 0, current_dpd: 0}
+# internal нет: не клиент банка, источник отвечает 404

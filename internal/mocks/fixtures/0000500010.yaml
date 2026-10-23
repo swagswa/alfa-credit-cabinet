@@ -1,0 +1,53 @@
+# Тихая компания с лежащим ЕГРЮЛ: ретраи в Temporal UI, потом ручное рассмотрение.
+faults:
+  egrul: http_503
+egrul:
+  inn: "0000500010"
+  ogrn: "1000000500010"
+  kpp: "000101001"
+  kind: UL
+  full_name: Общество с ограниченной ответственностью «Северный путь»
+  short_name: ООО «Северный путь»
+  status: active
+  registered_at: "2022-03-14"
+  address: {region_code: "66", text: "г. Екатеринбург, ул. Луначарского, д. 31"}
+  okved_main: {code: "46.90", name: Торговля оптовая неспециализированная}
+  okved_extra: []
+  director: {fio: Захарова Елена Павловна, inn: "000050000119", position: Директор, since: "2022-03-14"}
+  founders: [{name: Захарова Елена Павловна, inn: "000050000119", share_pct: 100, is_foreign: false}]
+  capital_rub: 10000
+  unreliable: []
+fns:
+  msp_category: micro
+  tax_regime: USN
+  avg_headcount: 6
+  taxes_paid_last_year: 430000
+  arrears: {tax: 0, penalty: 0, fine: 0, as_of: "2026-10-01"}
+  mass_address: false
+  mass_director: false
+  disqualified_director: false
+  account_blocks: []
+  tax_offenses_count: 0
+bki:
+  summary:
+    accounts_total: 1
+    accounts_open: 0
+    accounts_overdue_30: 0
+    debt_total: 0
+    overdue_total: 0
+    monthly_payments_total: 0
+    inquiries_30d: 0
+    inquiries_90d: 1
+    inquiries_365d: 1
+    applications_refused_365d: 0
+    bankruptcy_5y: false
+  loans:
+    - {lender_type: bank, kind: loan, role: borrower, opened_at: "2023-02-01", closed_at: "2025-02-01", amount: 1000000,
+       balance: 0, monthly_payment: 0, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: closed}
+  owner: {pkr: 760, worst_dpd_12m: 0, current_dpd: 0}
+internal:
+  is_client: true
+  account_opened_at: "2023-05-01"
+  products: [account]
+  past_loans: []
+  aml_high_risk: false

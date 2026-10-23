@@ -1,0 +1,54 @@
+# Кофейня: хорошая компания, одобрение как запросили. Деньги в рублях, как у источников.
+# Выручку и обороты мок досчитывает из synth, здесь их нет.
+egrul:
+  inn: "0000100012"
+  ogrn: "1000000100012"
+  kpp: "000101001"
+  kind: UL
+  full_name: Общество с ограниченной ответственностью «Тёплое зерно»
+  short_name: ООО «Тёплое зерно»
+  status: active
+  registered_at: "2023-06-15"
+  address: {region_code: "77", text: "г. Москва, ул. Садовая, д. 12"}
+  okved_main: {code: "56.30", name: Подача напитков}
+  okved_extra: [{code: "56.10", name: Деятельность ресторанов и услуги по доставке продуктов питания}]
+  director: {fio: Соколова Анна Викторовна, inn: "000010000105", position: Генеральный директор, since: "2023-06-15"}
+  founders: [{name: Соколова Анна Викторовна, inn: "000010000105", share_pct: 100, is_foreign: false}]
+  capital_rub: 10000
+  unreliable: []
+fns:
+  msp_category: micro
+  tax_regime: USN
+  avg_headcount: 9
+  taxes_paid_last_year: 610000
+  arrears: {tax: 0, penalty: 0, fine: 0, as_of: "2026-10-01"}
+  mass_address: false
+  mass_director: false
+  disqualified_director: false
+  account_blocks: []
+  tax_offenses_count: 0
+bki:
+  summary:
+    accounts_total: 2
+    accounts_open: 1
+    accounts_overdue_30: 0
+    debt_total: 1100000
+    overdue_total: 0
+    monthly_payments_total: 60000
+    inquiries_30d: 0
+    inquiries_90d: 1
+    inquiries_365d: 2
+    applications_refused_365d: 0
+    bankruptcy_5y: false
+  loans:
+    - {lender_type: bank, kind: loan, role: borrower, opened_at: "2025-04-01", closed_at: null, amount: 1500000,
+       balance: 1100000, monthly_payment: 60000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: active}
+    - {lender_type: bank, kind: overdraft, role: borrower, opened_at: "2023-11-10", closed_at: "2024-11-10", amount: 500000,
+       balance: 0, monthly_payment: 0, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: closed}
+  owner: {pkr: 812, worst_dpd_12m: 0, current_dpd: 0}
+internal:
+  is_client: true
+  account_opened_at: "2024-10-15"
+  products: [account, acquiring]
+  past_loans: []
+  aml_high_risk: false
