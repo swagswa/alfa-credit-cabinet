@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -226,6 +227,36 @@ func (h *Handler) RetryChecks(
 	return oapi.RetryChecks200JSONResponse(v), err
 }
 
+func (h *Handler) DecideApplication(
+	ctx context.Context,
+	req oapi.DecideApplicationRequestObject,
+) (oapi.DecideApplicationResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	b := req.Body
+	act := domain.Action{Actor: a, Outcome: domain.Status(b.Outcome), Comment: b.Comment}
+	if b.ReasonCodes != nil {
+		for _, c := range *b.ReasonCodes {
+			act.Codes = append(act.Codes, string(c))
+		}
+	}
+	if t := b.Terms; t != nil {
+		act.Terms = &domain.Terms{
+			Product: domain.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBP: t.RateBp,
+		}
+		set(&act.Terms.Guarantor, t.GuarantorRequired)
+		set(&act.Terms.Pledge, t.PledgeRequired)
+	}
+	err = h.apps.Decide(ctx, req.Id, act)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.card(ctx, a, req.Id)
+	return oapi.DecideApplication200JSONResponse(v), err
+}
+
 // act передаёт действие процессу и отдаёт карточку уже после перехода
 func (h *Handler) act(ctx context.Context, id uuid.UUID, update, comment string) (oapi.ApplicationView, error) {
 	a, err := actor(ctx)
@@ -302,6 +333,9 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		g := oapi.Grade(app.Grade)
 		v.Grade = &g
 	}
+	if d := app.Decision; d != nil {
+		decisionView(&v, d, app.DueAt, role)
+	}
 	if role != domain.RoleClient {
 		checks := make([]oapi.CheckResult, 0, len(app.Checks))
 		for _, c := range app.Checks {
@@ -318,6 +352,47 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		v.Checks = &checks
 	}
 	return v
+}
+
+// decisionView: клиент видит условия и причины с текстом, банк ещё коды без текста,
+// балл с разбивкой и рекомендацию политики
+func decisionView(v *oapi.ApplicationView, d *domain.Decision, due *time.Time, role domain.Role) {
+	bank := role != domain.RoleClient
+	for _, r := range d.Reasons {
+		if r.Text != "" || bank {
+			v.Reasons = append(v.Reasons, oapi.Reason{Code: oapi.ReasonCode(r.Code), Text: r.Text})
+		}
+	}
+	if t := d.Terms; t != nil {
+		o := oapi.Offer{
+			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
+			MonthlyPaymentKop: t.PaymentKop, GuarantorRequired: &t.Guarantor, PledgeRequired: &t.Pledge,
+		}
+		if due != nil {
+			o.ExpiresAt = *due
+		}
+		v.Offer = &o
+	}
+	if !bank {
+		return
+	}
+	v.PolicyVersion = opt(d.PolicyVersion)
+	if t := d.Recommendation; t != nil {
+		v.Recommendation = &oapi.OfferTerms{
+			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
+			GuarantorRequired: &t.Guarantor, PledgeRequired: &t.Pledge,
+		}
+	}
+	if s := d.Score; s != nil {
+		sc := oapi.Scoring{Score: s.Points, Grade: oapi.Grade(s.Grade), Pd: s.PD, Version: s.Version}
+		for _, f := range s.Factors {
+			sc.Factors = append(sc.Factors, oapi.ScoreFactor{
+				Code: f.Code, Name: f.Name, Value: float32(f.Value), Points: f.Points, MaxPoints: f.Max,
+				Reason: opt(oapi.ReasonCode(f.Reason)),
+			})
+		}
+		v.Scoring = &sc
+	}
 }
 
 // set переносит необязательное поле запроса, если оно пришло

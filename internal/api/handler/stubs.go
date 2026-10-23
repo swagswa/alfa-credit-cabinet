@@ -13,13 +13,6 @@ func (h *Handler) AcceptOffer(context.Context, oapi.AcceptOfferRequestObject) (o
 	return nil, errNotImplemented
 }
 
-func (h *Handler) DecideApplication(
-	context.Context,
-	oapi.DecideApplicationRequestObject,
-) (oapi.DecideApplicationResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) SignApplication(
 	context.Context,
 	oapi.SignApplicationRequestObject,

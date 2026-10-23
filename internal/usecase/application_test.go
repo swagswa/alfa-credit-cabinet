@@ -394,3 +394,59 @@ func TestProvideRevenue(t *testing.T) {
 	_, version, _ := e.state(checking)
 	require.Equal(t, 1, version)
 }
+
+func TestDecide(t *testing.T) {
+	id := uuid.New()
+	uw := domain.Actor{ID: uuid.New(), Role: domain.RoleUnderwriter}
+	catalog, err := rules.Products("../../rules/products.yaml")
+	require.NoError(t, err)
+	const mln = 1_000_000 * domain.KopInRub
+	counter := func(amount int64, term int) *domain.Terms {
+		return &domain.Terms{Product: domain.WorkingCapital, AmountKop: amount, TermMonths: term, RateBP: 2250}
+	}
+	tests := []struct {
+		name    string
+		a       domain.Action
+		want    error
+		payment int64 // считает usecase, 0 у отказа
+	}{
+		{"контрпредложение", domain.Action{Outcome: domain.StatusCounterOffer, Terms: counter(7*mln, 12),
+			Comment: "лимит политики"}, nil, 656_846_29}, // 656 846 руб. как в 6.5
+		{"отказ с причиной, условия не нужны", domain.Action{Outcome: domain.StatusRejected, Terms: counter(7*mln, 12),
+			Codes: []string{"R_GRADE_E"}, Comment: "аффилированность"}, nil, 0},
+		{"комментарий из пробелов", domain.Action{Outcome: domain.StatusRejected, Codes: []string{"R_GRADE_E"},
+			Comment: "   "}, domain.ErrIncomplete, 0},
+		{"отказ без причины", domain.Action{Outcome: domain.StatusRejected, Comment: "нет"}, domain.ErrIncomplete, 0},
+		{
+			"одобрение без условий",
+			domain.Action{Outcome: domain.StatusApproved, Comment: "ок"},
+			domain.ErrIncomplete,
+			0,
+		},
+		{"сумма больше продукта", domain.Action{Outcome: domain.StatusApproved, Terms: counter(50*mln, 12),
+			Comment: "ок"}, domain.ErrIncomplete, 0},
+		{"срок больше продукта", domain.Action{Outcome: domain.StatusApproved, Terms: counter(7*mln, 60),
+			Comment: "ок"}, domain.ErrIncomplete, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wf := &fakeWorkflows{}
+			uc := usecase.NewApplication(nil, fakeCards{}, nil, wf, catalog)
+			tt.a.Actor = uw
+
+			err := uc.Decide(t.Context(), id, tt.a)
+			require.ErrorIs(t, err, tt.want)
+			if tt.want != nil {
+				require.Nil(t, wf.args, "до процесса не дошли")
+				return
+			}
+			sent, _ := wf.args[2].(domain.Action)
+			require.Equal(t, "Decide", wf.args[1])
+			if tt.payment == 0 {
+				require.Nil(t, sent.Terms)
+				return
+			}
+			require.Equal(t, tt.payment, sent.Terms.PaymentKop)
+		})
+	}
+}
