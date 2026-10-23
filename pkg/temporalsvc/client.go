@@ -17,6 +17,9 @@ import (
 // ErrAlreadyStarted значит, что workflow с таким id уже запускали, даже если он завершился.
 var ErrAlreadyStarted = errors.New("workflow already started")
 
+// ErrNoProcess значит, что workflow с таким id не идёт: не запускали или уже завершился.
+var ErrNoProcess = errors.New("workflow is not running")
+
 type Config struct {
 	HostPort  string
 	Namespace string
@@ -79,6 +82,27 @@ func (c *Client) Start(ctx context.Context, queue, id, workflow string, args ...
 	}
 	if err != nil {
 		return fmt.Errorf("start %s %s: %w", workflow, id, err)
+	}
+	return nil
+}
+
+// Update передаёт workflow действие и ждёт, пока обработчик его исполнит.
+// Отказ валидатора и ошибка обработчика приходят как есть, в виде ApplicationError.
+func (c *Client) Update(ctx context.Context, id, update string, arg any) error {
+	h, err := c.UpdateWorkflow(ctx, client.UpdateWorkflowOptions{
+		WorkflowID:   id,
+		UpdateName:   update,
+		Args:         []any{arg},
+		WaitForStage: client.WorkflowUpdateStageCompleted,
+	})
+	if err == nil {
+		err = h.Get(ctx, nil)
+	}
+	if _, ok := errors.AsType[*serviceerror.NotFound](err); ok {
+		return fmt.Errorf("%w: %s", ErrNoProcess, id)
+	}
+	if err != nil {
+		return fmt.Errorf("update %s %s: %w", update, id, err)
 	}
 	return nil
 }
