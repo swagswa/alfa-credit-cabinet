@@ -1,5 +1,5 @@
 // Package logger собирает zap в общем для всех процессов виде: JSON,
-// debug и info в stdout, warn и выше в stderr.
+// debug и info в stdout, warn и выше в stderr, ПДн замаскированы.
 package logger
 
 import (
@@ -44,8 +44,8 @@ func New(level string) (*Logger, error) {
 	high := zap.LevelEnablerFunc(func(l zapcore.Level) bool { return l >= lvl && l >= zapcore.WarnLevel })
 
 	core := zapcore.NewTee(
-		zapcore.NewCore(enc, zapcore.Lock(os.Stdout), low),
-		zapcore.NewCore(enc, zapcore.Lock(os.Stderr), high),
+		Mask(zapcore.NewCore(enc, zapcore.Lock(os.Stdout), low)),
+		Mask(zapcore.NewCore(enc, zapcore.Lock(os.Stderr), high)),
 	)
 
 	return &Logger{Zap: zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))}, nil
