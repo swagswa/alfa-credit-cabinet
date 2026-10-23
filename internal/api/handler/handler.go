@@ -21,6 +21,7 @@ type Handler struct {
 	auth      usecase.AuthUseCase
 	events    usecase.EventUseCase
 	docs      usecase.DocumentUseCase
+	feed      usecase.FeedUseCase
 
 	sessionTTL   time.Duration
 	cookieSecure bool
@@ -36,6 +37,7 @@ type Deps struct {
 	Auth         usecase.AuthUseCase
 	Events       usecase.EventUseCase
 	Documents    usecase.DocumentUseCase
+	Feed         usecase.FeedUseCase
 
 	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
 	SessionTTL   time.Duration
@@ -51,6 +53,7 @@ func New(d Deps) *Handler {
 		auth:         d.Auth,
 		events:       d.Events,
 		docs:         d.Documents,
+		feed:         d.Feed,
 		sessionTTL:   d.SessionTTL,
 		cookieSecure: d.CookieSecure,
 	}

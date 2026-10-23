@@ -57,13 +57,17 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
+	feedRules, err := rules.Feed(filepath.Join(cfg.RulesDir, "feed.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc, catalog)
 	events := repo.NewEvent(lg.Zap, db)
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
-		usecase.NewEvent(events, users), docs)
+		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -84,6 +88,7 @@ func newServer(
 	apps usecase.ApplicationUseCase,
 	events usecase.EventUseCase,
 	docs usecase.DocumentUseCase,
+	feed usecase.FeedUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -99,6 +104,7 @@ func newServer(
 			Auth:         auth,
 			Events:       events,
 			Documents:    docs,
+			Feed:         feed,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,
 		}),

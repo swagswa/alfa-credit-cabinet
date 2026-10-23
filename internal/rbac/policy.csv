@@ -32,6 +32,7 @@ p, client, /api/applications/:id/provide-info, POST
 p, client, /api/applications/:id/documents, POST
 p, client, /api/documents/:id/confirm, POST
 p, client, /api/applications/:id/history, GET
+p, client, /api/feed, GET
 
 # очередь банка и карточка; чьи заявки видны, решает usecase
 p, manager, /api/applications, GET

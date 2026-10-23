@@ -33,7 +33,3 @@ func (h *Handler) RequestSigningCode(
 ) (oapi.RequestSigningCodeResponseObject, error) {
 	return nil, errNotImplemented
 }
-
-func (h *Handler) ListFeed(context.Context, oapi.ListFeedRequestObject) (oapi.ListFeedResponseObject, error) {
-	return nil, errNotImplemented
-}
