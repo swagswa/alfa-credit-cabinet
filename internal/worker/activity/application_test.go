@@ -29,20 +29,20 @@ func TestTransition(t *testing.T) {
 		err     error
 		errType string // пусто: ошибка повторяемая
 	}{
-		{"нет заявки", domain.ErrNotFound, activity.NotFoundErrorType},
+		{"нет заявки", domain.ErrNotFound, usecase.NotFoundErrorType},
 		{
 			"переход не по таблице",
 			fmt.Errorf("%w: из a в b", domain.ErrIllegalTransition),
-			activity.IllegalTransitionErrorType,
+			usecase.IllegalTransitionErrorType,
 		},
-		{"устаревшая версия", domain.ErrConflict, activity.VersionConflictErrorType},
-		{"бки без согласия", fmt.Errorf("bki: %w", domain.ErrForbidden), activity.ForbiddenErrorType},
-		{"источник не понял запрос", fmt.Errorf("fns: 400: %w", domain.ErrInvalid), activity.InvalidErrorType},
+		{"устаревшая версия", domain.ErrConflict, usecase.VersionConflictErrorType},
+		{"бки без согласия", fmt.Errorf("bki: %w", domain.ErrForbidden), usecase.ForbiddenErrorType},
+		{"источник не понял запрос", fmt.Errorf("fns: 400: %w", domain.ErrInvalid), usecase.InvalidErrorType},
 		{"сбой бд", boom, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := activity.NewApplicationActivities(fakeApps{err: tt.err})
+			a := activity.NewApplicationActivities(fakeApps{err: tt.err}, domain.Deadlines{})
 			err := a.Transition(t.Context(), uuid.New(), domain.Move{To: domain.StatusChecking})
 
 			var appErr *temporal.ApplicationError
@@ -57,5 +57,9 @@ func TestTransition(t *testing.T) {
 		})
 	}
 
-	require.NoError(t, activity.NewApplicationActivities(fakeApps{}).Transition(t.Context(), uuid.New(), domain.Move{}))
+	require.NoError(
+		t,
+		activity.NewApplicationActivities(fakeApps{}, domain.Deadlines{}).
+			Transition(t.Context(), uuid.New(), domain.Move{}),
+	)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/sdk/temporal"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -226,6 +227,11 @@ type fakeWorkflows struct {
 	started []string
 }
 
+func (f *fakeWorkflows) Update(_ context.Context, id, update string, arg any) error {
+	f.args = []any{id, update, arg}
+	return f.err
+}
+
 func (f *fakeWorkflows) Start(_ context.Context, queue, id, workflow string, args ...any) error {
 	f.args = append([]any{queue, id, workflow}, args...)
 	switch {
@@ -256,6 +262,63 @@ func TestStartProcess(t *testing.T) {
 			err := usecase.NewApplication(nil, nil, nil, wf, domain.Catalog{}).StartProcess(t.Context(), id)
 			require.ErrorIs(t, err, tt.want)
 			require.Equal(t, []any{"credit", id.String(), "ApplicationWorkflow", id}, wf.args)
+		})
+	}
+}
+
+func TestAct(t *testing.T) {
+	id := uuid.New()
+	client := domain.Actor{ID: uuid.New(), Role: domain.RoleClient}
+	manager := domain.Actor{ID: uuid.New(), Role: domain.RoleManager}
+	boom := errors.New("temporal down")
+	tests := []struct {
+		name    string
+		actor   domain.Actor
+		cardErr error
+		procErr error
+		want    error
+	}{
+		{"клиент ответил", client, nil, nil, nil},
+		{"чужая заявка", client, domain.ErrNotFound, nil, domain.ErrNotFound},
+		{"сотруднику владение не проверяем", manager, domain.ErrNotFound, nil, nil},
+		{"валидатор отказал", manager, nil,
+			temporal.NewApplicationError("нельзя", usecase.IllegalTransitionErrorType), domain.ErrIllegalTransition},
+		{
+			"карточка устарела",
+			client,
+			nil,
+			fmt.Errorf(
+				"update: %w",
+				temporal.NewNonRetryableApplicationError(
+					"old",
+					usecase.VersionConflictErrorType,
+					nil,
+				),
+			),
+			domain.ErrConflict,
+		},
+		{
+			"процесс уже кончился",
+			client,
+			nil,
+			fmt.Errorf("x: %w", temporalsvc.ErrNoProcess),
+			domain.ErrIllegalTransition,
+		},
+		{"temporal лежит", client, nil, boom, boom},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wf := &fakeWorkflows{err: tt.procErr}
+			uc := usecase.NewApplication(nil, fakeCards{err: tt.cardErr}, nil, wf, domain.Catalog{})
+			a := domain.Action{Actor: tt.actor, Version: 3}
+
+			err := uc.Act(t.Context(), id, usecase.UpdateProvideInfo, a)
+			require.ErrorIs(t, err, tt.want)
+			if tt.actor == client && tt.cardErr != nil {
+				require.Nil(t, wf.args, "до процесса не дошли")
+				return
+			}
+			require.Equal(t, []any{id.String(), "ProvideInfo", a}, wf.args)
 		})
 	}
 }

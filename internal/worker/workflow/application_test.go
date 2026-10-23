@@ -1,6 +1,8 @@
 package workflow_test
 
 import (
+	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -16,9 +18,13 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
 )
 
-var system = domain.Actor{Role: domain.RoleSystem}
+var deadlines = domain.Deadlines{NeedInfo: 3 * time.Minute, Review: 5 * time.Minute}
 
-var toChecking = domain.Move{To: domain.StatusChecking, Actor: system}
+var (
+	client      = domain.Actor{ID: uuid.New(), Role: domain.RoleClient}
+	manager     = domain.Actor{ID: uuid.New(), Role: domain.RoleManager}
+	underwriter = domain.Actor{ID: uuid.New(), Role: domain.RoleUnderwriter}
+)
 
 // как источник ведёт себя в сценарии
 type behavior int
@@ -33,119 +39,325 @@ const (
 
 type testEnv struct {
 	*testsuite.TestWorkflowEnvironment
-	apps    *activity.ApplicationActivities
-	checks  *activity.CheckActivities
-	id      uuid.UUID
-	fetches int // сколько раз должны спросить источники, с повторами
-	called  int
+	t      *testing.T
+	apps   *activity.ApplicationActivities
+	checks *activity.CheckActivities
+	id     uuid.UUID
+	extra  int // запросы в источники сверх сценария
+	start  time.Time
 }
 
-func newEnv() *testEnv {
+func newEnv(t *testing.T) *testEnv {
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.SetTestTimeout(5 * time.Second)
 	env.RegisterWorkflow(workflow.ApplicationWorkflow)
-	return &testEnv{env, &activity.ApplicationActivities{}, &activity.CheckActivities{}, uuid.New(), 0, 0}
+	e := &testEnv{
+		TestWorkflowEnvironment: env, t: t, id: uuid.New(), start: env.Now(),
+		apps: &activity.ApplicationActivities{}, checks: &activity.CheckActivities{},
+	}
+	e.OnActivity(e.apps.Deadlines, mock.Anything).Return(deadlines, nil).Once()
+	return e
+}
+
+// expect ждёт переход в to от роли с такими кодами. У need_info и manual_review
+// срок считается от момента перехода, у остальных его нет.
+func (e *testEnv) expect(to domain.Status, role domain.Role, codes ...string) *testsuite.MockCallWrapper {
+	ttl := map[domain.Status]time.Duration{
+		domain.StatusNeedInfo: deadlines.NeedInfo, domain.StatusManualReview: deadlines.Review,
+	}
+	return e.OnActivity(e.apps.Transition, mock.Anything, e.id, mock.MatchedBy(func(m domain.Move) bool {
+		d, waits := ttl[to]
+		due := m.DueAt == nil
+		if waits {
+			due = m.DueAt != nil && m.DueAt.Equal(e.Now().Add(d))
+		}
+		return m.To == to && m.Actor.Role == role && slices.Equal(m.Codes, codes) && due
+	})).Return(nil).Once()
+}
+
+func (e *testEnv) round(sources map[domain.Source]behavior) {
+	for _, src := range domain.Sources {
+		e.source(src, sources[src])
+	}
 }
 
 func (e *testEnv) source(src domain.Source, b behavior) {
 	fetch := func() *testsuite.MockCallWrapper {
-		return e.OnActivity(e.checks.FetchSource, mock.Anything, e.id, src).Run(func(mock.Arguments) { e.called++ })
+		return e.OnActivity(e.checks.FetchSource, mock.Anything, e.id, src)
 	}
 	// чем источник ответил в последний раз: это и должно лечь в check_results
 	failed := string(src) + ": 503"
-	attempts := 1
 	switch b {
 	case answers:
 		fetch().Return(domain.CheckOK, nil).Once()
 	case notFound:
 		fetch().Return(domain.CheckNotFound, nil).Once()
 	case down:
-		// без Times: считаем каждую попытку, сколько бы их ни было
-		attempts = int(workflow.SourceRetryPolicy.MaximumAttempts)
-		fetch().Return(domain.CheckStatus(""), temporal.NewApplicationError(failed, ""))
+		fetch().Return(domain.CheckStatus(""), temporal.NewApplicationError(failed, "")).
+			Times(5) // пять попыток по модели процесса
 	case flaky:
-		attempts = 3
 		fetch().Return(domain.CheckStatus(""), temporal.NewApplicationError(failed, "")).Twice()
 		fetch().Return(domain.CheckOK, nil).Once()
 	case refuses:
 		failed = string(src) + ": 403"
-		err := temporal.NewNonRetryableApplicationError(failed, activity.ForbiddenErrorType, nil)
+		err := temporal.NewNonRetryableApplicationError(failed, usecase.ForbiddenErrorType, nil)
 		fetch().Return(domain.CheckStatus(""), err).Once()
 	}
-	e.fetches += attempts
 	if b == down || b == refuses {
 		e.OnActivity(e.checks.SaveUnavailable, mock.Anything, e.id, src, failed).Return(nil).Once()
 	}
 }
 
-func TestApplicationWorkflow(t *testing.T) {
-	needInfo := domain.Move{To: domain.StatusNeedInfo, Actor: system, Codes: []string{domain.CodeNotFound}}
-	manual := domain.Move{To: domain.StatusManualReview, Actor: system, Codes: []string{domain.CodeSourceUnavailable}}
+// reply это ответ процесса на действие: nil принято и исполнено,
+// иначе отказ валидатора или ошибка обработчика.
+type reply struct{ err error }
 
+// act шлёт действие человека в момент at после старта.
+func (e *testEnv) act(at time.Duration, update string, a domain.Action) *reply {
+	r := &reply{}
+	e.RegisterDelayedCallback(func() {
+		e.UpdateWorkflow(update, "", &testsuite.TestUpdateCallback{
+			OnAccept:   func() {},
+			OnReject:   func(err error) { r.err = err },
+			OnComplete: func(_ any, err error) { r.err = err },
+		}, a)
+	}, at)
+	return r
+}
+
+// run запускает процесс по имени, как usecase, и отдаёт, сколько времени он шёл.
+// Times в моке ловит только недобор вызовов. Лишние попытки уходят в ловушку,
+// она стоит последней и срабатывает, когда сценарные ожидания исчерпаны.
+func (e *testEnv) run() time.Duration {
+	e.OnActivity(e.checks.FetchSource, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(mock.Arguments) { e.extra++ }).
+		Return(domain.CheckStatus(""), temporal.NewNonRetryableApplicationError("лишний запрос", "", nil)).
+		Maybe()
+	e.ExecuteWorkflow(usecase.ApplicationWorkflowName, e.id)
+	require.True(e.t, e.IsWorkflowCompleted())
+	e.AssertExpectations(e.t)
+	require.Zero(e.t, e.extra, "лишние запросы в источники")
+	return e.Now().Sub(e.start)
+}
+
+func TestChecks(t *testing.T) {
 	tests := []struct {
 		name    string
 		sources map[domain.Source]behavior // кого нет, тот отвечает
-		want    *domain.Move               // nil: заявка остаётся в checking до решения
+		to      domain.Status              // пусто: заявка остаётся в checking до решения
+		code    string
 	}{
-		{"все ответили", nil, nil},
-		{"нет кредитной истории это не повод", map[domain.Source]behavior{domain.SourceBKI: notFound}, nil},
-		{"фнс ответила с третьей попытки", map[domain.Source]behavior{domain.SourceFNS: flaky}, nil},
-		{"инн нет в егрюл", map[domain.Source]behavior{domain.SourceEGRUL: notFound}, &needInfo},
-		{"фнс лежит", map[domain.Source]behavior{domain.SourceFNS: down}, &manual},
-		{"бки без согласия", map[domain.Source]behavior{domain.SourceBKI: refuses}, &manual},
+		{"все ответили", nil, "", ""},
+		{"нет кредитной истории это не повод", map[domain.Source]behavior{domain.SourceBKI: notFound}, "", ""},
+		{"фнс ответила с третьей попытки", map[domain.Source]behavior{domain.SourceFNS: flaky}, "", ""},
+		{"инн нет в егрюл", map[domain.Source]behavior{domain.SourceEGRUL: notFound},
+			domain.StatusNeedInfo, domain.CodeNotFound},
+		{"фнс лежит", map[domain.Source]behavior{domain.SourceFNS: down},
+			domain.StatusManualReview, domain.CodeSourceUnavailable},
+		{"бки без согласия", map[domain.Source]behavior{domain.SourceBKI: refuses},
+			domain.StatusManualReview, domain.CodeSourceUnavailable},
 		{"запрос сильнее ручного", map[domain.Source]behavior{
 			domain.SourceEGRUL: notFound, domain.SourceInternal: down,
-		}, &needInfo},
+		}, domain.StatusNeedInfo, domain.CodeNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := newEnv()
-			e.OnActivity(e.apps.Transition, mock.Anything, e.id, toChecking).Return(nil).Once()
-			for _, src := range domain.Sources {
-				e.source(src, tt.sources[src])
-			}
-			if tt.want != nil {
-				e.OnActivity(e.apps.Transition, mock.Anything, e.id, *tt.want).Return(nil).Once()
+			e := newEnv(t)
+			e.expect(domain.StatusChecking, domain.RoleSystem)
+			e.round(tt.sources)
+			if tt.to != "" {
+				e.expect(tt.to, domain.RoleSystem, tt.code)
+				// дальше заявка ждёт людей, это другие тесты
+				e.RegisterDelayedCallback(e.CancelWorkflow, time.Minute)
 			}
 
-			// запускаем по имени, как usecase: имя и функция не должны разойтись
-			e.ExecuteWorkflow(usecase.ApplicationWorkflowName, e.id)
+			e.run()
+			if tt.to == "" {
+				require.NoError(t, e.GetWorkflowError())
+			}
+		})
+	}
+}
 
-			require.True(t, e.IsWorkflowCompleted())
+func TestNeedInfo(t *testing.T) {
+	notInEGRUL := map[domain.Source]behavior{domain.SourceEGRUL: notFound}
+	stale := temporal.NewNonRetryableApplicationError("old", usecase.VersionConflictErrorType, nil)
+
+	t.Run("клиент ответил, проверки заново", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(notInEGRUL)
+		e.expect(domain.StatusNeedInfo, domain.RoleSystem, domain.CodeNotFound)
+		got := e.act(time.Minute, usecase.UpdateProvideInfo, domain.Action{Actor: client, Version: 3})
+		e.expect(domain.StatusChecking, domain.RoleClient)
+		e.round(nil)
+
+		e.run()
+		require.NoError(t, e.GetWorkflowError())
+		require.NoError(t, got.err)
+	})
+
+	t.Run("клиент молчит", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(notInEGRUL)
+		e.expect(domain.StatusNeedInfo, domain.RoleSystem, domain.CodeNotFound)
+		e.expect(domain.StatusExpired, domain.RoleSystem)
+
+		elapsed := e.run()
+		require.NoError(t, e.GetWorkflowError())
+		require.Equal(t, deadlines.NeedInfo, elapsed.Truncate(time.Minute), "истекает ровно по сроку")
+	})
+
+	t.Run("ответ за секунду до срока не истекает", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(notInEGRUL)
+		e.expect(domain.StatusNeedInfo, domain.RoleSystem, domain.CodeNotFound)
+		got := e.act(
+			deadlines.NeedInfo-time.Second,
+			usecase.UpdateProvideInfo,
+			domain.Action{Actor: client, Version: 3},
+		)
+		// переход долгий, срок выходит посреди него
+		e.expect(domain.StatusChecking, domain.RoleClient).After(5 * time.Second)
+		// а это второе нажатие, пока первое ещё идёт
+		late := e.act(deadlines.NeedInfo, usecase.UpdateCancel, domain.Action{Actor: client})
+		e.round(nil)
+
+		e.run()
+		require.NoError(t, e.GetWorkflowError())
+		require.NoError(t, got.err)
+		appErr, ok := errors.AsType[*temporal.ApplicationError](late.err)
+		require.True(t, ok, "второе действие: %v", late.err)
+		require.Equal(t, usecase.IllegalTransitionErrorType, appErr.Type())
+	})
+
+	t.Run("клиент отменил", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(notInEGRUL)
+		e.expect(domain.StatusNeedInfo, domain.RoleSystem, domain.CodeNotFound)
+		got := e.act(time.Minute, usecase.UpdateCancel, domain.Action{Actor: client, Comment: "передумал"})
+		e.expect(domain.StatusCancelledByClient, domain.RoleClient)
+
+		e.run()
+		require.NoError(t, e.GetWorkflowError())
+		require.NoError(t, got.err)
+	})
+
+	t.Run("карточка устарела, срок идёт дальше", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(notInEGRUL)
+		e.expect(domain.StatusNeedInfo, domain.RoleSystem, domain.CodeNotFound)
+		got := e.act(time.Minute, usecase.UpdateProvideInfo, domain.Action{Actor: client, Version: 1})
+		e.expect(domain.StatusChecking, domain.RoleClient).Return(stale)
+		e.expect(domain.StatusExpired, domain.RoleSystem)
+
+		e.run()
+		require.NoError(t, e.GetWorkflowError())
+		appErr, ok := errors.AsType[*temporal.ApplicationError](got.err)
+		require.True(t, ok, "ответ обработчика: %v", got.err)
+		require.Equal(t, usecase.VersionConflictErrorType, appErr.Type())
+	})
+}
+
+func TestManualReview(t *testing.T) {
+	fnsDown := map[domain.Source]behavior{domain.SourceFNS: down}
+
+	t.Run("sla прошёл, менеджер повторил проверки", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(fnsDown)
+		e.expect(domain.StatusManualReview, domain.RoleSystem, domain.CodeSourceUnavailable)
+		e.OnActivity(e.apps.Escalate, mock.Anything, e.id).Return(nil).Once()
+		got := e.act(10*time.Minute, usecase.UpdateRetryChecks, domain.Action{Actor: manager, Version: 3})
+		e.expect(domain.StatusChecking, domain.RoleManager)
+		e.round(nil)
+
+		e.run()
+		require.NoError(t, e.GetWorkflowError())
+		require.NoError(t, got.err)
+	})
+
+	t.Run("андеррайтер запросил документы", func(t *testing.T) {
+		e := newEnv(t)
+		e.expect(domain.StatusChecking, domain.RoleSystem)
+		e.round(fnsDown)
+		e.expect(domain.StatusManualReview, domain.RoleSystem, domain.CodeSourceUnavailable)
+		a := domain.Action{Actor: underwriter, Version: 3, Comment: "выписка за 12 месяцев"}
+		got := e.act(time.Minute, usecase.UpdateRequestInfo, a)
+		e.expect(domain.StatusNeedInfo, domain.RoleUnderwriter)
+		e.expect(domain.StatusExpired, domain.RoleSystem)
+
+		e.run()
+		require.NoError(t, e.GetWorkflowError())
+		require.NoError(t, got.err)
+	})
+}
+
+// пока идут проверки, перейти нельзя: запрос исполняется сразу после них
+func TestRequestInfoWhileChecking(t *testing.T) {
+	e := newEnv(t)
+	e.expect(domain.StatusChecking, domain.RoleSystem)
+	e.round(map[domain.Source]behavior{domain.SourceFNS: flaky})
+	got := e.act(time.Second, usecase.UpdateRequestInfo, domain.Action{Actor: manager, Comment: "уточните выручку"})
+	e.expect(domain.StatusNeedInfo, domain.RoleManager)
+	e.expect(domain.StatusExpired, domain.RoleSystem)
+
+	e.run()
+	require.NoError(t, e.GetWorkflowError())
+	require.NoError(t, got.err)
+}
+
+func TestActionRejected(t *testing.T) {
+	tests := []struct {
+		name   string
+		update string
+		actor  domain.Actor
+	}{
+		{"клиент повторяет проверки", usecase.UpdateRetryChecks, client},
+		{"менеджер отвечает за клиента", usecase.UpdateProvideInfo, manager},
+		{"запрос документов, когда их уже ждут", usecase.UpdateRequestInfo, manager},
+		{"андеррайтер отменяет", usecase.UpdateCancel, underwriter},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := newEnv(t)
+			e.expect(domain.StatusChecking, domain.RoleSystem)
+			e.round(map[domain.Source]behavior{domain.SourceEGRUL: notFound})
+			e.expect(domain.StatusNeedInfo, domain.RoleSystem, domain.CodeNotFound)
+			got := e.act(time.Minute, tt.update, domain.Action{Actor: tt.actor})
+			e.expect(domain.StatusExpired, domain.RoleSystem)
+
+			e.run()
 			require.NoError(t, e.GetWorkflowError())
-			e.AssertExpectations(t)
-			require.Equal(t, e.fetches, e.called, "запросов в источники с повторами")
+			appErr, ok := errors.AsType[*temporal.ApplicationError](got.err)
+			require.True(t, ok, "ответ валидатора: %v", got.err)
+			require.Equal(t, usecase.IllegalTransitionErrorType, appErr.Type())
 		})
 	}
 }
 
 // переход не по таблице повторять бесполезно: workflow падает, в источники не ходит
 func TestApplicationWorkflowIllegal(t *testing.T) {
-	e := newEnv()
-	err := temporal.NewNonRetryableApplicationError("illegal", activity.IllegalTransitionErrorType, nil)
-	e.OnActivity(e.apps.Transition, mock.Anything, e.id, toChecking).Return(err).Once()
+	e := newEnv(t)
+	err := temporal.NewNonRetryableApplicationError("illegal", usecase.IllegalTransitionErrorType, nil)
+	e.expect(domain.StatusChecking, domain.RoleSystem).Return(err)
 
-	e.ExecuteWorkflow(workflow.ApplicationWorkflow, e.id)
-
-	require.True(t, e.IsWorkflowCompleted())
+	e.run()
 	require.Error(t, e.GetWorkflowError())
-	e.AssertExpectations(t)
 }
 
 // сбой БД на переходе повторяет RetryPolicy, а не workflow
 func TestApplicationWorkflowRetry(t *testing.T) {
-	e := newEnv()
-	e.OnActivity(e.apps.Transition, mock.Anything, e.id, toChecking).
-		Return(temporal.NewApplicationError("db down", "")).Twice()
-	e.OnActivity(e.apps.Transition, mock.Anything, e.id, toChecking).Return(nil).Once()
-	for _, src := range domain.Sources {
-		e.source(src, answers)
-	}
+	e := newEnv(t)
+	e.expect(domain.StatusChecking, domain.RoleSystem).Return(temporal.NewApplicationError("db down", "")).Twice()
+	e.expect(domain.StatusChecking, domain.RoleSystem)
+	e.round(nil)
 
-	e.ExecuteWorkflow(workflow.ApplicationWorkflow, e.id)
-
-	require.True(t, e.IsWorkflowCompleted())
+	e.run()
 	require.NoError(t, e.GetWorkflowError())
-	e.AssertExpectations(t)
 }

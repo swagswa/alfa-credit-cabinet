@@ -19,6 +19,8 @@ type ApplicationRepository interface {
 	Lock(ctx context.Context, id uuid.UUID) (domain.Application, error)
 	// Move пишет новый статус, событие аудита и уведомление для SSE.
 	Move(ctx context.Context, app domain.Application, m domain.Move) error
+	// Escalate пишет в журнал, что SLA андеррайтера прошёл. Статус не меняется.
+	Escalate(ctx context.Context, id uuid.UUID) error
 
 	// Company находит компанию по ИНН и говорит, представляет ли её userID.
 	Company(ctx context.Context, userID uuid.UUID, inn string) (id uuid.UUID, member bool, err error)
@@ -91,6 +93,13 @@ func (r *applicationRepo) Move(ctx context.Context, app domain.Application, m do
 	})
 	if err != nil {
 		return fmt.Errorf("notify %s: %w", app.ID, err)
+	}
+	return nil
+}
+
+func (r *applicationRepo) Escalate(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.AddEscalation(ctx, id); err != nil {
+		return fmt.Errorf("escalate %s: %w", id, err)
 	}
 	return nil
 }

@@ -120,3 +120,13 @@ SET product             = @product,
     version             = version + 1,
     updated_at          = now()
 WHERE id = @id AND version = @version AND status = 'draft';
+
+-- эскалация статус не меняет, но карточку и очередь стоит обновить
+-- name: AddEscalation :exec
+WITH e AS (
+    INSERT INTO application_events (application_id, kind, actor_role) VALUES (@id, 'escalation', 'system')
+)
+SELECT pg_notify('applications', json_build_object(
+    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
+FROM applications a
+WHERE a.id = @id;
