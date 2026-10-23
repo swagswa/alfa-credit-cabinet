@@ -29,7 +29,7 @@
 | github.com/pdfcpu/pdfcpu | 0.16.3 | Apache-2.0 |
 | github.com/ollama/ollama (пакет api, клиент) | 0.40.7 | MIT |
 
-Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go и модули postgres и redis 0.44.0 (MIT), golangci-lint (GPL-3.0).
+Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go и модули postgres и redis 0.44.0 (MIT).
 
 Синтетические документы (`internal/docgen`) набраны шрифтом PT Sans (ParaType, OFL-1.1), файлы шрифта и текст лицензии лежат в `internal/docgen/fonts`.
 
@@ -43,7 +43,7 @@
 | @alfalab/core-components | 50.37.0 | MIT |
 | openapi-fetch | 0.17.0 | MIT |
 
-Только для сборки: vite 8.3.5 (MIT), typescript 5.9.3 (Apache-2.0), openapi-typescript 7.13.0 (MIT), eslint 9.39.5 (MIT).
+Только для сборки и проверок, в образ не попадают: vite 8.3.5 (MIT), @vitejs/plugin-react 6.1.2 (MIT), typescript 5.9.3 (Apache-2.0), openapi-typescript 7.13.0 (MIT), eslint 9.39.5 и @eslint/js (MIT), typescript-eslint 8.72.0 (MIT), eslint-plugin-react-hooks 7.1.1 (MIT), globals 17.13.0 (MIT), @types/react и @types/react-dom 19.3.0 (MIT), @types/node 26.6.5 (MIT), yaml 2.9.1 (ISC, мок API для разработки фронта без бэкенда).
 
 Фирменные шрифты Альфа-Банка не используются, интерфейс на системном шрифте. Логотип банка только в контексте прототипа для Альфа-Хак.
 
@@ -51,15 +51,17 @@
 
 | Компонент | Версия | Лицензия |
 |---|---|---|
+| Go (образ сборки golang) | 1.27.3 | BSD-3-Clause |
+| Node.js (образ сборки node, alpine) | 24.12.0 | MIT |
 | PostgreSQL | 18.6 | PostgreSQL License |
 | Redis | 8.6.0 | AGPL-3.0 (из тройной лицензии RSALv2 / SSPLv1 / AGPLv3 выбрана AGPLv3; официальный образ без изменений, отдельный процесс) |
 | Temporal server, admin-tools | 1.32.1 | MIT |
 | Temporal UI | 2.56.0 | MIT |
 | Swagger UI | 5.34.0 | Apache-2.0 |
-| nginx | 1.29.4 | BSD-2-Clause |
+| nginx (alpine) | 1.29.4 | BSD-2-Clause |
 | distroless static (Debian 12) | nonroot | Apache-2.0 |
 | Debian | trixie-slim | свободные лицензии пакетов Debian |
-| Tesseract OCR и языковые данные rus | из Debian trixie | Apache-2.0 |
+| Tesseract OCR, языковые данные rus и eng | из Debian trixie | Apache-2.0 |
 | Ollama (профиль ai) | 0.40.7 | MIT |
 
 ## Модель (профиль ai)
@@ -70,14 +72,18 @@
 
 ## Смоделированные интеграции
 
-Реальных обращений к внешним системам нет, все они отвечают из сервиса `mocks` на синтетических данных:
+Реальных обращений к внешним системам нет. За источники отвечает сервис `mocks` (`cmd/mocks`, `internal/mocks`) из фикстур `internal/mocks/fixtures` и генератора `internal/mocks/synth` на синтетических данных, сбои включаются через `/mocks/admin/faults`.
 
-- ЕГРЮЛ / ЕГРИП;
-- ФНС «Прозрачный бизнес»;
-- бюро кредитных историй;
-- внутренние данные банка (обороты, продукты, история);
-- подписание документов и выдача кредита.
+| Система | Как сделано |
+|---|---|
+| ЕГРЮЛ / ЕГРИП | мок `GET /egrul/{inn}`: реквизиты, статус, руководитель, учредители, ОКВЭД |
+| ФНС «Прозрачный бизнес» | мок `GET /fns/{inn}`: выручка, налоговые признаки |
+| Бюро кредитных историй | мок `POST /bki/report`, без согласия на запрос 403 |
+| Внутренние данные банка | мок `GET /internal/{inn}`: обороты по счёту, продукты, история |
+| Примеры документов клиента | мок `GET /api/samples/{inn}`, фронту отдаёт nginx, PDF и PNG рисует тот же генератор, что `testdata/documents` |
+| Подписание документов | симуляция кодом в интерфейсе, без СМС и УКЭП; в контракте API есть, на сервере пока отвечает 501 |
+| Выдача кредита | симуляция без движения денег; на сервере пока отвечает 501 |
 
-Зависимости разработки мока API: yaml 2.9.1 (ISC), @types/node 26.6.5 (MIT).
+## Инструменты разработки
 
-Playwright 1.64.1, Apache-2.0, браузерные проверки разработки.
+В решение не входят: Playwright 1.64.1 (Apache-2.0) для браузерных проверок, Bruno CLI 4.2.1 (MIT) для прогона коллекции `collections/credit-cabinet`, golangci-lint (GPL-3.0).
