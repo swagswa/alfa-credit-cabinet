@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 )
 
 const (
@@ -266,11 +268,17 @@ func TestCancel(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "нашли деньги у поставщика", comment)
 
-	// повтор и поданная заявка: отмена после подачи пойдёт через процесс, не сюда
-	for _, id := range []uuid.UUID{app.ID, e.app(domain.StatusSubmitted)} {
-		_, err = e.uc.Cancel(t.Context(), e.client, id, "")
-		require.ErrorIs(t, err, domain.ErrIllegalTransition)
-	}
+	// поданную заявку отменяет процесс, сами статус не трогаем
+	submitted := e.app(domain.StatusNeedInfo)
+	_, err = e.uc.Cancel(t.Context(), e.client, submitted, "передумали")
+	require.NoError(t, err)
+	want := domain.Action{Actor: e.client, Comment: "передумали"}
+	require.Equal(t, []any{submitted.String(), "Cancel", want}, e.wf.args)
+
+	// у отменённой процесса уже нет
+	e.wf.err = fmt.Errorf("x: %w", temporalsvc.ErrNoProcess)
+	_, err = e.uc.Cancel(t.Context(), e.client, app.ID, "")
+	require.ErrorIs(t, err, domain.ErrIllegalTransition)
 }
 
 func TestList(t *testing.T) {

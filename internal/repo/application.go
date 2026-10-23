@@ -38,6 +38,8 @@ type ApplicationRepository interface {
 	History(ctx context.Context, id uuid.UUID) ([]domain.AuditEntry, error)
 	// SaveDraft пишет анкету, если заявка всё ещё draft той же версии, иначе ErrConflict.
 	SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error
+	// SetRevenue пишет уточнённую выручку, пока заявка в need_info, иначе ErrIllegalTransition.
+	SetRevenue(ctx context.Context, id uuid.UUID, kop int64) error
 }
 
 type applicationRepo struct {
@@ -277,6 +279,17 @@ func (r *applicationRepo) SaveDraft(ctx context.Context, id uuid.UUID, version i
 	}
 	if n == 0 {
 		return fmt.Errorf("%w: заявка уже изменилась, обновите карточку", domain.ErrConflict)
+	}
+	return nil
+}
+
+func (r *applicationRepo) SetRevenue(ctx context.Context, id uuid.UUID, kop int64) error {
+	n, err := r.q.SetRevenue(ctx, db.SetRevenueParams{ID: id, MonthlyRevenueKop: kop})
+	if err != nil {
+		return fmt.Errorf("set revenue %s: %w", id, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%w: уточнить выручку можно, только когда банк её запросил", domain.ErrIllegalTransition)
 	}
 	return nil
 }

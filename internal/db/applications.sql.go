@@ -519,6 +519,28 @@ func (q *Queries) SetMember(ctx context.Context, arg SetMemberParams) error {
 	return err
 }
 
+const setRevenue = `-- name: SetRevenue :execrows
+UPDATE applications
+SET monthly_revenue_kop = $1::bigint,
+    version             = version + 1,
+    updated_at          = now()
+WHERE id = $2 AND status = 'need_info'
+`
+
+type SetRevenueParams struct {
+	MonthlyRevenueKop int64
+	ID                uuid.UUID
+}
+
+// выручку после подачи клиент уточняет только в ответ на запрос банка
+func (q *Queries) SetRevenue(ctx context.Context, arg SetRevenueParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setRevenue, arg.MonthlyRevenueKop, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateDraft = `-- name: UpdateDraft :execrows
 UPDATE applications
 SET product             = $1,
