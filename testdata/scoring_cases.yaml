@@ -1,0 +1,150 @@
+# Демо-компании из модели процесса (раздел 6.5): тест скоринга и политики и он же сценарий демо.
+# Ожидания выписаны руками из таблицы, платежи посчитаны на калькуляторе. Деньги в рублях.
+# facts: что не указано, то ноль; компания найдена в ЕГРЮЛ и действует.
+# score.factors: баллы F1..F9 по порядку.
+# decision.codes: ровно эти R_* и SF_*, порядок не важен; decision.sc: эти SC_* должны быть среди объяснений.
+# terms у approved и counter_offer, recommendation у manual_review; платёж сверяем с точностью до рубля.
+
+- name: кофейня
+  inn: '0000100012'
+  facts:
+    business_age_months: 40
+    okved_group: '56'
+    monthly_revenue_rub: 1200000
+    monthly_turnover_rub: 1300000
+    revenue_trend: 1.05
+    turnover_cv: 0.25
+    bki_payments_rub: 60000
+    worst_dpd_24m: 0
+    inquiries_90d: 1
+    tax_arrears_rub: 0
+    bank_history_level: 2
+  score: {factors: [12, 10, 10, 14, 16, 8, 8, 6, 3], points: 87, grade: A}
+  application: {product: working_capital, amount_rub: 2500000, term_months: 24}
+  decision:
+    outcome: approved
+    terms: {product: working_capital, amount_rub: 2500000, term_months: 24, rate_pct: 19, payment_rub: 126022}
+    codes: [R_APPROVED]
+    sc: [SC_NO_OVERDUE, SC_DSR_LOW, SC_TURNOVER_STABLE]
+
+- name: логистика
+  inn: '000020001010'
+  facts:
+    is_ip: true
+    business_age_months: 30
+    okved_group: '49'
+    monthly_revenue_rub: 2000000
+    monthly_turnover_rub: 2000000
+    revenue_trend: 0.95
+    turnover_cv: 0.35
+    bki_payments_rub: 380000
+    worst_dpd_24m: 1 # 12 дней, бин 1-29
+    inquiries_90d: 4
+    tax_arrears_rub: 0
+    bank_history_level: 1 # счёт 8 мес
+  score: {factors: [12, 10, 5, 10, 9, 4, 8, 3, 3], points: 64, grade: C}
+  application: {product: equipment, amount_rub: 6000000, term_months: 36, equipment_cost_rub: 6700000}
+  decision:
+    # на 36 мес платёж 224 513, нагрузка 30,2%; на 48 мес 184 184, 28,2%; при 25% влезает 3 909 126
+    outcome: counter_offer
+    terms: {product: equipment, amount_rub: 3900000, term_months: 48, rate_pct: 20.5, payment_rub: 119720, pledge: true}
+    codes: [R_TERM_EXTENDED, R_AMOUNT_DSR, R_PLEDGE, R_RATE_PREMIUM]
+    sc: [SC_TAX_CLEAN]
+
+- name: IT до документов
+  inn: '0000300011'
+  facts:
+    business_age_months: 20
+    okved_group: '62'
+    monthly_revenue_rub: 3500000 # только ФНС, счёта нет
+    revenue_trend: 1.4
+    turnover_cv: 0.55
+    inquiries_90d: 7
+    tax_arrears_rub: 30000
+    missing_documents: [statement, financials]
+  application: {product: working_capital, amount_rub: 8000000, term_months: 12}
+  decision:
+    outcome: need_info
+    codes: [SF_DOCS_MISSING]
+
+- name: IT после документов
+  inn: '0000300011'
+  facts:
+    business_age_months: 20
+    okved_group: '62'
+    monthly_revenue_rub: 3500000
+    monthly_turnover_rub: 3500000 # из выписки
+    revenue_trend: 1.4
+    turnover_cv: 0.55
+    inquiries_90d: 7
+    tax_arrears_rub: 30000
+  score: {factors: [6, 14, 0, 14, 16, 0, 4, 0, 6], points: 60, grade: C}
+  application: {product: working_capital, amount_rub: 8000000, term_months: 12}
+  decision:
+    # лимит 2M = 7 млн, 8 млн и так выше авторешения 5 млн
+    outcome: manual_review
+    recommendation:
+      {product: working_capital, amount_rub: 7000000, term_months: 12, rate_pct: 22.5, payment_rub: 656846, guarantor: true}
+    codes: [R_MANUAL_AMOUNT, R_AMOUNT_MULT, R_GUARANTOR, R_RATE_PREMIUM]
+    sc: [SC_REVENUE_GROWTH, SC_TURNOVER_VOLATILE, SC_INQUIRIES_MANY, SC_NO_BANK_HISTORY]
+
+- name: IT ловушка, выписка не сходится с ФНС
+  inn: '0000300011'
+  facts:
+    business_age_months: 20
+    okved_group: '62'
+    monthly_revenue_rub: 3500000
+    monthly_turnover_rub: 3500000
+    revenue_trend: 1.4
+    turnover_cv: 0.55
+    inquiries_90d: 7
+    tax_arrears_rub: 30000
+    doc_revenue_mismatch: 0.35
+  score: {factors: [6, 14, 0, 14, 16, 0, 4, 0, 6], points: 60, grade: C}
+  application: {product: working_capital, amount_rub: 8000000, term_months: 12}
+  decision:
+    outcome: manual_review
+    recommendation:
+      {product: working_capital, amount_rub: 7000000, term_months: 12, rate_pct: 22.5, payment_rub: 656846, guarantor: true}
+    codes: [SF_DOC_MISMATCH, R_MANUAL_RISK, R_MANUAL_AMOUNT, R_AMOUNT_MULT, R_GUARANTOR, R_RATE_PREMIUM]
+
+- name: стройка
+  inn: '0000400016'
+  facts:
+    business_age_months: 70
+    okved_group: '41'
+    monthly_revenue_rub: 4000000
+    monthly_turnover_rub: 4000000
+    revenue_trend: 0.6
+    turnover_cv: 0.6
+    bki_payments_rub: 1400000
+    worst_dpd_24m: 30 # 45 дней, погашена
+    inquiries_90d: 9
+    tax_arrears_rub: 250000 # 6% выручки, ниже порога стоп-фактора 10%
+    bank_history_level: 2
+  score: {factors: [16, 0, 0, 0, 3, 0, 0, 6, 0], points: 25, grade: E}
+  application: {product: working_capital, amount_rub: 5000000, term_months: 12}
+  decision:
+    outcome: rejected
+    codes: [R_GRADE_E]
+    sc: [SC_REVENUE_DROP, SC_DSR_HIGH]
+
+- name: стройка 4b, текущая просрочка 95 дней
+  inn: '0000400016'
+  facts:
+    business_age_months: 70
+    okved_group: '41'
+    monthly_revenue_rub: 4000000
+    monthly_turnover_rub: 4000000
+    revenue_trend: 0.6
+    turnover_cv: 0.6
+    bki_payments_rub: 1400000
+    worst_dpd_24m: 90
+    current_dpd_max: 95
+    inquiries_90d: 9
+    tax_arrears_rub: 250000
+    bank_history_level: 2
+  application: {product: working_capital, amount_rub: 5000000, term_months: 12}
+  decision:
+    outcome: rejected
+    codes: [SF_OVERDUE_90_ACTIVE]
