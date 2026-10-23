@@ -18,8 +18,8 @@ import (
 )
 
 // Фикстуры демо-компаний: по файлу на ИНН, в нём ответ каждого источника как есть
-// и сбой по умолчанию. Выручку и обороты досчитываем из synth, чтобы документы
-// из генератора сходились с ФНС и банком.
+// и сбой по умолчанию. Любой другой ИНН отвечает компанией из synth.Sources в том же
+// виде. Выручку и обороты досчитываем из synth, чтобы документы сходились с ФНС и банком.
 //
 //go:embed fixtures/*.yaml
 var fixturesFS embed.FS
@@ -97,9 +97,6 @@ func (s *sim) bki(c echo.Context) error {
 }
 
 func (s *sim) respond(c echo.Context, src domain.Source, inn string) error {
-	if !domain.ValidINN(inn) {
-		return echo.NewHTTPError(http.StatusBadRequest, "неверный ИНН")
-	}
 	switch s.trip(src, inn) {
 	case modeTimeout:
 		// держим ответ, пока клиент не бросит запрос по своему таймауту
@@ -113,7 +110,16 @@ func (s *sim) respond(c echo.Context, src domain.Source, inn string) error {
 		return echo.NewHTTPError(http.StatusNotFound)
 	}
 
-	body, ok := s.fixtures[inn][string(src)].(map[string]any)
+	doc, ok := s.fixtures[inn]
+	if !ok {
+		// не демо: компания из генератора. С неверными контрольными цифрами её нет,
+		// как и в настоящем реестре, отвечаем 404
+		var err error
+		if doc, err = synth.Sources(inn); err != nil {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+	}
+	body, ok := doc[string(src)].(map[string]any)
 	if !ok {
 		return echo.NewHTTPError(http.StatusNotFound)
 	}

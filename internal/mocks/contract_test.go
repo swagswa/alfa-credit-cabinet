@@ -44,6 +44,10 @@ func TestClientsReadMocks(t *testing.T) {
 		})
 	}
 
-	_, err := reg.Company(t.Context(), "0000500010")
+	c, err := reg.Company(t.Context(), "7701234560")
+	require.NoError(t, err)
+	require.True(t, c.Simulated, "не демо, компания из генератора")
+
+	_, err = reg.Company(t.Context(), "0000500010")
 	require.ErrorIs(t, err, domain.ErrUnavailable)
 }
