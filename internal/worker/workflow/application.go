@@ -1,10 +1,12 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
 	"github.com/google/uuid"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -55,7 +57,7 @@ func fetchSources(ctx workflow.Context, id uuid.UUID) (map[domain.Source]domain.
 		err := futures[i].Get(ctx, &status)
 		if err != nil {
 			workflow.GetLogger(ctx).Warn("source unavailable", "source", src, "error", err)
-			err = workflow.ExecuteActivity(WithDBActivityOptions(ctx), a.SaveUnavailable, id, src, err.Error()).
+			err = workflow.ExecuteActivity(WithDBActivityOptions(ctx), a.SaveUnavailable, id, src, reason(err)).
 				Get(ctx, nil)
 			if err != nil {
 				return nil, fmt.Errorf("save unavailable %s %s: %w", src, id, err)
@@ -75,4 +77,12 @@ func transition(ctx workflow.Context, id uuid.UUID, m domain.Move) error {
 		return fmt.Errorf("transition %s to %s: %w", id, m.To, err)
 	}
 	return nil
+}
+
+// reason достаёт причину из обёртки temporal: в карточку нужна она, а не id событий истории.
+func reason(err error) string {
+	if appErr, ok := errors.AsType[*temporal.ApplicationError](err); ok {
+		return appErr.Message()
+	}
+	return err.Error()
 }

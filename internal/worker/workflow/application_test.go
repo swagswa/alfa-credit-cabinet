@@ -52,7 +52,8 @@ func (e *testEnv) source(src domain.Source, b behavior) {
 	fetch := func() *testsuite.MockCallWrapper {
 		return e.OnActivity(e.checks.FetchSource, mock.Anything, e.id, src).Run(func(mock.Arguments) { e.called++ })
 	}
-	unavailable := temporal.NewApplicationError(string(src)+": 503", "")
+	// чем источник ответил в последний раз: это и должно лечь в check_results
+	failed := string(src) + ": 503"
 	attempts := 1
 	switch b {
 	case answers:
@@ -62,18 +63,19 @@ func (e *testEnv) source(src domain.Source, b behavior) {
 	case down:
 		// без Times: считаем каждую попытку, сколько бы их ни было
 		attempts = int(workflow.SourceRetryPolicy.MaximumAttempts)
-		fetch().Return(domain.CheckStatus(""), unavailable)
+		fetch().Return(domain.CheckStatus(""), temporal.NewApplicationError(failed, ""))
 	case flaky:
 		attempts = 3
-		fetch().Return(domain.CheckStatus(""), unavailable).Twice()
+		fetch().Return(domain.CheckStatus(""), temporal.NewApplicationError(failed, "")).Twice()
 		fetch().Return(domain.CheckOK, nil).Once()
 	case refuses:
-		err := temporal.NewNonRetryableApplicationError("bki: 403", activity.ForbiddenErrorType, nil)
+		failed = string(src) + ": 403"
+		err := temporal.NewNonRetryableApplicationError(failed, activity.ForbiddenErrorType, nil)
 		fetch().Return(domain.CheckStatus(""), err).Once()
 	}
 	e.fetches += attempts
 	if b == down || b == refuses {
-		e.OnActivity(e.checks.SaveUnavailable, mock.Anything, e.id, src, mock.Anything).Return(nil).Once()
+		e.OnActivity(e.checks.SaveUnavailable, mock.Anything, e.id, src, failed).Return(nil).Once()
 	}
 }
 
