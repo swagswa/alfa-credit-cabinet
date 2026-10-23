@@ -140,7 +140,7 @@ func TestDecide(t *testing.T) {
 				require.NoError(t, err)
 				app.Checks = append(app.Checks, c)
 			}
-			a := activity.NewApplicationActivities(cardApps{app: app}, decisions, domain.Deadlines{})
+			a := activity.NewApplicationActivities(cardApps{app: app}, decisions, nil, domain.Deadlines{})
 
 			d, err := a.Decide(t.Context(), uuid.New())
 			require.NoError(t, err)

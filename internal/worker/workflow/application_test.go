@@ -19,7 +19,10 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
 )
 
-var deadlines = domain.Deadlines{NeedInfo: 3 * time.Minute, Review: 5 * time.Minute, Offer: 5 * time.Minute}
+var deadlines = domain.Deadlines{
+	NeedInfo: 3 * time.Minute, Review: 5 * time.Minute, Offer: 5 * time.Minute, Signing: 5 * time.Minute,
+	Close: time.Minute,
+}
 
 var (
 	client      = domain.Actor{ID: uuid.New(), Role: domain.RoleClient}
@@ -79,6 +82,7 @@ func (e *testEnv) move(
 		domain.StatusManualReview: deadlines.Review,
 		domain.StatusApproved:     deadlines.Offer,
 		domain.StatusCounterOffer: deadlines.Offer,
+		domain.StatusSigning:      deadlines.Signing,
 	}
 	return e.OnActivity(e.apps.Transition, mock.Anything, e.id, mock.MatchedBy(func(m domain.Move) bool {
 		ttl, waits := ttl[to]
@@ -99,6 +103,12 @@ func (e *testEnv) decides(d domain.Decision) {
 		e.expect(domain.StatusScoring, domain.RoleSystem)
 	}
 	e.move(d.Outcome, domain.RoleSystem, &d, d.Codes()...)
+}
+
+// approves: расчёт одобрил, дальше клиент условия так и не принял
+func (e *testEnv) approves() {
+	e.decides(coffee)
+	e.expect(domain.StatusExpired, domain.RoleSystem)
 }
 
 func (e *testEnv) round(sources map[domain.Source]behavior) {
@@ -198,7 +208,7 @@ func TestChecks(t *testing.T) {
 				// дальше заявка ждёт людей, это другие тесты
 				e.RegisterDelayedCallback(e.CancelWorkflow, time.Minute)
 			} else {
-				e.decides(coffee)
+				e.approves()
 			}
 
 			e.run()
@@ -221,7 +231,7 @@ func TestNeedInfo(t *testing.T) {
 		got := e.act(time.Minute, usecase.UpdateProvideInfo, domain.Action{Actor: client, Version: 3})
 		e.expect(domain.StatusChecking, domain.RoleClient)
 		e.round(nil)
-		e.decides(coffee)
+		e.approves()
 
 		e.run()
 		require.NoError(t, e.GetWorkflowError())
@@ -255,7 +265,7 @@ func TestNeedInfo(t *testing.T) {
 		// а это второе нажатие, пока первое ещё идёт
 		late := e.act(deadlines.NeedInfo, usecase.UpdateCancel, domain.Action{Actor: client})
 		e.round(nil)
-		e.decides(coffee)
+		e.approves()
 
 		e.run()
 		require.NoError(t, e.GetWorkflowError())
@@ -307,7 +317,7 @@ func TestManualReview(t *testing.T) {
 		got := e.act(10*time.Minute, usecase.UpdateRetryChecks, domain.Action{Actor: manager, Version: 3})
 		e.expect(domain.StatusChecking, domain.RoleManager)
 		e.round(nil)
-		e.decides(coffee)
+		e.approves()
 
 		e.run()
 		require.NoError(t, e.GetWorkflowError())
@@ -389,7 +399,7 @@ func TestApplicationWorkflowRetry(t *testing.T) {
 	e.expect(domain.StatusChecking, domain.RoleSystem).Return(temporal.NewApplicationError("db down", "")).Twice()
 	e.expect(domain.StatusChecking, domain.RoleSystem)
 	e.round(nil)
-	e.decides(coffee)
+	e.approves()
 
 	e.run()
 	require.NoError(t, e.GetWorkflowError())

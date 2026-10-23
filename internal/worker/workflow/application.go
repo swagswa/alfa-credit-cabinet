@@ -42,6 +42,12 @@ var updates = []update{
 	{usecase.UpdateRetryChecks, domain.StatusChecking, []domain.Status{domain.StatusManualReview}},
 	{usecase.UpdateCancel, domain.StatusCancelledByClient, nil},
 	{usecase.UpdateDecide, "", []domain.Status{domain.StatusManualReview}},
+	{
+		usecase.UpdateAccept,
+		domain.StatusAccepted,
+		[]domain.Status{domain.StatusApproved, domain.StatusCounterOffer},
+	},
+	{usecase.UpdateSign, domain.StatusIssued, []domain.Status{domain.StatusSigning}},
 }
 
 // process это то, что workflow помнит о заявке между шагами.
@@ -93,9 +99,15 @@ func (p *process) run(ctx workflow.Context) error {
 	if err := p.move(ctx, domain.Move{To: domain.StatusChecking, Actor: system}); err != nil {
 		return err
 	}
+	// шаги, где процесс ждёт людей или сроков; сам он двигает заявку только из accepted и issued
 	waits := map[domain.Status]func(workflow.Context) error{
-		domain.StatusNeedInfo:     p.waitClient,
+		domain.StatusNeedInfo:     p.waitClient(domain.StatusNeedInfo, p.deadlines.NeedInfo),
 		domain.StatusManualReview: p.waitReview,
+		domain.StatusApproved:     p.waitClient(domain.StatusApproved, p.deadlines.Offer),
+		domain.StatusCounterOffer: p.waitClient(domain.StatusCounterOffer, p.deadlines.Offer),
+		domain.StatusAccepted:     p.contract,
+		domain.StatusSigning:      p.waitClient(domain.StatusSigning, p.deadlines.Signing),
+		domain.StatusIssued:       p.close,
 	}
 	for {
 		if p.status == domain.StatusChecking {
@@ -177,20 +189,43 @@ func (p *process) decide(ctx workflow.Context) error {
 	return p.move(ctx, domain.Move{To: d.Outcome, Actor: system, Codes: d.Codes(), Decision: &d})
 }
 
-// waitClient ждёт ответа или отмены. Не дождались за срок: заявка истекает.
-func (p *process) waitClient(ctx workflow.Context) error {
-	left, err := workflow.AwaitWithTimeout(ctx, p.deadlines.NeedInfo, p.left(domain.StatusNeedInfo))
-	if err != nil || left {
+// waitClient ждёт клиента в статусе s: ответа, принятия условий, подписи или отмены.
+// Не дождались за срок: заявка истекает.
+func (p *process) waitClient(s domain.Status, ttl time.Duration) func(workflow.Context) error {
+	return func(ctx workflow.Context) error {
+		left, err := workflow.AwaitWithTimeout(ctx, ttl, p.left(s))
+		if err != nil || left {
+			return wrapWait(err)
+		}
+		// срок вышел, но клиент мог как раз действовать: даём ему закончить
+		if err := workflow.Await(ctx, func() bool { return !p.busy }); err != nil {
+			return wrapWait(err)
+		}
+		if p.status != s {
+			return nil
+		}
+		return p.move(ctx, domain.Move{To: domain.StatusExpired, Actor: system})
+	}
+}
+
+// contract готовит договор на дату принятия условий и отдаёт заявку на подпись.
+func (p *process) contract(ctx workflow.Context) error {
+	var a *activity.ApplicationActivities
+
+	err := workflow.ExecuteActivity(WithContractActivityOptions(ctx), a.PrepareContract, p.id, workflow.Now(ctx)).
+		Get(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("contract: %w", err)
+	}
+	return p.move(ctx, domain.Move{To: domain.StatusSigning, Actor: system})
+}
+
+// close: деньги выданы, после постобработки заявка закрывается.
+func (p *process) close(ctx workflow.Context) error {
+	if err := workflow.Sleep(ctx, p.deadlines.Close); err != nil {
 		return wrapWait(err)
 	}
-	// срок вышел, но клиент мог как раз отвечать: даём ему закончить
-	if err := workflow.Await(ctx, func() bool { return !p.busy }); err != nil {
-		return wrapWait(err)
-	}
-	if p.status != domain.StatusNeedInfo {
-		return nil
-	}
-	return p.move(ctx, domain.Move{To: domain.StatusExpired, Actor: system})
+	return p.move(ctx, domain.Move{To: domain.StatusClosed, Actor: system})
 }
 
 // waitReview ждёт сотрудника. SLA только эскалирует, заявку сам по себе не двигает.
@@ -244,8 +279,18 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 		return nil
 	}
 	m := domain.Move{To: u.target(a), Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment}
-	if u.name == usecase.UpdateDecide {
+	switch u.name {
+	case usecase.UpdateDecide:
 		m.Decision = p.verdict(a)
+	case usecase.UpdateSign:
+		// код уже сверил usecase, тут только выдача; срок подписи на ней не сработает
+		var acts *activity.ApplicationActivities
+		p.busy = true
+		err := workflow.ExecuteActivity(WithDBActivityOptions(ctx), acts.Payout, p.id).Get(ctx, nil)
+		p.busy = false
+		if err != nil {
+			return err //nolint:wrapcheck // тип ошибки activity должен дойти до API
+		}
 	}
 	return p.move(ctx, m)
 }
@@ -282,6 +327,7 @@ func (p *process) move(ctx workflow.Context, m domain.Move) error {
 		domain.StatusManualReview: p.deadlines.Review,
 		domain.StatusApproved:     p.deadlines.Offer,
 		domain.StatusCounterOffer: p.deadlines.Offer,
+		domain.StatusSigning:      p.deadlines.Signing,
 	}
 	if d, ok := ttl[m.To]; ok {
 		due := workflow.Now(ctx).Add(d)
