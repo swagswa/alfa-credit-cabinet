@@ -78,6 +78,9 @@ type JWT struct {
 // Sources это адреса внешних систем, на стенде все они в mocks.
 type Sources struct {
 	EGRULURL string        `env:"EGRUL_URL"       envDefault:"http://localhost:8081"`
+	FNSURL   string        `env:"FNS_URL"         envDefault:"http://localhost:8081"`
+	BKIURL   string        `env:"BKI_URL"         envDefault:"http://localhost:8081"`
+	BankURL  string        `env:"BANK_URL"        envDefault:"http://localhost:8081"`
 	Timeout  time.Duration `env:"SOURCES_TIMEOUT" envDefault:"3s"`
 }
 
@@ -105,6 +108,7 @@ type Worker struct {
 	Logger
 	Postgres
 	Temporal
+	Sources
 }
 
 type DocsWorker struct {
