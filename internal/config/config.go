@@ -109,6 +109,10 @@ type Worker struct {
 	Postgres
 	Temporal
 	Sources
+
+	// по умолчанию сроки демо, на проде 5 рабочих дней и 1 рабочий день
+	NeedInfoTTL time.Duration `env:"NEED_INFO_TTL" envDefault:"3m"`
+	ReviewSLA   time.Duration `env:"REVIEW_SLA"    envDefault:"5m"`
 }
 
 type DocsWorker struct {
