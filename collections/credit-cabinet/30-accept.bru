@@ -1,0 +1,31 @@
+meta {
+  name: 30 Принять условия
+  type: http
+  seq: 30
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+body:json {
+  {
+    "version": {{northVersion}}
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: neq counter_offer
+}
+
+docs {
+  Клиент принимает контрпредложение той версии карточки, что видел. Карточка устарела: 409 version_conflict.
+  Дальше процесс сам готовит договор с графиком и переводит заявку в signing, договор появляется в документах.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: 32 Неверный код
+  type: http
+  seq: 32
+}
+
+post {
+  url: {{baseUrl}}/applications/{{northId}}/sign
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+body:json {
+  {
+    "code": "000000"
+  }
+}
+
+assert {
+  res.status: eq 422
+  res.body.errors[0].field: eq code
+}
+
+docs {
+  Минус попытка, в ответе сколько осталось. После трёх неверных код сгорает, нужен новый (31).
+}
