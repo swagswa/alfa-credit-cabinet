@@ -2,6 +2,7 @@ package workflow_test
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/worker/workflow"
 )
 
-var deadlines = domain.Deadlines{NeedInfo: 3 * time.Minute, Review: 5 * time.Minute}
+var deadlines = domain.Deadlines{NeedInfo: 3 * time.Minute, Review: 5 * time.Minute, Offer: 5 * time.Minute}
 
 var (
 	client      = domain.Actor{ID: uuid.New(), Role: domain.RoleClient}
@@ -60,20 +61,44 @@ func newEnv(t *testing.T) *testEnv {
 	return e
 }
 
-// expect ждёт переход в to от роли с такими кодами. У need_info и manual_review
-// срок считается от момента перехода, у остальных его нет.
+// expect ждёт переход в to от роли с такими кодами и без решения.
 func (e *testEnv) expect(to domain.Status, role domain.Role, codes ...string) *testsuite.MockCallWrapper {
+	return e.move(to, role, nil, codes...)
+}
+
+// move ждёт переход с решением d. У шагов, где ждут людей, срок считается от
+// момента перехода, у остальных его нет.
+func (e *testEnv) move(
+	to domain.Status,
+	role domain.Role,
+	d *domain.Decision,
+	codes ...string,
+) *testsuite.MockCallWrapper {
 	ttl := map[domain.Status]time.Duration{
-		domain.StatusNeedInfo: deadlines.NeedInfo, domain.StatusManualReview: deadlines.Review,
+		domain.StatusNeedInfo:     deadlines.NeedInfo,
+		domain.StatusManualReview: deadlines.Review,
+		domain.StatusApproved:     deadlines.Offer,
+		domain.StatusCounterOffer: deadlines.Offer,
 	}
 	return e.OnActivity(e.apps.Transition, mock.Anything, e.id, mock.MatchedBy(func(m domain.Move) bool {
-		d, waits := ttl[to]
+		ttl, waits := ttl[to]
 		due := m.DueAt == nil
 		if waits {
-			due = m.DueAt != nil && m.DueAt.Equal(e.Now().Add(d))
+			due = m.DueAt != nil && m.DueAt.Equal(e.Now().Add(ttl))
 		}
-		return m.To == to && m.Actor.Role == role && slices.Equal(m.Codes, codes) && due
+		return m.To == to && m.Actor.Role == role && slices.Equal(m.Codes, codes) && due &&
+			reflect.DeepEqual(m.Decision, d)
 	})).Return(nil).Once()
+}
+
+// decides отдаёт решение d из расчёта и ждёт, что заявка пойдёт в его исход:
+// после стоп-факторов сразу, после политики через scoring.
+func (e *testEnv) decides(d domain.Decision) {
+	e.OnActivity(e.apps.Decide, mock.Anything, e.id).Return(d, nil).Once()
+	if d.Stage == domain.StagePolicy {
+		e.expect(domain.StatusScoring, domain.RoleSystem)
+	}
+	e.move(d.Outcome, domain.RoleSystem, &d, d.Codes()...)
 }
 
 func (e *testEnv) round(sources map[domain.Source]behavior) {
@@ -149,6 +174,8 @@ func TestChecks(t *testing.T) {
 		code    string
 	}{
 		{"все ответили", nil, "", ""},
+		{"егрюл лежит", map[domain.Source]behavior{domain.SourceEGRUL: down},
+			domain.StatusManualReview, domain.CodeSourceUnavailable},
 		{"нет кредитной истории это не повод", map[domain.Source]behavior{domain.SourceBKI: notFound}, "", ""},
 		{"фнс ответила с третьей попытки", map[domain.Source]behavior{domain.SourceFNS: flaky}, "", ""},
 		{"инн нет в егрюл", map[domain.Source]behavior{domain.SourceEGRUL: notFound},
@@ -170,6 +197,8 @@ func TestChecks(t *testing.T) {
 				e.expect(tt.to, domain.RoleSystem, tt.code)
 				// дальше заявка ждёт людей, это другие тесты
 				e.RegisterDelayedCallback(e.CancelWorkflow, time.Minute)
+			} else {
+				e.decides(coffee)
 			}
 
 			e.run()
@@ -192,6 +221,7 @@ func TestNeedInfo(t *testing.T) {
 		got := e.act(time.Minute, usecase.UpdateProvideInfo, domain.Action{Actor: client, Version: 3})
 		e.expect(domain.StatusChecking, domain.RoleClient)
 		e.round(nil)
+		e.decides(coffee)
 
 		e.run()
 		require.NoError(t, e.GetWorkflowError())
@@ -225,6 +255,7 @@ func TestNeedInfo(t *testing.T) {
 		// а это второе нажатие, пока первое ещё идёт
 		late := e.act(deadlines.NeedInfo, usecase.UpdateCancel, domain.Action{Actor: client})
 		e.round(nil)
+		e.decides(coffee)
 
 		e.run()
 		require.NoError(t, e.GetWorkflowError())
@@ -276,6 +307,7 @@ func TestManualReview(t *testing.T) {
 		got := e.act(10*time.Minute, usecase.UpdateRetryChecks, domain.Action{Actor: manager, Version: 3})
 		e.expect(domain.StatusChecking, domain.RoleManager)
 		e.round(nil)
+		e.decides(coffee)
 
 		e.run()
 		require.NoError(t, e.GetWorkflowError())
@@ -357,6 +389,7 @@ func TestApplicationWorkflowRetry(t *testing.T) {
 	e.expect(domain.StatusChecking, domain.RoleSystem).Return(temporal.NewApplicationError("db down", "")).Twice()
 	e.expect(domain.StatusChecking, domain.RoleSystem)
 	e.round(nil)
+	e.decides(coffee)
 
 	e.run()
 	require.NoError(t, e.GetWorkflowError())

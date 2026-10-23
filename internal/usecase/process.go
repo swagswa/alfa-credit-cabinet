@@ -22,6 +22,7 @@ const (
 	UpdateRequestInfo = "RequestInfo"
 	UpdateRetryChecks = "RetryChecks"
 	UpdateCancel      = "Cancel"
+	UpdateDecide      = "Decide"
 )
 
 // Типы ошибок, которыми процесс отвечает на шаг или действие человека. Повторять их бесполезно.
