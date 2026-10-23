@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/google/uuid"
+
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/middleware"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
 )
 
 const pageSize = 20
@@ -47,11 +50,8 @@ func (h *Handler) GetApplication(
 	if err != nil {
 		return nil, err
 	}
-	app, err := h.apps.Get(ctx, a, req.Id)
-	if err != nil {
-		return nil, err
-	}
-	return oapi.GetApplication200JSONResponse(toView(&app, a.Role)), nil
+	v, err := h.card(ctx, a, req.Id)
+	return oapi.GetApplication200JSONResponse(v), err
 }
 
 func (h *Handler) ListApplications(
@@ -187,6 +187,64 @@ func (h *Handler) SubmitApplication(
 		return nil, err
 	}
 	return oapi.SubmitApplication200JSONResponse(toView(&app, a.Role)), nil
+}
+
+func (h *Handler) ProvideInfo(
+	ctx context.Context,
+	req oapi.ProvideInfoRequestObject,
+) (oapi.ProvideInfoResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	b := req.Body
+	ans := usecase.Answer{RevenueKop: b.MonthlyRevenueKop}
+	set(&ans.Documents, b.DocumentIds)
+	set(&ans.Comment, b.Comment)
+	err = h.apps.ProvideInfo(ctx, a, req.Id, ans)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.card(ctx, a, req.Id)
+	return oapi.ProvideInfo200JSONResponse(v), err
+}
+
+func (h *Handler) RequestInfo(
+	ctx context.Context,
+	req oapi.RequestInfoRequestObject,
+) (oapi.RequestInfoResponseObject, error) {
+	// какие документы нужны, процесс пока не хранит, просьба уходит текстом
+	v, err := h.act(ctx, req.Id, usecase.UpdateRequestInfo, req.Body.Comment)
+	return oapi.RequestInfo200JSONResponse(v), err
+}
+
+func (h *Handler) RetryChecks(
+	ctx context.Context,
+	req oapi.RetryChecksRequestObject,
+) (oapi.RetryChecksResponseObject, error) {
+	v, err := h.act(ctx, req.Id, usecase.UpdateRetryChecks, "")
+	return oapi.RetryChecks200JSONResponse(v), err
+}
+
+// act передаёт действие процессу и отдаёт карточку уже после перехода
+func (h *Handler) act(ctx context.Context, id uuid.UUID, update, comment string) (oapi.ApplicationView, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return oapi.ApplicationView{}, err
+	}
+	err = h.apps.Act(ctx, id, update, domain.Action{Actor: a, Comment: comment})
+	if err != nil {
+		return oapi.ApplicationView{}, err
+	}
+	return h.card(ctx, a, id)
+}
+
+func (h *Handler) card(ctx context.Context, a domain.Actor, id uuid.UUID) (oapi.ApplicationView, error) {
+	app, err := h.apps.Get(ctx, a, id)
+	if err != nil {
+		return oapi.ApplicationView{}, err
+	}
+	return toView(&app, a.Role), nil
 }
 
 func actor(ctx context.Context) (domain.Actor, error) {

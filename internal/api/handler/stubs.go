@@ -20,18 +20,6 @@ func (h *Handler) DecideApplication(
 	return nil, errNotImplemented
 }
 
-func (h *Handler) ProvideInfo(context.Context, oapi.ProvideInfoRequestObject) (oapi.ProvideInfoResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) RequestInfo(context.Context, oapi.RequestInfoRequestObject) (oapi.RequestInfoResponseObject, error) {
-	return nil, errNotImplemented
-}
-
-func (h *Handler) RetryChecks(context.Context, oapi.RetryChecksRequestObject) (oapi.RetryChecksResponseObject, error) {
-	return nil, errNotImplemented
-}
-
 func (h *Handler) SignApplication(
 	context.Context,
 	oapi.SignApplicationRequestObject,

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -50,8 +51,18 @@ type ApplicationUseCase interface {
 	// Submit подаёт черновик и запускает его процесс. Повтор по уже поданной заявке
 	// только дозапускает процесс, если в прошлый раз Temporal не ответил.
 	Submit(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error)
-	// Cancel пока только для черновика: после подачи отмена идёт через процесс заявки.
+	// Cancel отменяет черновик сам, поданную заявку через её процесс.
 	Cancel(ctx context.Context, actor domain.Actor, id uuid.UUID, reason string) (domain.Application, error)
+	// ProvideInfo это ответ клиента на запрос банка. Документы годятся подтверждённые
+	// или те, что не распознаём (паспорт, доверенность). Выручку пишем до перехода.
+	ProvideInfo(ctx context.Context, actor domain.Actor, id uuid.UUID, a Answer) error
+}
+
+// Answer это то, что клиент прислал на запрос уточнений.
+type Answer struct {
+	Documents  []uuid.UUID
+	RevenueKop *int64
+	Comment    string
 }
 
 type applicationUseCase struct {
@@ -283,15 +294,49 @@ func (u *applicationUseCase) Cancel(
 	if err != nil {
 		return domain.Application{}, err
 	}
-	if app.Status != domain.StatusDraft {
-		return domain.Application{}, fmt.Errorf("%w: отменить сейчас можно только черновик",
-			domain.ErrIllegalTransition)
+	if app.Status == domain.StatusDraft {
+		err = u.Transition(ctx, id, domain.Move{To: domain.StatusCancelledByClient, Actor: actor, Comment: reason})
+	} else {
+		// после подачи заявку ведёт процесс, можно ли отменить, решает его валидатор
+		err = fromProcess(
+			u.workflows.Update(ctx, id.String(), UpdateCancel, domain.Action{Actor: actor, Comment: reason}),
+		)
 	}
-	err = u.Transition(ctx, id, domain.Move{To: domain.StatusCancelledByClient, Actor: actor, Comment: reason})
 	if err != nil {
 		return domain.Application{}, err
 	}
 	return u.Get(ctx, actor, id)
+}
+
+func (u *applicationUseCase) ProvideInfo(ctx context.Context, actor domain.Actor, id uuid.UUID, a Answer) error {
+	app, err := u.card(ctx, actor, id)
+	if err != nil {
+		return err
+	}
+	var errs domain.FieldErrors
+	for _, docID := range a.Documents {
+		i := slices.IndexFunc(app.Documents, func(d domain.Document) bool { return d.ID == docID })
+		switch {
+		case i < 0:
+			errs = append(errs, domain.FieldError{Field: "document_ids", Message: "документ не из этой заявки"})
+		case app.Documents[i].Kind.Recognizable() && app.Documents[i].Status != domain.DocConfirmed:
+			errs = append(errs, domain.FieldError{
+				Field:   "document_ids",
+				Message: "сначала проверьте и подтвердите данные документа " + app.Documents[i].FileName,
+			})
+		}
+	}
+	if errs != nil {
+		return errs
+	}
+	if a.RevenueKop != nil {
+		if err := u.apps.SetRevenue(ctx, id, *a.RevenueKop); err != nil {
+			return err
+		}
+	}
+	return fromProcess(
+		u.workflows.Update(ctx, id.String(), UpdateProvideInfo, domain.Action{Actor: actor, Comment: a.Comment}),
+	)
 }
 
 // owner: клиент видит заявки только своих компаний, сотрудник банка все

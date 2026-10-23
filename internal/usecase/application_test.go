@@ -322,3 +322,75 @@ func TestAct(t *testing.T) {
 		})
 	}
 }
+
+func TestProvideInfo(t *testing.T) {
+	id := uuid.New()
+	client := domain.Actor{ID: uuid.New(), Role: domain.RoleClient}
+	statement := domain.Document{
+		ID:       uuid.New(),
+		Kind:     domain.DocStatement,
+		Status:   domain.DocRecognized,
+		FileName: "v.pdf",
+	}
+	confirmed := domain.Document{ID: uuid.New(), Kind: domain.DocFinancials, Status: domain.DocConfirmed}
+	passport := domain.Document{ID: uuid.New(), Kind: "passport", Status: domain.DocUploaded}
+	app := domain.Application{
+		ID:        id,
+		Status:    domain.StatusNeedInfo,
+		Documents: []domain.Document{statement, confirmed, passport},
+	}
+	rejected := temporal.NewApplicationError("в статусе checking так нельзя", usecase.IllegalTransitionErrorType)
+
+	tests := []struct {
+		name    string
+		docs    []uuid.UUID
+		cardErr error
+		procErr error
+		want    error
+		sent    bool
+	}{
+		{"без документов, только комментарий", nil, nil, nil, nil, true},
+		{"подтверждённая отчётность и паспорт", []uuid.UUID{confirmed.ID, passport.ID}, nil, nil, nil, true},
+		{"выписку не подтвердили", []uuid.UUID{statement.ID}, nil, nil, domain.ErrIncomplete, false},
+		{"документ другой заявки", []uuid.UUID{uuid.New()}, nil, nil, domain.ErrIncomplete, false},
+		{"чужая заявка", nil, domain.ErrNotFound, nil, domain.ErrNotFound, false},
+		{"процесс не ждёт ответа", nil, nil, rejected, domain.ErrIllegalTransition, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wf := &fakeWorkflows{err: tt.procErr}
+			uc := usecase.NewApplication(nil, fakeCards{app: app, err: tt.cardErr}, nil, wf, domain.Catalog{})
+
+			err := uc.ProvideInfo(t.Context(), client, id, usecase.Answer{Documents: tt.docs, Comment: "выписка"})
+			require.ErrorIs(t, err, tt.want)
+			if !tt.sent {
+				require.Nil(t, wf.args, "до процесса не дошли")
+				return
+			}
+			want := domain.Action{Actor: client, Comment: "выписка"}
+			require.Equal(t, []any{id.String(), "ProvideInfo", want}, wf.args)
+		})
+	}
+}
+
+func TestProvideRevenue(t *testing.T) {
+	e := newAppEnv(t)
+	revenue := int64(350000000)
+
+	waiting := e.app(domain.StatusNeedInfo)
+	require.NoError(t, e.uc.ProvideInfo(t.Context(), e.client, waiting, usecase.Answer{RevenueKop: &revenue}))
+	var got int64
+	err := e.pool.QueryRow(t.Context(), "SELECT monthly_revenue_kop FROM applications WHERE id = $1", waiting).
+		Scan(&got)
+	require.NoError(t, err)
+	require.Equal(t, revenue, got)
+
+	// банк выручку не просил: анкету после подачи не трогаем
+	e.wf.args = nil
+	checking := e.app(domain.StatusChecking)
+	err = e.uc.ProvideInfo(t.Context(), e.client, checking, usecase.Answer{RevenueKop: &revenue})
+	require.ErrorIs(t, err, domain.ErrIllegalTransition)
+	require.Nil(t, e.wf.args)
+	_, version, _ := e.state(checking)
+	require.Equal(t, 1, version)
+}
