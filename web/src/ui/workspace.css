@@ -1,16 +1,12 @@
-/* Workspace surfaces. Component-specific layout stays with the existing views. */
-.profile-bar { justify-content: flex-start; min-height: 76px; }
-.profile-chip { display: flex; align-items: center; gap: 10px; width: 224px; min-width: 0; background: #ffffffd9; border: 1px solid #ffffff; border-radius: 20px; padding: 8px 8px 8px 12px; }
+.profile-chip { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; background: #ffffffd9; border: 1px solid #ffffff; border-radius: 20px; padding: 8px 8px 8px 12px; }
 .profile-avatar { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #f0f1f4; color: #8b8e97; }
-.profile-chip strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
-.profile-chip .profile-logout { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 12px; color: #777c86; }
+.profile-chip strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; letter-spacing: -.2px; }
+.profile-chip .profile-logout { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 12px; color: var(--ink-secondary); }
 .profile-logout svg { display: block; }
 .sidebar { display: flex; flex-direction: column; }
-.sidebar .profile-bar { margin-top: 0; padding: 0; min-height: 0; display: flex; flex-wrap: wrap; }
+.profile-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .sidebar > small { margin-top: 20px; }
-.sidebar .profile-chip { width: 100%; }
-@media(max-width:900px) { .sidebar { min-height: 0; }.sidebar .profile-bar { margin-top: 12px; padding: 0; }.sidebar .profile-chip { width: min(100%, 340px); } }
-@media(max-width:900px) { .profile-chip { width: min(100%, 340px); }.profile-bar { min-height: 76px; } }
+@media(max-width:900px) { .profile-bar { margin-top: 12px; }.profile-chip { width: min(100%, 340px); } }
 .workspace-page { display: grid; gap: 24px; }
 .workspace-page > .workspace-content { margin: 0; }
 .workspace-content > article { margin: 0; display: flow-root; }
@@ -29,12 +25,9 @@
 .events-refresh-rotation { display: grid; place-items: center; transform-origin: center; }
 @media(prefers-reduced-motion:no-preference) { .events-refresh-rotation { transition: transform 450ms cubic-bezier(.22,1,.36,1); } }
 @media(prefers-reduced-motion:reduce) { .events-refresh-rotation { transition: none; } }
-@media(max-width:600px) { .workspace-heading.application-toolbar { min-height: 120px; gap: 8px; }.workspace-heading-title h1 { font-size: 28px; }.workspace-heading .dashboard-create { padding: 12px; font-size: 12px; gap: 4px; } }
+@media(max-width:600px) { .workspace-heading.application-toolbar { min-height: 120px; gap: 8px; }.workspace-heading-title h1 { font-size: 28px; } }
 :root { background: var(--workspace-bg); color: var(--ink); font-size: 15px; font-synthesis: none; -webkit-font-smoothing: antialiased; }
 main { max-width: 1480px; padding: 24px 36px 48px; }
-header { padding: 4px 0 28px; }
-header strong { font-size: 14px; letter-spacing: -.2px; }
-header span { font-size: 12px; color: var(--ink-secondary); }
 .cabinet-layout { grid-template-columns: 224px minmax(0,1fr); gap: 36px; }
 .sidebar { margin-top: 16px; padding: 0 8px 16px; top: 40px; }
 .cabinet-title { font-size: 21px; letter-spacing: -.6px; margin-bottom: 28px; }
@@ -48,14 +41,13 @@ header span { font-size: 12px; color: var(--ink-secondary); }
 .sidebar-help { padding: 16px; margin-top: 32px; border-radius: 14px; background: #e9ecf080; font-size: 13px; }
 .sidebar-help p { color: var(--ink-secondary); font-size: 12px; line-height: 1.6; }
 .sidebar > small { font-size: 11px; }
-section { border-radius: var(--radius-surface); padding: var(--space-8); box-shadow: var(--shadow-surface); }
+section { border-radius: var(--radius-surface); padding: 32px; margin-bottom: 24px; box-shadow: var(--shadow-surface); }
 section section { box-shadow: none; }
 h1 { letter-spacing: -1px; font-size: 30px; font-weight: 650; }
 h2 { letter-spacing: -.5px; font-size: 22px; font-weight: 650; }
 h3 { letter-spacing: -.25px; font-size: 18px; font-weight: 600; }
 p { line-height: 1.6; }
 .hint, .archive-caption { color: var(--ink-secondary); font-size: 13px; }
-.page-heading { margin-bottom: 28px; }
 .heading-back { width: 44px; height: 44px; margin-left: -8px; }
 .filters { padding: 16px; background: var(--surface-inset); border: 1px solid var(--line); border-radius: var(--radius-panel); gap: 12px; }
 form { gap: 18px; max-width: 680px; }
@@ -77,7 +69,7 @@ summary { line-height: 1.5; min-height: 28px; }
 .application-card > a { font-size: 15px; text-decoration: none; letter-spacing: -.2px; }
 .application-amount { font-size: 26px; font-weight: 650; letter-spacing: -.7px; font-variant-numeric: tabular-nums; }
 .application-card > span:last-child { color: var(--ink-secondary); font-size: 13px; align-self: end; }
-.status-badge { font-size: 12px; line-height: 1.4; font-weight: 550; padding: 5px 9px; border-radius: 7px; max-width: 200px; }
+.status-badge { align-self: start; color: #646b77; background: white; font-size: 12px; line-height: 1.4; font-weight: 550; padding: 5px 9px; border-radius: 7px; max-width: 200px; }
 .status-badge.status-approved, .status-badge.status-issued, .status-badge.status-closed { background: #e5f3e9; color: #23633e; }
 .status-badge.status-rejected { background: #fff0ee; color: #d52a1e; }
 .status-badge.status-expired { background: #f6eae4; color: #88472d; }
@@ -88,9 +80,6 @@ summary { line-height: 1.5; min-height: 28px; }
 .field-pair > * { min-width: 0; }
 @media(max-width:600px) { .field-pair { grid-template-columns: 1fr; } }
 .dashboard { gap: 24px; }
-.dashboard-kicker { display: none; }
-.dashboard-heading h1 { font-size: 34px; letter-spacing: -1.1px; }
-.dashboard-heading > div > p:last-child { color: var(--ink-secondary); }
 .dashboard-section-heading > span, .dashboard-section-heading p, .dashboard-product, .dashboard-company + small { color: var(--ink-secondary); }
 .dashboard-section-heading > a { min-height: 36px; display: flex; align-items: center; }
 .dashboard .dashboard-promo { padding: 32px 36px; border: 1px solid #e8e1f4; box-shadow: none; }
@@ -138,4 +127,4 @@ pre { font-size: 12px; background: var(--surface-inset); border-radius: 10px; pa
 @media (hover: hover) and (pointer: fine) { tbody tr:hover { background: #f9fafb; } }
 @media(max-width:1000px) { .cabinet-layout { grid-template-columns: 200px minmax(0,1fr); gap: 24px; } main { padding: 20px 24px 40px; } }
 @media(max-width:900px) { .cabinet-layout { grid-template-columns: 1fr; gap: 20px; }.sidebar { padding: 0; margin-top: 0; top: auto; }.sidebar nav { padding: 4px; background: #e9ecf1; border-radius: 14px; }.sidebar nav a { min-height: 44px; padding: 10px 14px; }.nav-caption { gap: 8px; }.nav-caption svg { width: 17px; height: 17px; } }
-@media(max-width:600px) { main { padding: 16px 12px 32px; }header { padding-bottom: 20px; }section { padding: 22px; border-radius: 20px; }.sidebar nav { justify-content: space-between; }.sidebar nav a { font-size: 12px; padding: 10px; }.nav-caption { gap: 6px; }.nav-caption svg { width: 16px; }.application-card { grid-template-columns: 1fr; padding: 20px !important; }.dashboard-heading h1 { font-size: 30px; }.dashboard .dashboard-promo { padding: 24px; }.filters { padding: 12px; }.login-form { padding: 24px; margin: 20px auto; }th,td { padding: 12px; }.dashboard-create,.primary-link,.promo-link { min-height: 44px; }.offer-highlights strong { font-size: 25px; } }
+@media(max-width:600px) { main { padding: 16px 12px 32px; }section { padding: 22px; border-radius: 20px; }.sidebar nav { justify-content: space-between; }.sidebar nav a { font-size: 12px; padding: 10px; }.nav-caption { gap: 6px; }.nav-caption svg { width: 16px; }.application-card { grid-template-columns: 1fr; padding: 20px !important; }.dashboard .dashboard-promo { padding: 24px; }.filters { padding: 12px; }.login-form { padding: 24px; margin: 20px auto; }th,td { padding: 12px; }.primary-link,.promo-link { min-height: 44px; }.offer-highlights strong { font-size: 25px; } }
