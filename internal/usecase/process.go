@@ -23,6 +23,8 @@ const (
 	UpdateRetryChecks = "RetryChecks"
 	UpdateCancel      = "Cancel"
 	UpdateDecide      = "Decide"
+	UpdateAccept      = "AcceptOffer"
+	UpdateSign        = "Sign"
 )
 
 // Типы ошибок, которыми процесс отвечает на шаг или действие человека. Повторять их бесполезно.
