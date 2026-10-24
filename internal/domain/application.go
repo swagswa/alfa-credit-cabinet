@@ -151,13 +151,15 @@ func (m *Move) InfoRequest() InfoRequest {
 	return r
 }
 
-// Уведомление для SSE. Теги под payload
-// pg_notify из queries/applications.sql, Postgres шлёт его после коммита.
+// Уведомление для SSE. Теги под payload функции notify_application
+// из миграций, Postgres шлёт его после коммита.
 type Event struct {
 	ApplicationID uuid.UUID `json:"application_id"`
 	CompanyID     uuid.UUID `json:"company_id"`
 	Status        Status    `json:"status"`
 	Version       int       `json:"version"`
+	// заявку подавали хотя бы раз, только такие видит банк
+	Submitted bool `json:"submitted"`
 	// у события document, его шлёт триггер на documents
 	DocumentID     uuid.UUID `json:"document_id"`
 	DocumentStatus DocStatus `json:"document_status"`

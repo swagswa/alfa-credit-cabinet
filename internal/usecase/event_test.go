@@ -57,21 +57,27 @@ func TestEvents(t *testing.T) {
 		subs[i] = ch
 	}
 
-	// документ к черновику шлёт событие со статусом draft, оно приходит первым
+	// документ к черновику и его отмена приходят клиенту первыми, банку ни то ни другое:
+	// отменённый черновик тоже ни разу не подавали
 	_, err := e.pool.Exec(t.Context(), `
 		INSERT INTO documents (application_id, kind, file_name, content_type, size_bytes, sha256, content, uploaded_by)
 		VALUES ($1, 'passport', 'p.pdf', 'application/pdf', 1, sha256('x'), 'x', $2)`, draft, e.client.ID)
 	require.NoError(t, err)
+	cancel := domain.Move{To: domain.StatusCancelledByClient, Actor: e.client}
+	require.NoError(t, e.uc.Transition(t.Context(), draft, cancel))
 	require.NoError(t, e.uc.Transition(t.Context(), id, domain.Move{To: domain.StatusChecking, Actor: system}))
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.draft {
+			for _, want := range []domain.Status{domain.StatusDraft, domain.StatusCancelledByClient} {
+				if !tt.draft {
+					break
+				}
 				select {
 				case ev := <-subs[i]:
-					require.Equal(t, []any{draft, domain.StatusDraft}, []any{ev.ApplicationID, ev.Status})
+					require.Equal(t, []any{draft, want}, []any{ev.ApplicationID, ev.Status})
 				case <-time.After(time.Second):
-					require.Fail(t, "событие черновика не пришло")
+					require.Fail(t, "событие черновика не пришло", want)
 				}
 			}
 			select {
