@@ -18,10 +18,23 @@ async function choose(page: Page, label: string, option: string) {
 }
 
 // png 1x1: бэк смотрит только тип и размер, содержимое скана ему не важно
-const scan = { name: 'scan.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') };
+const scan = {
+  name: 'scan.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  ),
+};
 
 type Draft = {
-  inn: string; goal: string; product: string; amount: string; term: string; revenue: string; equipmentCost?: string;
+  inn: string;
+  goal: string;
+  product: string;
+  amount: string;
+  term: string;
+  revenue: string;
+  equipmentCost?: string;
   documents: string[];
 };
 

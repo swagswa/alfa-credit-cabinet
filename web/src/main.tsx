@@ -12,7 +12,9 @@ import './ui/workspace.css';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <MotionProvider><App /></MotionProvider>
+      <MotionProvider>
+        <App />
+      </MotionProvider>
     </BrowserRouter>
   </StrictMode>,
 );

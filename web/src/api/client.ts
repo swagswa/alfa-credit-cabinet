@@ -13,17 +13,39 @@ api.use({
   },
 });
 
+// ответ, пришедший после размонтирования или смены зависимостей эффекта, выкидываем;
+// возвращает cleanup для useEffect
+export function settle<T>(request: Promise<T>, done: (result: T) => void, fail = () => {}) {
+  let active = true;
+  request
+    .then((result) => {
+      if (active) done(result);
+    })
+    .catch(() => {
+      if (active) fail();
+    });
+  return () => {
+    active = false;
+  };
+}
+
 // история нужна и банку, и клиенту в архиве; перечитываем при каждой новой версии заявки
 export function useHistory(id: string, version: number, revision = 0) {
   const [history, setHistory] = useState<components['schemas']['ApplicationEvent'][]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  useEffect(() => {
-    let active = true;
-    api.GET('/applications/{id}/history', { params: { path: { id } } }).then(({ data }) => {
-      if (!active) return;
-      if (data) { setHistory(data); setState('ready'); } else setState('error');
-    }).catch(() => { if (active) setState('error'); });
-    return () => { active = false; };
-  }, [id, version, revision]);
+  useEffect(
+    () =>
+      settle(
+        api.GET('/applications/{id}/history', { params: { path: { id } } }),
+        ({ data }) => {
+          if (data) {
+            setHistory(data);
+            setState('ready');
+          } else setState('error');
+        },
+        () => setState('error'),
+      ),
+    [id, version, revision],
+  );
   return { history, state };
 }

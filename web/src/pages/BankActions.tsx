@@ -7,40 +7,247 @@ import { kop, options, products } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 type App = components['schemas']['ApplicationView'];
 type Outcome = components['schemas']['DecisionOutcome'];
-export function BankActions({ card, role, refresh }: { card: App; role?: components['schemas']['Role']; refresh: () => void }) {
- const [outcome, setOutcome] = useState<Outcome>('counter_offer');
- const base = card.recommendation ?? card.offer ?? card;
- const [amount, setAmount] = useState(String(base.amount_kop / 100));
- const [term, setTerm] = useState(String(base.term_months));
- const [rate, setRate] = useState(String('rate_bp' in base ? base.rate_bp / 100 : 19));
- const [product, setProduct] = useState(base.product);
- const [comment, setComment] = useState(''); const [reason, setReason] = useState<components['schemas']['ReasonCode']>('R_MANUAL_RISK');
- const [pledge, setPledge] = useState('pledge_required' in base && !!base.pledge_required); const [guarantor, setGuarantor] = useState('guarantor_required' in base && !!base.guarantor_required); const [msp, setMsp] = useState('msp_guarantee' in base && !!base.msp_guarantee);
- const [statement, setStatement] = useState(true); const [financials, setFinancials] = useState(true);
- const [busy, setBusy] = useState(false); const [error, setError] = useState('');
- async function act(action: 'decide' | 'request-info' | 'retry-checks', event?: FormEvent) {
-  event?.preventDefault(); if(busy) return;
-  if(action !== 'retry-checks' && comment.trim().length < 3) {setError('Добавьте комментарий от 3 символов.');return;}
-  setBusy(true); setError('');
-  try {
-   const terms: components['schemas']['OfferTerms'] = { product, amount_kop: kop(amount), term_months:Number(term), rate_bp:Math.round(Number(rate)*100), pledge_required:pledge, guarantor_required:guarantor, msp_guarantee:msp };
-   const result = action === 'decide' ? await api.POST('/applications/{id}/decision',{params:{path:{id:card.id}},body:{outcome,comment:comment.trim(),reason_codes:[reason],...(outcome !== 'rejected'?{terms}:{})}}) : action === 'request-info' ? await api.POST('/applications/{id}/request-info',{params:{path:{id:card.id}},body:{comment:comment.trim(),documents:[...(statement?['statement' as const]:[]),...(financials?['financials' as const]:[])]}}) : await api.POST('/applications/{id}/retry-checks',{params:{path:{id:card.id}}});
-   if(result.data) {setComment('');notify(action === 'decide' ? 'Решение сохранено.' : action === 'request-info' ? 'Запрос отправлен клиенту.' : 'Проверки запущены.');refresh();} else {setError(result.response.status===409?'Заявка изменилась. Обновите карточку перед повтором.':result.response.status===403?'Для этого действия недостаточно прав.':result.error?.title??'Действие не выполнено.');}
-  } catch {setError('Нет связи с сервером. Проверьте состояние заявки перед повтором.');} finally {setBusy(false);}
- }
- const manager = role === 'manager' || role === 'admin';
- const underwriter = role === 'underwriter' || role === 'admin';
- return <section><h2>Действия сотрудника</h2>{error&&<BottomNotice message={error} onClose={()=>setError('')}/> }
- {(manager||underwriter)&&card.allowed_next.includes('need_info')&&<form onSubmit={(event)=>act('request-info',event)}>
- <h3>Запросить уточнения</h3><Checkbox label="Запросить выписку" checked={statement} onChange={(_,p)=>setStatement(p.checked)} disabled={busy}/><Checkbox label="Запросить отчётность" checked={financials} onChange={(_,p)=>setFinancials(p.checked)} disabled={busy}/>
- <Input block label="Комментарий к запросу" required minLength={3} maxLength={1000} value={comment} onChange={e=>setComment(e.target.value)} disabled={busy}/><Button type="submit" loading={busy}>Отправить запрос клиенту</Button></form>}
- {manager&&card.allowed_next.includes('checking')&&card.reasons.some(r=>r.code==='SF_SOURCE_UNAVAILABLE')&&<Button loading={busy} onClick={()=>act('retry-checks')}>Повторить проверки</Button>}
- {underwriter&&card.allowed_next.some(s=>['approved','counter_offer','rejected'].includes(s))&&<form onSubmit={(event)=>act('decide',event)}>
- <h3>Решение по заявке</h3><Select block label="Исход решения" selected={outcome} options={[{key:'approved',content:'Одобрить'},{key:'counter_offer',content:'Предложить другие условия'},{key:'rejected',content:'Отказать'}].filter(o=>card.allowed_next.includes(o.key as Outcome))} onChange={({selected})=>setOutcome(selected!.key as Outcome)} disabled={busy}/>
- {outcome!=='rejected'&&<><Select block label="Продукт решения" selected={product} options={options(products)} onChange={({selected})=>setProduct(selected!.key as App['product'])} disabled={busy}/>
- <Input block label="Сумма решения, ₽" type="number" min={1} step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)} disabled={busy}/><Input block label="Срок решения, месяцев" type="number" min={1} max={60} required value={term} onChange={e=>setTerm(e.target.value)} disabled={busy}/><Input block label="Ставка решения, %" type="number" min={1} max={50} step="0.01" required value={rate} onChange={e=>setRate(e.target.value)} disabled={busy}/>
- <Checkbox label="Поручительство Корпорации МСП" checked={msp} onChange={(_,p)=>setMsp(p.checked)} disabled={busy}/><Checkbox label="Требуется залог" checked={pledge} onChange={(_,p)=>setPledge(p.checked)} disabled={busy}/><Checkbox label="Требуется поручительство" checked={guarantor} onChange={(_,p)=>setGuarantor(p.checked)} disabled={busy}/></>}
- <Select block label="Причина решения" selected={reason} options={[{key:'R_MANUAL_RISK',content:'Ручная оценка риска'},{key:'R_APPROVED',content:'Одобрение'},{key:'R_AMOUNT_DSR',content:'Ограничение долговой нагрузки'},{key:'R_GRADE_E',content:'Высокий риск'}]} onChange={({selected})=>setReason(selected!.key as components['schemas']['ReasonCode'])} disabled={busy}/>
- <Input block label="Комментарий к решению" required minLength={3} maxLength={2000} value={comment} onChange={e=>setComment(e.target.value)} disabled={busy}/><p>Отклонение от рекомендации политики будет отражено в аудите.</p><Button type="submit" loading={busy}>Сохранить решение</Button></form>}
- </section>;
+const notices = {
+  decide: 'Решение сохранено.',
+  'request-info': 'Запрос отправлен клиенту.',
+  'retry-checks': 'Проверки запущены.',
+};
+export function BankActions({
+  card,
+  role,
+  refresh,
+}: {
+  card: App;
+  role?: components['schemas']['Role'];
+  refresh: () => void;
+}) {
+  const [outcome, setOutcome] = useState<Outcome>('counter_offer');
+  const base = card.recommendation ?? card.offer ?? card;
+  const [amount, setAmount] = useState(String(base.amount_kop / 100));
+  const [term, setTerm] = useState(String(base.term_months));
+  const [rate, setRate] = useState(String('rate_bp' in base ? base.rate_bp / 100 : 19));
+  const [product, setProduct] = useState(base.product);
+  const [comment, setComment] = useState('');
+  const [reason, setReason] = useState<components['schemas']['ReasonCode']>('R_MANUAL_RISK');
+  const [pledge, setPledge] = useState('pledge_required' in base && !!base.pledge_required);
+  const [guarantor, setGuarantor] = useState('guarantor_required' in base && !!base.guarantor_required);
+  const [msp, setMsp] = useState('msp_guarantee' in base && !!base.msp_guarantee);
+  const [statement, setStatement] = useState(true);
+  const [financials, setFinancials] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function act(action: 'decide' | 'request-info' | 'retry-checks', event?: FormEvent) {
+    event?.preventDefault();
+    if (busy) return;
+    if (action !== 'retry-checks' && comment.trim().length < 3) {
+      setError('Добавьте комментарий от 3 символов.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const terms: components['schemas']['OfferTerms'] = {
+        product,
+        amount_kop: kop(amount),
+        term_months: Number(term),
+        rate_bp: Math.round(Number(rate) * 100),
+        pledge_required: pledge,
+        guarantor_required: guarantor,
+        msp_guarantee: msp,
+      };
+      const result =
+        action === 'decide'
+          ? await api.POST('/applications/{id}/decision', {
+              params: { path: { id: card.id } },
+              body: {
+                outcome,
+                comment: comment.trim(),
+                reason_codes: [reason],
+                ...(outcome !== 'rejected' ? { terms } : {}),
+              },
+            })
+          : action === 'request-info'
+            ? await api.POST('/applications/{id}/request-info', {
+                params: { path: { id: card.id } },
+                body: {
+                  comment: comment.trim(),
+                  documents: [
+                    ...(statement ? ['statement' as const] : []),
+                    ...(financials ? ['financials' as const] : []),
+                  ],
+                },
+              })
+            : await api.POST('/applications/{id}/retry-checks', { params: { path: { id: card.id } } });
+      if (result.data) {
+        setComment('');
+        notify(notices[action]);
+        refresh();
+      } else {
+        setError(
+          result.response.status === 409
+            ? 'Заявка изменилась. Обновите карточку перед повтором.'
+            : result.response.status === 403
+              ? 'Для этого действия недостаточно прав.'
+              : (result.error?.title ?? 'Действие не выполнено.'),
+        );
+      }
+    } catch {
+      setError('Нет связи с сервером. Проверьте состояние заявки перед повтором.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const manager = role === 'manager' || role === 'admin';
+  const underwriter = role === 'underwriter' || role === 'admin';
+  return (
+    <section>
+      <h2>Действия сотрудника</h2>
+      {error && <BottomNotice message={error} onClose={() => setError('')} />}
+      {(manager || underwriter) && card.allowed_next.includes('need_info') && (
+        <form onSubmit={(event) => act('request-info', event)}>
+          <h3>Запросить уточнения</h3>
+          <Checkbox
+            label="Запросить выписку"
+            checked={statement}
+            onChange={(_, p) => setStatement(p.checked)}
+            disabled={busy}
+          />
+          <Checkbox
+            label="Запросить отчётность"
+            checked={financials}
+            onChange={(_, p) => setFinancials(p.checked)}
+            disabled={busy}
+          />
+          <Input
+            block
+            label="Комментарий к запросу"
+            required
+            minLength={3}
+            maxLength={1000}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            disabled={busy}
+          />
+          <Button type="submit" loading={busy}>
+            Отправить запрос клиенту
+          </Button>
+        </form>
+      )}
+      {manager &&
+        card.allowed_next.includes('checking') &&
+        card.reasons.some((r) => r.code === 'SF_SOURCE_UNAVAILABLE') && (
+          <Button loading={busy} onClick={() => act('retry-checks')}>
+            Повторить проверки
+          </Button>
+        )}
+      {underwriter && card.allowed_next.some((s) => ['approved', 'counter_offer', 'rejected'].includes(s)) && (
+        <form onSubmit={(event) => act('decide', event)}>
+          <h3>Решение по заявке</h3>
+          <Select
+            block
+            label="Исход решения"
+            selected={outcome}
+            options={[
+              { key: 'approved', content: 'Одобрить' },
+              { key: 'counter_offer', content: 'Предложить другие условия' },
+              { key: 'rejected', content: 'Отказать' },
+            ].filter((o) => card.allowed_next.includes(o.key as Outcome))}
+            onChange={({ selected }) => setOutcome(selected!.key as Outcome)}
+            disabled={busy}
+          />
+          {outcome !== 'rejected' && (
+            <>
+              <Select
+                block
+                label="Продукт решения"
+                selected={product}
+                options={options(products)}
+                onChange={({ selected }) => setProduct(selected!.key as App['product'])}
+                disabled={busy}
+              />
+              <Input
+                block
+                label="Сумма решения, ₽"
+                type="number"
+                min={1}
+                step="0.01"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={busy}
+              />
+              <Input
+                block
+                label="Срок решения, месяцев"
+                type="number"
+                min={1}
+                max={60}
+                required
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+                disabled={busy}
+              />
+              <Input
+                block
+                label="Ставка решения, %"
+                type="number"
+                min={1}
+                max={50}
+                step="0.01"
+                required
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                disabled={busy}
+              />
+              <Checkbox
+                label="Поручительство Корпорации МСП"
+                checked={msp}
+                onChange={(_, p) => setMsp(p.checked)}
+                disabled={busy}
+              />
+              <Checkbox
+                label="Требуется залог"
+                checked={pledge}
+                onChange={(_, p) => setPledge(p.checked)}
+                disabled={busy}
+              />
+              <Checkbox
+                label="Требуется поручительство"
+                checked={guarantor}
+                onChange={(_, p) => setGuarantor(p.checked)}
+                disabled={busy}
+              />
+            </>
+          )}
+          <Select
+            block
+            label="Причина решения"
+            selected={reason}
+            options={[
+              { key: 'R_MANUAL_RISK', content: 'Ручная оценка риска' },
+              { key: 'R_APPROVED', content: 'Одобрение' },
+              { key: 'R_AMOUNT_DSR', content: 'Ограничение долговой нагрузки' },
+              { key: 'R_GRADE_E', content: 'Высокий риск' },
+            ]}
+            onChange={({ selected }) => setReason(selected!.key as components['schemas']['ReasonCode'])}
+            disabled={busy}
+          />
+          <Input
+            block
+            label="Комментарий к решению"
+            required
+            minLength={3}
+            maxLength={2000}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            disabled={busy}
+          />
+          <p>Отклонение от рекомендации политики будет отражено в аудите.</p>
+          <Button type="submit" loading={busy}>
+            Сохранить решение
+          </Button>
+        </form>
+      )}
+    </section>
+  );
 }

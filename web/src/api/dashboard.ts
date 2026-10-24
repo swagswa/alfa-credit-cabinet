@@ -9,11 +9,12 @@ export const applicationGroups = {
   completed: { label: 'Завершены', statuses: ['issued', 'closed', 'rejected', 'expired', 'cancelled_by_client'] },
 } satisfies Record<string, { label: string; statuses: Status[] }>;
 export type ApplicationGroup = keyof typeof applicationGroups;
-export const isApplicationGroup = (value: string | null): value is ApplicationGroup => !!value && value in applicationGroups;
+export const isApplicationGroup = (value: string | null): value is ApplicationGroup =>
+  !!value && value in applicationGroups;
 export type DashboardSnapshot = {
   page: components['schemas']['ApplicationPage'];
   attention: components['schemas']['ApplicationSummary'][];
   counts: Record<ApplicationGroup, number>;
 };
 export const defaultApplicationKey = JSON.stringify(['applications', false, 0, null, null, null, '-created_at']);
-export const isCompleted = (status: Status) => applicationGroups.completed.statuses.some(item => item === status);
+export const isCompleted = (status: Status) => applicationGroups.completed.statuses.some((item) => item === status);

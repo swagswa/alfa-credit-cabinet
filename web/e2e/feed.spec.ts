@@ -4,7 +4,10 @@ import { state } from './cabinet';
 const catering = 'Господдержка для общепита';
 const transport = 'Кредит на грузовики и прицепы';
 
-for (const [user, own, other] of [['coffee', catering, transport], ['logistics', transport, catering]]) {
+for (const [user, own, other] of [
+  ['coffee', catering, transport],
+  ['logistics', transport, catering],
+]) {
   test.describe(() => {
     test.use({ storageState: state(user) });
     test(`лента ${user}: подсказки под свою отрасль`, async ({ page }) => {
