@@ -149,3 +149,21 @@ func TestIssueRejects(t *testing.T) {
 		illegal(t, got.err)
 	})
 }
+
+// Клиент видит approved в базе раньше, чем процесс получил ответ Transition:
+// принятие ждёт конца перехода, а не отклоняется
+func TestAcceptDuringMove(t *testing.T) {
+	e := newEnv(t)
+	e.expect(domain.StatusChecking, domain.RoleSystem)
+	e.round(nil)
+	e.OnActivity(e.apps.Decide, mock.Anything, e.id).Return(coffee, nil).Once()
+	e.expect(domain.StatusScoring, domain.RoleSystem)
+	e.move(coffee.Outcome, domain.RoleSystem, &coffee, coffee.Codes()...).After(10 * time.Second)
+	e.accepted()
+	e.expect(domain.StatusExpired, domain.RoleSystem)
+	r := e.act(5*time.Second, usecase.UpdateAccept, domain.Action{Actor: client, Version: 7})
+
+	e.run()
+	require.NoError(t, e.GetWorkflowError())
+	require.NoError(t, r.err)
+}
