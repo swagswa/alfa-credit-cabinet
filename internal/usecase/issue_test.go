@@ -98,6 +98,7 @@ func TestSign(t *testing.T) {
 	id := e.offer(domain.StatusSigning)
 
 	wrongCode(t, uc.Sign(ctx, e.client, id, "123456"), "запросите новый") // кода ещё не просили
+	require.ErrorIs(t, uc.Sign(ctx, e.client, e.offer(domain.StatusAccepted), "123456"), domain.ErrIllegalTransition)
 
 	code, _, err := uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
