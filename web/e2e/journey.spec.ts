@@ -31,6 +31,7 @@ test.describe('кофейня', () => {
   test('без паспорта: банк просит документ, клиент догружает и получает одобрение', async ({ page }) => {
     await apply(page, { ...coffee, documents: [] });
     await expect(page.getByText('Не хватает документа: паспорт руководителя')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Запрошенные документы' })).toContainText('Паспорт');
     await upload(page, ['Паспорт']);
     await page.getByRole('button', { name: 'Отправить сведения банку' }).click();
     await expect(page.getByRole('heading', { name: 'Условия финансирования' })).toBeVisible();
