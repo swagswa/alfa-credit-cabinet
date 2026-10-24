@@ -217,6 +217,7 @@ func TestTransitionNotify(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, map[string]any{
 		"application_id": id.String(), "company_id": company, "status": "checking", "version": float64(2),
+		"submitted": true,
 	}, got)
 }
 

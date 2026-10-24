@@ -88,7 +88,7 @@ func (r *applicationRepo) Move(ctx context.Context, app domain.Application, m do
 	if m.DueAt != nil {
 		due = pgtype.Timestamptz{Time: *m.DueAt, Valid: true}
 	}
-	version, err := r.q.SetApplicationStatus(ctx, db.SetApplicationStatusParams{
+	err := r.q.SetApplicationStatus(ctx, db.SetApplicationStatusParams{
 		ID: app.ID, Status: string(m.To), DueAt: due,
 	})
 	if err != nil {
@@ -106,10 +106,7 @@ func (r *applicationRepo) Move(ctx context.Context, app domain.Application, m do
 	if err != nil {
 		return fmt.Errorf("transition event %s: %w", app.ID, err)
 	}
-	err = r.q.NotifyApplication(ctx, db.NotifyApplicationParams{
-		ID: app.ID, CompanyID: app.CompanyID, Status: string(m.To), Version: version,
-	})
-	if err != nil {
+	if err := r.q.NotifyApplication(ctx, app.ID); err != nil {
 		return fmt.Errorf("notify %s: %w", app.ID, err)
 	}
 	return nil
