@@ -1,4 +1,4 @@
-.PHONY: generate lint test check up up-ai down web-gen docgen eval-docs e2e
+.PHONY: generate lint test check up up-ai up-obs down web-gen docgen eval-docs e2e
 
 # сервер из openapi, код запросов из sql
 generate:
@@ -23,8 +23,12 @@ up:
 up-ai:
 	AI_ENABLED=true docker compose --profile ai up -d --build --wait
 
+# стенд с метриками, логами и трейсами: Grafana :3000, Prometheus :9090, Jaeger :16686
+up-obs:
+	OTEL_ENDPOINT=http://jaeger:4317 docker compose --profile obs up -d --build --wait
+
 down:
-	docker compose --profile ai down
+	docker compose --profile ai --profile obs down
 
 web-gen:
 	cd web && npm run gen:api

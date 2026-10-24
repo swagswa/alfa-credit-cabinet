@@ -20,6 +20,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/pkg/logger"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/svc"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/telemetry"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 )
 
@@ -73,7 +74,7 @@ func main() {
 		r.RegisterActivity(checkActs)
 	})
 
-	if err := svc.Run(ctx, lg.Zap, lg, db, tc, w); err != nil {
+	if err := svc.Run(ctx, lg.Zap, telemetry.New("worker", cfg.MetricsAddr), lg, db, tc, w); err != nil {
 		lg.Zap.Fatal("worker stopped", zap.Error(err))
 	}
 }

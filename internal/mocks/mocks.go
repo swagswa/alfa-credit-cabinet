@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 
+	echootel "github.com/labstack/echo-otel/v4"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 
@@ -18,7 +19,7 @@ func New() *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-	e.Use(echomw.Recover())
+	e.Use(echomw.Recover(), echootel.NewMiddleware("mocks"))
 	e.GET("/health", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	// «Взять пример выписки»: nginx отдаёт этот путь сюда, мимо api
 	e.GET("/api/samples/:inn", sample)
