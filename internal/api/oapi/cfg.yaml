@@ -5,6 +5,8 @@ generate:
   echo-server: true
   strict-server: true
   embedded-spec: true
+  # клиент нужен только e2e, в бинарники api не попадает: линкер выкидывает неиспользуемое
+  client: true
 output-options:
   # SSE живёт обычным хендлером echo, strict server стримить не умеет;
   # примеры документов отдаёт mocks, в api их нет
