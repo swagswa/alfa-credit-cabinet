@@ -2,7 +2,7 @@ import { BottomNotice, notify } from '../BottomNotice';
 import { useState, type FormEvent } from 'react';
 import { Button, Checkbox, Select } from '../motion';
 import { Input } from '@alfalab/core-components/input';
-import { api } from '../api/client';
+import { api, errorText } from '../api/client';
 import { kop, options, products } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 type App = components['schemas']['ApplicationView'];
@@ -88,7 +88,7 @@ export function BankActions({
             ? 'Заявка изменилась. Обновите карточку перед повтором.'
             : result.response.status === 403
               ? 'Для этого действия недостаточно прав.'
-              : (result.error?.title ?? 'Действие не выполнено.'),
+              : errorText(result.error, 'Действие не выполнено.'),
         );
       }
     } catch {
@@ -133,13 +133,12 @@ export function BankActions({
           </Button>
         </form>
       )}
-      {manager &&
-        card.allowed_next.includes('checking') &&
-        card.reasons.some((r) => r.code === 'SF_SOURCE_UNAVAILABLE') && (
-          <Button loading={busy} onClick={() => act('retry-checks')}>
-            Повторить проверки
-          </Button>
-        )}
+      {/* причины в карточке пишет только решение, а с недоступным источником до него не доходит */}
+      {manager && card.allowed_next.includes('checking') && card.checks?.some((c) => c.status === 'unavailable') && (
+        <Button loading={busy} onClick={() => act('retry-checks')}>
+          Повторить проверки
+        </Button>
+      )}
       {underwriter && card.allowed_next.some((s) => ['approved', 'counter_offer', 'rejected'].includes(s)) && (
         <form onSubmit={(event) => act('decide', event)}>
           <h3>Решение по заявке</h3>

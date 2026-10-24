@@ -3,7 +3,7 @@ import { BottomNotice, notify } from '../BottomNotice';
 import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
 import { Attach } from '@alfalab/core-components/attach';
-import { api } from '../api/client';
+import { api, errorText } from '../api/client';
 import { kinds, kop } from '../api/presentation';
 import { DocumentDetails } from './DocumentDetails';
 import type { components } from '../api/schema.gen';
@@ -46,7 +46,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
       if (data) {
         setKind('statement');
         setFile(new File([data], `sample-${card.company.inn}.png`, { type: data.type }));
-      } else setError(error?.title ?? 'Пример недоступен. Выберите свой файл.');
+      } else setError(errorText(error, 'Пример недоступен. Выберите свой файл.'));
     } catch {
       setError('Не удалось получить пример. Выберите свой файл.');
     } finally {
@@ -81,7 +81,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
         setFile(null);
         notify('Документ загружен.');
         refresh();
-      } else setError(error?.title ?? 'Не удалось загрузить документ.');
+      } else setError(errorText(error, 'Не удалось загрузить документ.'));
     } catch {
       setError('Нет связи с сервером. Проверьте список документов перед повторной загрузкой.');
     } finally {
@@ -107,7 +107,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
       if (data) {
         notify('Сведения отправлены банку.');
         refresh();
-      } else setError(error?.title ?? 'Не удалось отправить сведения.');
+      } else setError(errorText(error, 'Не удалось отправить сведения.'));
     } catch {
       setError('Нет связи с сервером. Попробуйте ещё раз.');
     } finally {
@@ -121,11 +121,17 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
       <h2>Документы для заявки</h2>
       {editable && (
         <div className="document-checklist">
-          <h3>{required.length ? 'Сейчас нужно от вас' : 'Обязательные документы пока не запрошены'}</h3>
+          <h3>
+            {required.length || card.status === 'need_info'
+              ? 'Сейчас нужно от вас'
+              : 'Обязательные документы пока не запрошены'}
+          </h3>
           {!required.length && editable && (
             <p>
-              Банк сообщит в этой карточке, если понадобятся документы. Дополнительный файл можно приложить по своей
-              инициативе.
+              {card.status === 'need_info'
+                ? 'Что загрузить, написано в причинах выше.'
+                : 'Банк сообщит в этой карточке, если понадобятся документы.'}{' '}
+              Дополнительный файл можно приложить по своей инициативе.
             </p>
           )}
           {(required.length > 1 ? required : []).map((type) => {

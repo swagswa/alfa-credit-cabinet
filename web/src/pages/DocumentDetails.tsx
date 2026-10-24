@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../motion';
 import { api } from '../api/client';
-import { fieldNames } from '../api/presentation';
+import { fieldNames, money } from '../api/presentation';
 import { FinancialsForm } from './FinancialsForm';
 import { StatementForm } from './StatementForm';
 import type { components } from '../api/schema.gen';
 type Doc = components['schemas']['Document'];
+// в api копейки, банку показываем рубли
+const show = (key: string, value: unknown) =>
+  value === undefined
+    ? 'Нет'
+    : key.endsWith('_kop')
+      ? money(value as number)
+      : key === 'monthly_in'
+        ? (value as { month: string; amount_kop: number }[]).map((m) => `${m.month}: ${money(m.amount_kop)}`).join(', ')
+        : String(value);
 export function DocumentDetails({
   id,
   inn,
@@ -107,7 +116,7 @@ export function DocumentDetails({
           </p>
           <div className="table-scroll">
             <table>
-              <caption>Данные модели и клиента (суммы в копейках)</caption>
+              <caption>Данные модели и клиента</caption>
               <thead>
                 <tr>
                   <th>Поле</th>
@@ -130,8 +139,8 @@ export function DocumentDetails({
                         {fieldNames[key] ?? key}
                         {document.edited_fields?.includes(key) ? ' (изменено)' : ''}
                       </th>
-                      <td>{JSON.stringify(raw?.[key as keyof typeof raw]) ?? 'Нет'}</td>
-                      <td>{JSON.stringify(value)}</td>
+                      <td>{show(key, raw?.[key as keyof typeof raw])}</td>
+                      <td>{show(key, value)}</td>
                     </tr>
                   );
                 })}

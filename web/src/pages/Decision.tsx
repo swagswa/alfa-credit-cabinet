@@ -1,4 +1,4 @@
-import { money, products } from '../api/presentation';
+import { money, rate, products } from '../api/presentation';
 import { isCompleted } from '../api/dashboard';
 import { Value } from '../motion/Value';
 import { Button, MotionDetails, motion, useMotionDisabled } from '../motion';
@@ -6,7 +6,7 @@ import { OutcomePanel } from '../motion/OutcomePanel';
 import { BottomNotice, notify } from '../BottomNotice';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
-import { api } from '../api/client';
+import { api, errorText } from '../api/client';
 import type { components } from '../api/schema.gen';
 type App = components['schemas']['ApplicationView'];
 export function Decision({ card, refresh }: { card: App; refresh: () => void }) {
@@ -53,7 +53,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         setError(
           result.response.status === 409
             ? 'Состояние заявки изменилось. Обновите карточку и проверьте условия.'
-            : (result.error?.title ?? 'Не удалось выполнить действие.'),
+            : errorText(result.error, 'Не удалось выполнить действие.'),
         );
     } catch {
       setError('Нет связи с сервером. Проверьте статус перед повтором.');
@@ -76,7 +76,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         setCode('');
         refresh();
       } else {
-        setError(error?.title ?? 'Подписание не выполнено.');
+        setError(errorText(error, 'Подписание не выполнено.'));
         if (response.status === 422) {
           setIssued((previous) =>
             previous && previous.attempts_left > 1 && Date.parse(previous.expires_at) > Date.now()
@@ -119,7 +119,13 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
     <motion.section layout={reduced ? false : 'position'} className="decision-panel">
       {!!card.reasons.length && (
         <>
-          <h2>Почему принято такое решение</h2>
+          <h2>
+            {card.status === 'need_info'
+              ? 'Что нужно уточнить'
+              : card.status === 'manual_review'
+                ? 'Что учитывает специалист'
+                : 'Почему принято такое решение'}
+          </h2>
           {card.reasons.map((reason, index) => (
             <p key={`${reason.code}-${index}`}>{reason.text}</p>
           ))}
@@ -137,7 +143,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
             </div>
             <div>
               <small>Ставка в год</small>
-              <strong>{card.offer.rate_bp / 100}%</strong>
+              <strong>{rate(card.offer.rate_bp)}</strong>
             </div>
             <div>
               <small>Срок</small>
@@ -182,7 +188,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
             </div>
           </MotionDetails>
           <p>
-            {card.offer.rate_bp / 100}% годовых. Платёж: {money(card.offer.monthly_payment_kop)}.
+            {rate(card.offer.rate_bp)} годовых. Платёж: {money(card.offer.monthly_payment_kop)}.
           </p>
           {card.allowed_next.includes('accepted') && (
             <p>Предложение действительно до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.</p>

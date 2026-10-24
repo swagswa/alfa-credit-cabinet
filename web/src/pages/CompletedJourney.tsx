@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, settle, useHistory } from '../api/client';
-import { fieldNames, goals, kinds, labels, money, products, representatives } from '../api/presentation';
+import { fieldNames, goals, kinds, labels, money, rate, products, representatives } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 import { Progress, steps } from './Progress';
 import { Decision } from './Decision';
@@ -133,7 +133,7 @@ export function CompletedJourney({ card }: { card: App }) {
                   <Field title="Продукт">{products[card.offer.product]}</Field>
                   <Field title="Сумма">{money(card.offer.amount_kop)}</Field>
                   <Field title="Срок">{card.offer.term_months} мес.</Field>
-                  <Field title="Ставка">{card.offer.rate_bp / 100}% годовых</Field>
+                  <Field title="Ставка">{rate(card.offer.rate_bp)} годовых</Field>
                   <Field title="Ежемесячный платёж">{money(card.offer.monthly_payment_kop)}</Field>
                   <Field title="Залог">{card.offer.pledge_required ? 'Требуется' : 'Без залога'}</Field>
                   <Field title="Поручительство собственника">
