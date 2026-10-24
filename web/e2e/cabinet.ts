@@ -70,7 +70,7 @@ export async function upload(page: Page, kinds: string[]) {
     if (!(await page.locator('#document-upload h3').filter({ hasText: kind }).count()))
       await choose(page, 'Вид документа', kind);
     await page.locator('#document-upload input[type=file]').setInputFiles(scan);
-    await page.getByRole('button', { name: 'Загрузить' }).click();
+    await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
     await expect(page.getByRole('listitem').filter({ hasText: `scan.png: ${kind}` })).toBeVisible();
   }
 }
