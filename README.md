@@ -69,6 +69,7 @@ AI_ENABLED=true docker compose --profile ai up -d --build --wait
 | `LOGIN_ATTEMPTS`, `LOGIN_WINDOW` | `10`, `1m` | лимит попыток входа с одного адреса |
 | `CLOSE_AFTER` | `1m` | через сколько после выдачи заявка закрывается; на проде 24h |
 | `SIGNING_CODE_TTL` | `5m` | сколько живёт код подписи, на проде так же; на демо совпадает с `SIGNING_TTL`, так что заявка истекает раньше кода |
+| `LOGIN_ATTEMPTS`, `LOGIN_WINDOW` | `10`, `1m` | лимит входов с одного адреса; для повторных прогонов `make e2e` поднять `LOGIN_ATTEMPTS` |
 | `DB_PORT`, `WEB_PORT` | `5432`, `8000` | порты Postgres и фронта на хосте |
 
 Адреса между контейнерами (`DATABASE_URL`, `REDIS_ADDR`, `TEMPORAL_HOSTPORT`, `EGRUL_URL`, `FNS_URL`, `BKI_URL`, `BANK_URL`, `OLLAMA_URL`) compose задаёт сам. Остальные настройки с дефолтами в коде (`JWT_TTL` 12h, `SOURCES_TIMEOUT` 3s, таймауты HTTP и распознавания) описаны в `internal/config/config.go`. В контейнеры compose их не прокидывает, так что в `.env` они ничего не меняют, работают только при запуске процесса руками.

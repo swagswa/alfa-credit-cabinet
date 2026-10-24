@@ -1,11 +1,11 @@
-.PHONY: generate lint test check up up-ai down web-gen docgen eval-docs
+.PHONY: generate lint test check up up-ai down web-gen docgen eval-docs e2e
 
 # сервер из openapi, код запросов из sql
 generate:
 	go generate ./...
 
 lint:
-	golangci-lint run ./...
+	golangci-lint run --build-tags e2e ./...
 	go tool workflowcheck ./internal/worker/...
 
 # интеграционным тестам нужен Docker, без него они пропускаются
@@ -38,3 +38,8 @@ docgen:
 # Один файл: EVAL_GLOB=0000300011_statement_c.png make eval-docs
 eval-docs:
 	go test -tags eval -run TestDocsEval -count=1 -timeout 60m -v ./internal/usecase
+
+# сценарии приёмки через api на поднятом стенде (make up). Лимит входов мешает
+# повторным прогонам: LOGIN_ATTEMPTS=100 make up. -short пропускает ожидание expired
+e2e:
+	go test -tags e2e -count=1 -timeout 10m ./e2e/...

@@ -77,3 +77,22 @@ jobs:
       - name: гасим стенд
         if: always()
         run: docker compose down -v
+
+  # сервер без браузера: сценарии приёмки через api, сроки укорочены
+  api-e2e:
+    runs-on: ubuntu-24.04
+    env:
+      # короткие сроки, чтобы сценарий истечения не ждал три минуты
+      NEED_INFO_TTL: 20s
+      CLOSE_AFTER: 10s
+      LOGIN_ATTEMPTS: "100"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: docker compose up -d --build --wait
+      - run: make e2e
+      - name: логи стенда
+        if: failure()
+        run: docker compose logs --no-color api worker mocks
