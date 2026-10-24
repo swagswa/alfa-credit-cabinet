@@ -45,7 +45,8 @@ function SavedDocumentValues({ id }: { id: string }) {
       ) : (
         <dl className="archive-fields">
           {Object.entries(values)
-            .filter(([key]) => key in fieldNames)
+            // поступления по месяцам выводятся ниже, по полю на месяц
+            .filter(([key]) => key in fieldNames && key !== 'monthly_in')
             .map(([key, value]) => (
               <Field key={key} title={fieldNames[key]}>
                 {key.endsWith('_kop') && typeof value === 'number' ? money(value) : String(value)}
