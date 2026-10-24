@@ -46,7 +46,7 @@ func (r *documentRepo) Add(ctx context.Context, appID, by uuid.UUID, f *domain.D
 		Status:        string(f.Status),
 		FileName:      f.FileName,
 		ContentType:   f.ContentType,
-		SizeBytes:     int32(len(f.Content)), //nolint:gosec // до 10 МБ, проверено выше и CHECK в схеме
+		SizeBytes:     int32(len(f.Content)),
 		Sha256:        sum[:],
 		Content:       f.Content,
 		UploadedBy:    by,
@@ -62,7 +62,7 @@ func (r *documentRepo) AddContract(ctx context.Context, appID uuid.UUID, f *doma
 	err := r.q.AddContract(ctx, db.AddContractParams{
 		ApplicationID: appID,
 		FileName:      f.FileName,
-		SizeBytes:     int32(len(f.Content)), //nolint:gosec // договор на пару страниц
+		SizeBytes:     int32(len(f.Content)),
 		Sha256:        sum[:],
 		Content:       f.Content,
 	})
@@ -151,7 +151,7 @@ func (r *documentRepo) SetStatus(ctx context.Context, id uuid.UUID, s domain.Doc
 func (r *documentRepo) SaveRecognition(
 	ctx context.Context, id uuid.UUID, s domain.DocStatus, rec *domain.Recognition, reason string,
 ) error {
-	ms := int32(rec.Took.Milliseconds()) //nolint:gosec // минуты, не годы
+	ms := int32(rec.Took.Milliseconds())
 	p := db.SaveRecognitionParams{
 		ID:               id,
 		Status:           string(s),

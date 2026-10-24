@@ -289,7 +289,7 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 		err := workflow.ExecuteActivity(WithDBActivityOptions(ctx), acts.Payout, p.id).Get(ctx, nil)
 		p.busy = false
 		if err != nil {
-			return err //nolint:wrapcheck // тип ошибки activity должен дойти до API
+			return err
 		}
 	}
 	return p.move(ctx, m)
@@ -338,7 +338,7 @@ func (p *process) move(ctx workflow.Context, m domain.Move) error {
 	defer func() { p.busy = false }()
 	// без обёртки: тип ошибки activity должен дойти до API
 	if err := workflow.ExecuteActivity(WithDBActivityOptions(ctx), a.Transition, p.id, m).Get(ctx, nil); err != nil {
-		return err //nolint:wrapcheck // см. выше
+		return err
 	}
 	p.status, p.codes = m.To, m.Codes
 	if m.Decision != nil || m.To == domain.StatusChecking {
