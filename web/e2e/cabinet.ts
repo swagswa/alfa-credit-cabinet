@@ -46,7 +46,8 @@ export async function apply(page: Page, draft: Draft) {
   await page.goto('/client/new');
   await page.getByLabel('ИНН компании').fill(draft.inn);
   await page.getByRole('button', { name: 'Найти компанию' }).click();
-  await expect(page.getByText('Компания найдена')).toBeVisible();
+  // у unavailable реестр лежит, тогда карточка из данных кабинета
+  await expect(page.locator('.company-result')).toBeVisible();
   await choose(page, 'На что нужны деньги', draft.goal);
   await page.getByLabel('Сумма, ₽').fill(draft.amount);
   await page.getByLabel('Срок, месяцев').fill(draft.term);
