@@ -43,7 +43,7 @@ func (s Status) Final() bool {
 	return true
 }
 
-// Application это заявка. Lock для перехода заполняет только первые четыре поля.
+// Lock для перехода заполняет только первые четыре поля.
 type Application struct {
 	ID        uuid.UUID
 	CompanyID uuid.UUID
@@ -68,7 +68,7 @@ type Application struct {
 	Decision *Decision
 }
 
-// AuditEntry это строка журнала заявки. ActorName пустой у системы.
+// ActorName пустой у системы.
 type AuditEntry struct {
 	ID        int64
 	Kind      string
@@ -80,7 +80,7 @@ type AuditEntry struct {
 	At        time.Time
 }
 
-// Draft это анкета, клиент правит её, пока заявка в draft. Нули значат «не заполнено»,
+// Анкета, клиент правит её, пока заявка в draft. Нули значат «не заполнено»,
 // полноту проверяет подача. Role пишется в company_members: это роль человека в компании.
 type Draft struct {
 	Role              RepresentativeRole
@@ -113,7 +113,6 @@ type Actor struct {
 	Role Role
 }
 
-// Move это запрос на переход заявки в To.
 type Move struct {
 	To    Status
 	Actor Actor
@@ -127,7 +126,7 @@ type Move struct {
 	Decision *Decision
 }
 
-// Event это уведомление об изменении заявки для SSE. Теги под payload
+// Уведомление для SSE. Теги под payload
 // pg_notify из queries/applications.sql, Postgres шлёт его после коммита.
 type Event struct {
 	ApplicationID uuid.UUID `json:"application_id"`

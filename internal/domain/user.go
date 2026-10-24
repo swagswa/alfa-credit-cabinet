@@ -9,7 +9,7 @@ const (
 	RoleManager     Role = "manager"
 	RoleUnderwriter Role = "underwriter"
 	RoleAdmin       Role = "admin"
-	// RoleSystem это ApplicationWorkflow в таблице переходов и аудите, учёток с ней нет
+	// так в таблице переходов и аудите записан ApplicationWorkflow, учёток с ней нет
 	RoleSystem Role = "system"
 )
 
@@ -23,7 +23,7 @@ type User struct {
 // RepresentativeRole говорит, на каком основании клиент действует за компанию.
 type RepresentativeRole string
 
-// Membership это компания, за которую пользователь может подавать заявки.
+// Компания, за которую пользователь может подавать заявки.
 type Membership struct {
 	CompanyID uuid.UUID
 	INN       string
@@ -33,13 +33,13 @@ type Membership struct {
 	Role      RepresentativeRole
 }
 
-// Me это пользователь вместе с его компаниями, как его видит кабинет.
+// Пользователь с его компаниями, как его видит кабинет.
 type Me struct {
 	User        User
 	Memberships []Membership
 }
 
-// Session это серверная сессия входа, токен в cookie несёт только её ID.
+// Серверная сессия, токен в cookie несёт только её ID.
 type Session struct {
 	ID     string
 	UserID uuid.UUID

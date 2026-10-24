@@ -75,7 +75,7 @@ type JWT struct {
 	TTL    time.Duration `env:"JWT_TTL"             envDefault:"12h"`
 }
 
-// Sources это адреса внешних систем, на стенде все они в mocks.
+// Адреса внешних систем, на стенде все они в mocks.
 type Sources struct {
 	EGRULURL string        `env:"EGRUL_URL"       envDefault:"http://localhost:8081"`
 	FNSURL   string        `env:"FNS_URL"         envDefault:"http://localhost:8081"`

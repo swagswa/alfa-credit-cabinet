@@ -16,7 +16,7 @@ const (
 	FeedTip   FeedKind = "tip"
 )
 
-// FeedItem это строка ленты клиента. ApplicationID нулевой у подсказки.
+// ApplicationID нулевой у подсказки.
 type FeedItem struct {
 	ID            string
 	Kind          FeedKind
@@ -25,7 +25,7 @@ type FeedItem struct {
 	At            time.Time
 }
 
-// StatusEvent это смена статуса заявки из журнала, как её видит лента.
+// Смена статуса из журнала, как её видит лента.
 type StatusEvent struct {
 	ID            int64
 	ApplicationID uuid.UUID
@@ -34,7 +34,7 @@ type StatusEvent struct {
 	At            time.Time
 }
 
-// Profile это то, по чему подбираются подсказки. Bank false значит, что данных
+// По профилю подбираются подсказки. Bank false значит, что данных
 // банка нет (заявок не было или банк не ответил): тогда условия по продуктам
 // и оборотам не выполняются.
 type Profile struct {
@@ -48,7 +48,7 @@ type Profile struct {
 
 const NoApplication = "none"
 
-// FeedInput это поле профиля в условии подсказки. Набор фиксированный.
+// Поле профиля в условии подсказки, набор фиксированный.
 type FeedInput string
 
 const (
@@ -58,7 +58,7 @@ const (
 	InputApplication FeedInput = "application"
 )
 
-// TipCond это условие подсказки. У turnover_month_rub сравнивается Num (gt, lt), у остальных Value (eq, ne).
+// У turnover_month_rub сравнивается Num (gt, lt), у остальных Value (eq, ne).
 // products eq значит «продукт есть», ne «продукта нет».
 type TipCond struct {
 	Input FeedInput

@@ -32,7 +32,6 @@ func wrongCode(msg string) error {
 
 // IssueUseCase всё после решения: принятие условий, договор, код подписи, выдача.
 type IssueUseCase interface {
-	// Accept передаёт процессу согласие клиента с условиями той версии карточки, что он видел.
 	Accept(ctx context.Context, actor domain.Actor, id uuid.UUID, version int) error
 	// PrepareContract кладёт договор с графиком в документы заявки. date приходит
 	// из процесса, поэтому повтор шага даёт тот же файл, а второй договор не появится.

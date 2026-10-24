@@ -7,7 +7,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
 
-// EGRUL это источник выписки, на стенде клиент мока.
+// На стенде тут клиент мока.
 type EGRUL interface {
 	Company(ctx context.Context, inn string) (domain.Company, error)
 }

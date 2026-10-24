@@ -16,13 +16,13 @@ const (
 	RevenueNoData RevenueResult = "no_data"
 )
 
-// FNSIncome это income_last_year из ответа ФНС и год, за который она.
+// income_last_year из ответа ФНС и год, за который она.
 type FNSIncome struct {
 	Year int
 	Kop  int64
 }
 
-// RevenueCheck это итог сверки для карточки банка: документ, обе цифры и расхождение.
+// Итог сверки для карточки банка: документ, обе цифры и расхождение.
 type RevenueCheck struct {
 	Result   RevenueResult
 	DocID    uuid.UUID

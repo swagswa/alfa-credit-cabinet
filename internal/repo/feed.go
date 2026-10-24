@@ -16,7 +16,7 @@ type FeedRepository interface {
 	// Profile отдаёт профиль компании пользователя. companyID нулевой значит
 	// первую по имени; чужая компания это ErrNotFound.
 	Profile(ctx context.Context, userID, companyID uuid.UUID) (domain.Profile, error)
-	// Events это смены статусов заявок компании, новые сверху.
+	// Events: смены статусов заявок компании, новые сверху.
 	Events(ctx context.Context, userID, companyID uuid.UUID, limit int) ([]domain.StatusEvent, error)
 }
 
@@ -65,7 +65,7 @@ func (r *feedRepo) Events(ctx context.Context, userID, companyID uuid.UUID, limi
 	rows, err := r.q.FeedEvents(ctx, db.FeedEventsParams{
 		UserID:    userID,
 		CompanyID: companyID,
-		Lim:       int32(limit), //nolint:gosec // 1-100 по схеме
+		Lim:       int32(limit),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("feed events %s: %w", companyID, err)

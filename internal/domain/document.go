@@ -44,7 +44,7 @@ const (
 	TextOCR TextSource = "ocr"
 )
 
-// DocFile это загруженный документ и ИНН заявки, с которым его сверяем.
+// Файл и ИНН заявки, с которым его сверяем.
 type DocFile struct {
 	Kind        DocKind
 	Status      DocStatus
@@ -54,7 +54,7 @@ type DocFile struct {
 	INN         string
 }
 
-// Document это карточка документа без самого файла.
+// Карточка без самого файла.
 type Document struct {
 	ID            uuid.UUID
 	ApplicationID uuid.UUID
@@ -76,7 +76,7 @@ type Document struct {
 	ConfirmedAt   *time.Time
 }
 
-// Statement это итоги выписки, суммы в копейках. JSON такой же, как
+// Итоги выписки в копейках. JSON такой же, как
 // StatementValues в api/openapi.yaml: так он и лежит в documents.extracted.
 type Statement struct {
 	INN            string        `json:"inn"`
@@ -94,7 +94,7 @@ type MonthAmount struct {
 	Amount int64  `json:"amount_kop"`
 }
 
-// Financials это баланс и ОФР, упрощённая форма, суммы в копейках.
+// Баланс и ОФР в упрощённой форме, суммы в копейках.
 type Financials struct {
 	INN              string `json:"inn"`
 	Year             int    `json:"year"`
@@ -160,7 +160,7 @@ type FieldError struct {
 	Message string `json:"message"`
 }
 
-// Recognition это всё, что сохраняем для аудита: откуда текст, сырой ответ
+// Всё, что храним для аудита: откуда текст, сырой ответ
 // модели, поля после разбора, что не прошло проверку и на какой модели.
 type Recognition struct {
 	Source   TextSource
