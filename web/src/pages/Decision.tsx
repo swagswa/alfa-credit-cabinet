@@ -6,6 +6,7 @@ import { OutcomePanel } from '../motion/OutcomePanel';
 import { BottomNotice, notify } from '../BottomNotice';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
+import { Modal } from '@alfalab/core-components/modal';
 import { api, errorText } from '../api/client';
 import type { components } from '../api/schema.gen';
 type App = components['schemas']['ApplicationView'];
@@ -24,7 +25,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
   const codeExpired = !!issued && Date.parse(issued.expires_at) <= now;
   const offerExpired =
     !!card.offer && Date.parse(card.offer.expires_at) <= now && card.allowed_next.includes('accepted');
-  async function action(kind: 'accept' | 'signing-code' | 'cancel') {
+  async function action(kind: 'accept' | 'signing-code') {
     if (busy || (kind === 'accept' && offerExpired)) return;
     setBusy(true);
     setError('');
@@ -35,18 +36,13 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
               params: { path: { id: card.id } },
               body: { version: card.version },
             })
-          : kind === 'cancel'
-            ? await api.POST('/applications/{id}/cancel', {
-                params: { path: { id: card.id } },
-                body: { reason: 'Отмена клиентом в кабинете' },
-              })
-            : await api.POST('/applications/{id}/signing-code', { params: { path: { id: card.id } } });
+          : await api.POST('/applications/{id}/signing-code', { params: { path: { id: card.id } } });
       if (result.data) {
         if ('code' in result.data) {
           setIssued(result.data);
           setCode('');
         } else {
-          notify(kind === 'accept' ? 'Условия приняты.' : 'Заявка отменена.');
+          notify('Условия приняты.');
           refresh();
         }
       } else
@@ -238,16 +234,73 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
           )}
         </>
       )}
-      {card.allowed_next.includes('cancelled_by_client') && (
-        <Button loading={busy} onClick={() => action('cancel')}>
-          Отменить заявку
-        </Button>
-      )}
       {['issued', 'closed'].includes(card.status) && (
         <p>Деньги на счёте. Выдача смоделирована, реального перевода нет.</p>
       )}
       {card.status === 'expired' && <p>Срок ответа истёк. Можно создать новую заявку.</p>}
       {card.status === 'cancelled_by_client' && <p>Вы отменили заявку. Можно подать новую.</p>}
     </motion.section>
+  );
+}
+
+// отмена необратима, поэтому только через подтверждение и ниже основного действия карточки
+export function Cancel({ card, refresh }: { card: App; refresh: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!card.allowed_next.includes('cancelled_by_client')) return null;
+  async function cancel() {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { data, error, response } = await api.POST('/applications/{id}/cancel', {
+        params: { path: { id: card.id } },
+        body: { reason: 'Отмена клиентом в кабинете' },
+      });
+      if (data) {
+        setOpen(false);
+        notify('Заявка отменена.');
+        refresh();
+      } else
+        setError(
+          response.status === 409
+            ? 'Состояние заявки изменилось. Закройте окно и обновите карточку.'
+            : errorText(error, 'Не удалось отменить заявку.'),
+        );
+    } catch {
+      setError('Нет связи с сервером. Проверьте статус перед повтором.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Button view="secondary" size={40} onClick={() => setOpen(true)}>
+        Отменить заявку
+      </Button>
+      <Modal open={open} onClose={() => !busy && setOpen(false)} size={500}>
+        <Modal.Header hasCloser title={`Отменить заявку № ${card.number}?`} />
+        <Modal.Content>
+          <p>Вернуть её будет нельзя. Чтобы получить финансирование, придётся подать новую заявку.</p>
+          {card.offer && <p>Условия, которые предложил банк, перестанут действовать.</p>}
+          {error && <p role="alert">{error}</p>}
+        </Modal.Content>
+        <Modal.Footer>
+          <Modal.Controls
+            primary={
+              <Button view="primary" loading={busy} onClick={cancel}>
+                Да, отменить
+              </Button>
+            }
+            secondary={
+              <Button view="secondary" disabled={busy} onClick={() => setOpen(false)}>
+                Оставить заявку
+              </Button>
+            }
+          />
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 }
