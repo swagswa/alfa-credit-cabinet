@@ -52,7 +52,7 @@ test.describe('логистика', () => {
       documents: ['Паспорт', 'Финансовая отчётность', 'Договор поставки'],
     });
     await expect(page.getByRole('heading', { name: 'Предлагаем другие условия' })).toBeVisible();
-    await expect(page.getByText('20.5% годовых')).toBeVisible();
+    await expect(page.getByText('20,5% годовых')).toBeVisible();
     await acceptAndSign(page);
   });
 });
