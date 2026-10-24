@@ -38,6 +38,8 @@ func TestAllowed(t *testing.T) {
 		{"admin", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/history", "GET", true},
 		{"client", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41/history", "GET", true},
 		{"manager", "/api/applications", "POST", false},
+		{"admin", "/api/admin/faults", "PUT", true},
+		{"manager", "/api/admin/faults", "GET", false},
 		{"manager", "/api/applications/0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41", "PATCH", false},
 		{rbac.Anonymous, "/api/events", "GET", false},
 		{"client", "/api/events", "GET", true},

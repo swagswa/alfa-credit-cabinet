@@ -34,6 +34,8 @@ tags:
     description: Лента клиента
   - name: system
     description: Служебное
+  - name: admin
+    description: Пульт сбоев стенда
 
 paths:
   /login:
@@ -835,6 +837,56 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '404':
+          $ref: '#/components/responses/Problem'
+
+  /admin/faults:
+    get:
+      tags: [admin]
+      operationId: listFaults
+      summary: Сбои источников на стенде
+      description: |
+        Только admin. Источники на стенде это моки, у каждого можно включить сбой, чтобы показать
+        повторы проверок и уход заявки специалисту. Сбои на отдельную компанию (их ставят через сам мок)
+        здесь не видны, сбой из фикстуры у компании unavailable тоже.
+      responses:
+        '200':
+          description: Режим каждого источника, без сбоя ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceFault'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+    put:
+      tags: [admin]
+      operationId: setFault
+      summary: Включить или снять сбой источника
+      description: |
+        `ok` снимает сбой. `flaky` роняет три запроса подряд, дальше источник отвечает: проверка пройдёт
+        с четвёртой попытки из пяти. `http_503` и `timeout` держатся, пока их не снимут: после пяти попыток
+        заявка уходит в `manual_review`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceFault'
+      responses:
+        '204':
+          description: Режим включён
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '503':
           $ref: '#/components/responses/Problem'
 
   /stats:
@@ -2261,6 +2313,24 @@ components:
           type: string
           description: Причина неудачной попытки, только сотрудникам банка
           example: 'egrul: 503'
+
+    SourceFault:
+      type: object
+      required: [source, mode]
+      properties:
+        source:
+          $ref: '#/components/schemas/CheckSource'
+        mode:
+          type: string
+          description: |
+            ok работает, http_503 лежит, timeout не отвечает, flaky моргает, not_found не знает компанию
+          enum: [ok, http_503, timeout, flaky, not_found]
+          example: http_503
+        left:
+          type: integer
+          readOnly: true
+          description: Только у flaky, сколько запросов ещё упадёт
+          example: 2
 
     Health:
       type: object

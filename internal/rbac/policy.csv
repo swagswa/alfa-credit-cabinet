@@ -48,6 +48,10 @@ p, underwriter, /api/applications/:id/history, GET
 p, manager, /api/stats, GET
 p, underwriter, /api/stats, GET
 
+# пульт сбоев стенда: моки источников переключает только admin
+p, admin, /api/admin/faults, GET
+p, admin, /api/admin/faults, PUT
+
 # действия банка по идущей заявке; в каком статусе можно, решает процесс
 p, manager, /api/applications/:id/request-info, POST
 p, manager, /api/applications/:id/retry-checks, POST
