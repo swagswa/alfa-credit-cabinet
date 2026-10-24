@@ -176,6 +176,13 @@
         "y": 1,
         "w": 6,
         "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0
+        },
+        "overrides": []
       }
     },
     {
@@ -212,6 +219,60 @@
         "y": 5,
         "w": 10,
         "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "submitted": {
+                  "text": "Подана"
+                },
+                "checking": {
+                  "text": "Проверки"
+                },
+                "need_info": {
+                  "text": "Ждём клиента: дозапрос"
+                },
+                "scoring": {
+                  "text": "Скоринг"
+                },
+                "approved": {
+                  "text": "Одобрена, ждём клиента"
+                },
+                "counter_offer": {
+                  "text": "Встречное, ждём клиента"
+                },
+                "manual_review": {
+                  "text": "Ручное рассмотрение"
+                },
+                "rejected": {
+                  "text": "Отказ"
+                },
+                "accepted": {
+                  "text": "Условия приняты"
+                },
+                "signing": {
+                  "text": "Подписание"
+                },
+                "issued": {
+                  "text": "Выдана"
+                },
+                "closed": {
+                  "text": "Закрыта"
+                },
+                "cancelled_by_client": {
+                  "text": "Отменена клиентом"
+                },
+                "expired": {
+                  "text": "Срок истёк"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
       }
     },
     {
@@ -239,7 +300,68 @@
         "defaults": {
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "approved"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Одобрено"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "counter_offer"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Встречное"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rejected"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Отказ"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "manual_review"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Ручное рассмотрение"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "need_info"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Дозапрос"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
