@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "gen:api": "openapi-typescript ../api/openapi.yaml -o src/api/schema.gen.ts",
-    "dev:mock": "vite --mode mock"
+    "dev:mock": "vite --mode mock",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@alfalab/core-components": "50.37.0",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@playwright/test": "1.64.1",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
