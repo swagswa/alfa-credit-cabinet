@@ -52,6 +52,12 @@ services:
 AI_ENABLED=true docker compose --profile ai up -d --build --wait
 ```
 
+Метрики, логи и трейсы (Prometheus, Grafana, Loki, Jaeger) тоже в отдельном профиле, подробности в разделе «Наблюдаемость»:
+
+```sh
+make up-obs
+```
+
 Значения по умолчанию лежат в `compose.yaml`, переопределяются через `.env` (образец в `.env.example`). Стенд с нуля, с пустой базой: `docker compose down -v`, потом снова `up`.
 
 | Переменная | По умолчанию | Зачем |
@@ -69,6 +75,7 @@ AI_ENABLED=true docker compose --profile ai up -d --build --wait
 | `LOGIN_ATTEMPTS`, `LOGIN_WINDOW` | `10`, `1m` | лимит попыток входа с одного адреса |
 | `CLOSE_AFTER` | `1m` | через сколько после выдачи заявка закрывается; на проде 24h |
 | `SIGNING_CODE_TTL` | `5m` | сколько живёт код подписи, на проде так же; на демо совпадает с `SIGNING_TTL`, так что заявка истекает раньше кода |
+| `OTEL_ENDPOINT` | пусто | адрес коллектора трейсов, `make up-obs` ставит `http://jaeger:4317` |
 | `LOGIN_ATTEMPTS`, `LOGIN_WINDOW` | `10`, `1m` | лимит входов с одного адреса; для повторных прогонов `make e2e` поднять `LOGIN_ATTEMPTS` |
 | `DB_PORT`, `WEB_PORT` | `5432`, `8000` | порты Postgres и фронта на хосте |
 
@@ -185,6 +192,22 @@ curl -N -b jar localhost:8080/api/events
 Код разложен по слоям: `internal/domain` (сущности и правила без I/O), `internal/repo` (SQL через sqlc), `internal/usecase` (логика и транзакции), `internal/api` и `internal/worker` (вход снаружи). Переиспользуемая инфраструктура в `pkg/`. Контракт API в `api/openapi.yaml`, статусы заявки в `docs/state-diagram.md`, модель данных в `docs/data-model.md`. Логи у всех процессов JSON через `pkg/logger`, ФИО и логины там маскируются на уровне core (поля `fio`, `full_name`, `login` целиком, ФИО в строках и текстах ошибок по шаблону), ИНН компании и id остаются.
 
 Подробнее: компоненты и путь заявки в [docs/architecture.md](docs/architecture.md), обоснование решений в [docs/decisions.md](docs/decisions.md), боли клиентов и банка, источники и границы MVP в [docs/research.md](docs/research.md).
+
+## Наблюдаемость
+
+`make up-obs` поднимает стенд вместе с профилем `obs`. Основной сценарий от него не зависит, без профиля процессы просто не шлют трейсы.
+
+| Что | Адрес |
+|---|---|
+| Grafana, дашборд «Кредитный конвейер» | http://localhost:3000, смотреть можно без входа, править под `admin`/`admin` |
+| Prometheus | http://localhost:9090 |
+| Jaeger | http://localhost:16686 |
+
+Метрики: каждый Go-процесс отдаёт `/metrics` на порту 9100 внутри сети compose (наружу не открыт), там HTTP-запросы по маршрутам и кодам, activity и workflow Temporal, запросы в базу по именам запросов sqlc, пул соединений и рантайм Go. Сервер Temporal отдаёт свои на 9090. Трейсы через OpenTelemetry: один трейс идёт от запроса в api через Temporal (запуск процесса, update, activity) до моков и SQL, так что подачу заявки видно целиком, со всеми ретраями источника. Логи всех контейнеров собирает Grafana Alloy через сокет docker и складывает в Loki, уровень из JSON zap становится меткой. В строках ошибок api (5xx) есть `trace_id`, из лога в Grafana по нему открывается трейс в Jaeger. Все трейсы одной заявки в Jaeger ищутся по тегу `temporalWorkflowID=<id заявки>`: подача, действия людей и каждая activity.
+
+На дашборде бизнес-панели (заявки по статусам, решения, просроченные шаги, выдачи) читают Postgres напрямую, технические идут из Prometheus, внизу ошибки из Loki. Чтобы было на что смотреть, хватит `make e2e`. Jaeger хранит трейсы в памяти, после рестарта они пропадают; на проде вместо него коллектор OpenTelemetry и постоянное хранилище.
+
+Alloy читает `/var/run/docker.sock`. На Docker Desktop под Windows и macOS сокет тоже есть, но если логи не появляются, проверь, что в настройках Docker включён доступ к сокету по умолчанию.
 
 ## Разработка
 

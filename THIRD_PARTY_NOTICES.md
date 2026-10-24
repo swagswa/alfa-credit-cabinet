@@ -28,6 +28,13 @@
 | github.com/ledongthuc/pdf | v0.0.0-20261020125853-5e46805f718e | BSD-3-Clause |
 | github.com/pdfcpu/pdfcpu | 0.16.3 | Apache-2.0 |
 | github.com/ollama/ollama (пакет api, клиент) | 0.40.7 | MIT |
+| go.opentelemetry.io/otel, otel/sdk, otel/sdk/metric, exporters/otlp/otlptrace/otlptracegrpc | 1.47.0 | Apache-2.0 |
+| go.opentelemetry.io/otel/exporters/prometheus | 0.69.0 | Apache-2.0 |
+| go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp | 0.72.0 | Apache-2.0 |
+| github.com/labstack/echo-otel/v4 | 4.0.0 | MIT |
+| github.com/exaring/otelpgx | 0.13.0 | Apache-2.0 |
+| go.temporal.io/sdk/contrib/opentelemetry | 0.8.1 | MIT |
+| github.com/prometheus/client_golang | 1.25.0 | Apache-2.0 |
 
 Только для разработки и тестов, в образы не попадают: oapi-codegen 2.8.0 (Apache-2.0), sqlc 1.31.1 (MIT), workflowcheck 0.6.0 (MIT), testify 1.12.1 (MIT), testcontainers-go и модули postgres и redis 0.44.0 (MIT).
 
@@ -63,6 +70,11 @@
 | Debian | trixie-slim | свободные лицензии пакетов Debian |
 | Tesseract OCR, языковые данные rus и eng | из Debian trixie | Apache-2.0 |
 | Ollama (профиль ai) | 0.40.7 | MIT |
+| Prometheus (профиль obs) | 3.7.2 | Apache-2.0 |
+| Grafana (профиль obs) | 12.2.1 | AGPL-3.0 (официальный образ без изменений, отдельный процесс) |
+| Grafana Loki (профиль obs) | 3.5.7 | AGPL-3.0 (официальный образ без изменений, отдельный процесс) |
+| Grafana Alloy (профиль obs) | 1.11.3 | Apache-2.0 |
+| Jaeger (профиль obs) | 2.11.0 | Apache-2.0 |
 
 ## Модель (профиль ai)
 

@@ -169,4 +169,6 @@ sequenceDiagram
 
 Здоровье: `GET /api/health` проверяет Postgres, Temporal и Redis, при сбое любого отвечает 503 `degraded`. В compose у каждого сервиса healthcheck, Go-сервисы проверяют себя тем же бинарём с флагом `-healthcheck` (в distroless нет curl), запуск идёт по `depends_on: service_healthy`. Процессы гасятся по SIGTERM с graceful shutdown.
 
+Наблюдаемость (профиль `obs`): каждый процесс отдаёт метрики Prometheus на внутреннем порту 9100 и шлёт трейсы OpenTelemetry в Jaeger. Контекст трейса проходит через Temporal, поэтому подача заявки видна одним трейсом от HTTP-запроса до activity, вызовов моков и SQL. Логи контейнеров собирает Alloy в Loki, в Grafana готовый дашборд: бизнес-показатели из Postgres, запросы, ошибки и ретраи из Prometheus, ошибки из Loki со ссылкой на трейс. Без профиля процессы метрики отдают, но трейсы не шлют.
+
 Секреты только из окружения: `JWT_SECRET` и `DATABASE_URL` обязательные, без них процесс не стартует; значения в `compose.yaml` годятся только для локального стенда. Логи JSON в stdout, без персональных данных.
