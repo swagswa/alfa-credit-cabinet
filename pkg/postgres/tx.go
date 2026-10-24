@@ -40,6 +40,16 @@ func (c *Client) WithTx(ctx context.Context, fn TxFunc) error {
 	return fmt.Errorf("tx failed after %d attempts: %w", txAttempts, err)
 }
 
+// Snapshot читает в одном снимке базы: несколько запросов видят одно и то же состояние,
+// даже если между ними кто-то закоммитил
+func (c *Client) Snapshot(ctx context.Context, fn TxFunc) error {
+	opts := pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
+	if err := pgx.BeginTxFunc(ctx, c.Pool, opts, func(tx pgx.Tx) error { return fn(ctx, tx) }); err != nil {
+		return fmt.Errorf("snapshot: %w", err)
+	}
+	return nil
+}
+
 func retryable(err error) bool {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
