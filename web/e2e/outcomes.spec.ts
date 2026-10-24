@@ -29,7 +29,8 @@ async function confirmDocuments(page: Page) {
     await page.getByLabel(`(строка ${line})`).fill(String(value));
   }
   await page.getByRole('button', { name: 'Подтвердить отчётность' }).click();
-  await expect(page.getByText('Подтверждён', { exact: true })).toHaveCount(2);
+  // статус есть и в карточке запрошенного документа, считаем только список файлов
+  await expect(page.getByRole('listitem').filter({ hasText: 'Подтверждён' })).toHaveCount(2);
 }
 
 test.describe('it', () => {
