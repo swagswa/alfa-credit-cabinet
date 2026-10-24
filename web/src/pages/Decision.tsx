@@ -23,6 +23,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
     return () => clearInterval(timer);
   }, [card.status, card.offer, issued]);
   const codeExpired = !!issued && Date.parse(issued.expires_at) <= now;
+  const contract = card.documents.find((doc) => doc.kind === 'loan_agreement');
   const offerExpired =
     !!card.offer && Date.parse(card.offer.expires_at) <= now && card.allowed_next.includes('accepted');
   async function action(kind: 'accept' | 'signing-code') {
@@ -206,9 +207,17 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
       {card.status === 'signing' && card.allowed_next.includes('issued') && (
         <>
           <h2>Подписание</h2>
+          {card.due_at && <p>Подписать нужно до {new Date(card.due_at).toLocaleTimeString('ru-RU')}.</p>}
+          {contract && (
+            <p>
+              <a href={`/api/documents/${encodeURIComponent(contract.id)}/file`} target="_blank" rel="noreferrer">
+                Прочитать договор и график платежей
+              </a>
+            </p>
+          )}
           <p>Учебное подписание: код показывается здесь, отправки SMS нет.</p>
           <Button loading={busy} onClick={() => action('signing-code')}>
-            Получить новый код
+            {issued ? 'Получить новый код' : 'Получить код'}
           </Button>
           {codeExpired && <p role="alert">Срок кода истёк. Получите новый код.</p>}
           {issued && !codeExpired && (
@@ -221,13 +230,14 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
                 block
                 label="Код подписания"
                 value={code}
-                required
-                pattern="[0-9]{6}"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={6}
-                onChange={(event) => setCode(event.target.value)}
+                hint="6 цифр из кода выше"
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
                 disabled={busy}
               />
-              <Button type="submit" view="primary" loading={busy}>
+              <Button type="submit" view="primary" loading={busy} disabled={code.length !== 6}>
                 Подписать
               </Button>
             </form>
