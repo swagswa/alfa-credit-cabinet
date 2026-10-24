@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, useHistory } from '../api/client';
+import { api, settle, useHistory } from '../api/client';
 import { fieldNames, goals, kinds, labels, money, products, representatives } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 import { Progress, steps } from './Progress';
@@ -20,22 +20,18 @@ function Field({ title, children }: { title: string; children: ReactNode }) {
 function SavedDocumentValues({ id }: { id: string }) {
   const [document, setDocument] = useState<components['schemas']['Document']>();
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let active = true;
-    api
-      .GET('/documents/{id}', { params: { path: { id } } })
-      .then(({ data }) => {
-        if (!active) return;
-        if (data) setDocument(data);
-        else setFailed(true);
-      })
-      .catch(() => {
-        if (active) setFailed(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [id]);
+  useEffect(
+    () =>
+      settle(
+        api.GET('/documents/{id}', { params: { path: { id } } }),
+        ({ data }) => {
+          if (data) setDocument(data);
+          else setFailed(true);
+        },
+        () => setFailed(true),
+      ),
+    [id],
+  );
   const values = document?.confirmed?.statement ?? document?.confirmed?.financials;
   return (
     <MotionDetails className="saved-document-values">

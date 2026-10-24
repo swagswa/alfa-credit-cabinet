@@ -23,7 +23,7 @@ import { Documents } from './Documents';
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Input } from '@alfalab/core-components/input';
-import { api } from '../api/client';
+import { api, settle } from '../api/client';
 import type { components, operations } from '../api/schema.gen';
 
 type App = components['schemas']['ApplicationView'];
@@ -90,22 +90,16 @@ export function Applications({
   const selectedProduct = products.find((item) => item.code === chosenProduct);
   useEffect(() => {
     if (bank) return;
-    let active = true;
-    api
-      .GET('/products')
-      .then(({ data }) => {
-        if (!active) return;
+    return settle(
+      api.GET('/products'),
+      ({ data }) => {
         if (data?.length) {
           cache.set('products', data);
           setProducts(data);
         } else setCatalogError('Не удалось загрузить продукты. Обновите страницу.');
-      })
-      .catch(() => {
-        if (active) setCatalogError('Нет связи с каталогом продуктов. Обновите страницу.');
-      });
-    return () => {
-      active = false;
-    };
+      },
+      () => setCatalogError('Нет связи с каталогом продуктов. Обновите страницу.'),
+    );
   }, [bank, cache]);
   const lookupVersion = useRef(0);
   const recommendationVersion = useRef(0);

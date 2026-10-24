@@ -1,7 +1,7 @@
 import { Icon, PageHeading, SectionHeading, StatusBadge } from '../ui/Workspace';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { api } from '../api/client';
+import { api, settle } from '../api/client';
 import {
   applicationGroups,
   defaultApplicationKey,
@@ -61,16 +61,9 @@ export function Dashboard() {
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     if (cache.get('products')) return;
-    let active = true;
-    api
-      .GET('/products')
-      .then(({ data }) => {
-        if (active && data?.length) cache.set('products', data);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
+    return settle(api.GET('/products'), ({ data }) => {
+      if (data?.length) cache.set('products', data);
+    });
   }, [cache]);
   useEffect(() => {
     let active = true;

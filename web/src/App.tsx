@@ -7,7 +7,7 @@ import { Button, MotionNavLink as NavLink, RouteSurface } from './motion';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Applications } from './pages/Applications';
-import { api } from './api/client';
+import { api, settle } from './api/client';
 import type { components } from './api/schema.gen';
 
 export type Session = components['schemas']['Me'];
@@ -23,22 +23,20 @@ export function App() {
       setError('');
     };
     window.addEventListener('session-expired', expire);
-    let active = true;
-    api
-      .GET('/me')
-      .then(({ data, response }) => {
-        if (!active) return;
+    const cancel = settle(
+      api.GET('/me'),
+      ({ data, response }) => {
         if (data) setSession(data);
         else if (response.status !== 401) setError('Не удалось проверить вход. Обновите страницу.');
-      })
-      .catch(() => {
-        if (active) setError('Нет связи с сервером. Обновите страницу.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+        setLoading(false);
+      },
+      () => {
+        setError('Нет связи с сервером. Обновите страницу.');
+        setLoading(false);
+      },
+    );
     return () => {
-      active = false;
+      cancel();
       window.removeEventListener('session-expired', expire);
     };
   }, []);
