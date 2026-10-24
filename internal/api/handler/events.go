@@ -11,6 +11,7 @@ import (
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/middleware"
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
+	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
 
 // keepAlive короче proxy_read_timeout у nginx и таймаутов прокси по дороге
@@ -57,17 +58,38 @@ func (h *Handler) Events(c echo.Context) error {
 			if !ok {
 				return nil
 			}
-			se, name := oapi.StreamEvent{
-				ApplicationId: ev.ApplicationID,
-				Status:        new(oapi.ApplicationStatus(ev.Status)),
-				Version:       ev.Version,
-			}, "status"
-			if ev.DocumentID != uuid.Nil {
-				se.DocumentId, se.DocumentStatus = &ev.DocumentID, new(oapi.DocumentStatus(ev.DocumentStatus))
-				name = "document"
-			}
+			se, name := streamEvent(ev, s.Role)
 			data, _ := json.Marshal(se)
 			_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", name, data)
 		}
 	}
+}
+
+// streamEvent: имя события SSE по тому, что в нём поменялось
+func streamEvent(ev domain.Event, role domain.Role) (se oapi.StreamEvent, name string) {
+	se = oapi.StreamEvent{
+		ApplicationId: ev.ApplicationID,
+		Status:        new(oapi.ApplicationStatus(ev.Status)),
+		Version:       ev.Version,
+	}
+	switch {
+	case ev.DocumentID != uuid.Nil:
+		se.DocumentId, se.DocumentStatus = &ev.DocumentID, new(oapi.DocumentStatus(ev.DocumentStatus))
+		return se, "document"
+	case ev.Source != "":
+		se.Source = new(oapi.CheckSource(ev.Source))
+		// у записи «так и не ответил» попытки нет, это отдельная activity после всех повторов
+		if ev.Attempt > 0 {
+			se.Attempt, se.Attempts = &ev.Attempt, &ev.Attempts
+		}
+		if ev.CheckStatus != "" {
+			se.CheckStatus = new(oapi.CheckStatus(ev.CheckStatus))
+		}
+		// причину сбоя видит только банк, как и проверки в карточке
+		if ev.CheckError != "" && role != domain.RoleClient {
+			se.Error = &ev.CheckError
+		}
+		return se, "check"
+	}
+	return se, "status"
 }
