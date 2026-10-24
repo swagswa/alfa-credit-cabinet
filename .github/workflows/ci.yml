@@ -46,3 +46,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose --profile ai build
+
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: стенд
+        run: docker compose up -d --build --wait
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm run e2e
+        working-directory: web
+      - name: логи стенда
+        if: failure()
+        run: mkdir -p web/playwright-report && docker compose logs --no-color > web/playwright-report/compose.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+      - name: гасим стенд
+        if: always()
+        run: docker compose down -v
