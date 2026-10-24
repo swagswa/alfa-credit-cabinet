@@ -13,7 +13,7 @@
 | Модель данных | [docs/data-model.md](docs/data-model.md) |
 | Исследование и границы MVP | [docs/research.md](docs/research.md) |
 | Точность распознавания | [docs/ai-eval.md](docs/ai-eval.md) |
-| Контракт API | [api/openapi.yaml](api/openapi.yaml), Swagger UI на http://localhost:8082 |
+| Контракт API | [api/openapi.yaml](api/openapi.yaml), Swagger UI на http://localhost:8000/swagger/ |
 | Коллекция запросов (Bruno) | [collections/credit-cabinet](collections/credit-cabinet) |
 | Сторонние компоненты и смоделированные интеграции | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) |
 
@@ -29,13 +29,13 @@ docker compose up -d --build --wait
 |---|---|
 | Фронт | http://localhost:8000 |
 | API | http://localhost:8080/api, проверка: `/api/health` |
-| Swagger UI | http://localhost:8082 |
+| Swagger UI | http://localhost:8000/swagger/, «Try it out» ходит в тот же api; закрытые операции после `POST /login` из самого Swagger |
 | Temporal UI | http://localhost:8233 |
 | Моки внешних систем | http://localhost:8081, проверка: `/health` |
 | Postgres | localhost:5432, база `credit`, пользователь и пароль `credit` |
 | Temporal (gRPC) | localhost:7233 |
 
-Порты 8080, 8081, 8082, 8233 и 7233 в `compose.yaml` зашиты, через `.env` меняются только `DB_PORT` и `WEB_PORT`. Если какой-то из них занят, переложи его в своём `compose.override.yaml` (compose подхватит его сам, в git он не нужен), например моки на 8091:
+Порты 8080, 8081, 8233 и 7233 в `compose.yaml` зашиты, через `.env` меняются только `DB_PORT` и `WEB_PORT`. Если какой-то из них занят, переложи его в своём `compose.override.yaml` (compose подхватит его сам, в git он не нужен), например моки на 8091:
 
 ```yaml
 services:

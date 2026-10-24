@@ -17,7 +17,7 @@ flowchart LR
         redis[("Redis: сессии, лимит входа")]
         temporal["Temporal server, порт 7233"]
         tui["Temporal UI, порт 8233"]
-        swagger["Swagger UI, порт 8082"]
+        swagger["Swagger UI, через web на /swagger/"]
 
         subgraph ai["профиль ai"]
             docsw["docs-worker: очередь docs, Tesseract"]
@@ -27,7 +27,7 @@ flowchart LR
 
     browser --> web
     browser --> tui
-    browser --> swagger
+    web -->|"/swagger"| swagger
     web -->|"/api"| api
     web -->|"/api/samples"| mocks
     api --> db
