@@ -165,6 +165,8 @@ type Decision struct {
 	Terms          *Terms
 	Recommendation *Terms
 	Reasons        []Reason
+	// Documents каких не хватает, их запросим у клиента. В decisions не пишется
+	Documents      []DocKind
 	ScoringVersion string
 	PolicyVersion  string
 	Override       bool

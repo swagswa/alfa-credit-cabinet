@@ -35,11 +35,11 @@ func (e *appEnv) offer(status domain.Status) uuid.UUID {
 	}
 	require.NoError(e.t, e.uc.Transition(ctx, id, domain.Move{To: domain.StatusApproved, Actor: system, Decision: d}))
 	path := []domain.Move{{To: domain.StatusAccepted, Actor: e.client}, {To: domain.StatusSigning, Actor: system}}
-	for _, m := range path {
+	for i := range path {
 		if s, _, _ := e.state(id); s == status {
 			break
 		}
-		require.NoError(e.t, e.uc.Transition(ctx, id, m))
+		require.NoError(e.t, e.uc.Transition(ctx, id, path[i]))
 	}
 	return id
 }

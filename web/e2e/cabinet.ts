@@ -66,7 +66,9 @@ export async function apply(page: Page, draft: Draft) {
 
 export async function upload(page: Page, kinds: string[]) {
   for (const kind of kinds) {
-    await choose(page, 'Вид документа', kind);
+    // банк запросил один документ: селекта нет, вид уже выбран
+    if (!(await page.locator('#document-upload h3').filter({ hasText: kind }).count()))
+      await choose(page, 'Вид документа', kind);
     await page.locator('#document-upload input[type=file]').setInputFiles(scan);
     await page.getByRole('button', { name: 'Загрузить' }).click();
     await expect(page.getByRole('listitem').filter({ hasText: `scan.png: ${kind}` })).toBeVisible();

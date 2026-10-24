@@ -154,10 +154,11 @@ func (p *process) check(ctx workflow.Context) (bool, error) {
 		r := p.infoRequest
 		p.infoRequest = nil
 		m := domain.Move{
-			To:      domain.StatusNeedInfo,
-			Actor:   r.Actor,
-			Codes:   slices.Concat(r.Codes, codes),
-			Comment: r.Comment,
+			To:        domain.StatusNeedInfo,
+			Actor:     r.Actor,
+			Codes:     slices.Concat(r.Codes, codes),
+			Comment:   r.Comment,
+			Documents: r.Documents,
 		}
 		return true, p.move(ctx, m)
 	case slices.Contains(codes, domain.CodeNotFound):
@@ -278,7 +279,9 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 		p.infoRequest = &a
 		return nil
 	}
-	m := domain.Move{To: u.target(a), Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment}
+	m := domain.Move{
+		To: u.target(a), Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment, Documents: a.Documents,
+	}
 	switch u.name {
 	case usecase.UpdateDecide:
 		m.Decision = p.verdict(a)

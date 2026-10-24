@@ -9,6 +9,8 @@ type Action struct {
 	Version int
 	Codes   []string
 	Comment string
+	// Documents только у запроса сотрудника
+	Documents []DocKind
 	// Outcome и Terms только у решения андеррайтера
 	Outcome Status
 	Terms   *Terms

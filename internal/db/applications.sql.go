@@ -80,6 +80,30 @@ func (q *Queries) AddEscalation(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const addInfoRequest = `-- name: AddInfoRequest :exec
+INSERT INTO info_requests (application_id, documents, reasons, comment, requested_by)
+VALUES ($1, coalesce($2::text[], '{}'), $3, $4, $5)
+`
+
+type AddInfoRequestParams struct {
+	ApplicationID uuid.UUID
+	Documents     []string
+	Reasons       []byte
+	Comment       pgtype.Text
+	RequestedBy   pgtype.UUID
+}
+
+func (q *Queries) AddInfoRequest(ctx context.Context, arg AddInfoRequestParams) error {
+	_, err := q.db.Exec(ctx, addInfoRequest,
+		arg.ApplicationID,
+		arg.Documents,
+		arg.Reasons,
+		arg.Comment,
+		arg.RequestedBy,
+	)
+	return err
+}
+
 const addNote = `-- name: AddNote :exec
 WITH e AS (
     INSERT INTO application_events (application_id, kind, actor_id, actor_role, comment)
@@ -368,6 +392,17 @@ func (q *Queries) BKIConsent(ctx context.Context, applicationID uuid.UUID) (BKIC
 	return i, err
 }
 
+const closeInfoRequest = `-- name: CloseInfoRequest :exec
+UPDATE info_requests
+SET closed_at = now()
+WHERE application_id = $1 AND closed_at IS NULL
+`
+
+func (q *Queries) CloseInfoRequest(ctx context.Context, applicationID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, closeInfoRequest, applicationID)
+	return err
+}
+
 const companyByINN = `-- name: CompanyByINN :one
 SELECT c.id, EXISTS (
     SELECT 1 FROM company_members m WHERE m.company_id = c.id AND m.user_id = $1
@@ -536,6 +571,25 @@ func (q *Queries) NotifyApplication(ctx context.Context, arg NotifyApplicationPa
 		arg.Version,
 	)
 	return err
+}
+
+const openInfoRequest = `-- name: OpenInfoRequest :one
+SELECT documents, reasons, comment
+FROM info_requests
+WHERE application_id = $1 AND closed_at IS NULL
+`
+
+type OpenInfoRequestRow struct {
+	Documents []string
+	Reasons   []byte
+	Comment   pgtype.Text
+}
+
+func (q *Queries) OpenInfoRequest(ctx context.Context, applicationID uuid.UUID) (OpenInfoRequestRow, error) {
+	row := q.db.QueryRow(ctx, openInfoRequest, applicationID)
+	var i OpenInfoRequestRow
+	err := row.Scan(&i.Documents, &i.Reasons, &i.Comment)
+	return i, err
 }
 
 const setApplicationStatus = `-- name: SetApplicationStatus :one

@@ -345,8 +345,12 @@ func TestRequestInfoWhileChecking(t *testing.T) {
 	e := newEnv(t)
 	e.expect(domain.StatusChecking, domain.RoleSystem)
 	e.round(map[domain.Source]behavior{domain.SourceFNS: flaky})
-	got := e.act(time.Second, usecase.UpdateRequestInfo, domain.Action{Actor: manager, Comment: "уточните выручку"})
-	e.expect(domain.StatusNeedInfo, domain.RoleManager)
+	docs := []domain.DocKind{domain.DocStatement}
+	got := e.act(time.Second, usecase.UpdateRequestInfo,
+		domain.Action{Actor: manager, Comment: "уточните выручку", Documents: docs})
+	e.expect(domain.StatusNeedInfo, domain.RoleManager).Run(func(args mock.Arguments) {
+		require.Equal(t, docs, args.Get(2).(domain.Move).Documents, "запрошенные документы доходят до перехода")
+	})
 	e.expect(domain.StatusExpired, domain.RoleSystem)
 
 	e.run()

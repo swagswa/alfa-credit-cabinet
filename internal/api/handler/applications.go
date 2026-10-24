@@ -261,8 +261,13 @@ func (h *Handler) RequestInfo(
 	ctx context.Context,
 	req oapi.RequestInfoRequestObject,
 ) (oapi.RequestInfoResponseObject, error) {
-	// какие документы нужны, процесс пока не хранит, просьба уходит текстом
-	v, err := h.act(ctx, req.Id, usecase.UpdateRequestInfo, req.Body.Comment)
+	act := domain.Action{Comment: req.Body.Comment}
+	if req.Body.Documents != nil {
+		for _, k := range *req.Body.Documents {
+			act.Documents = append(act.Documents, domain.DocKind(k))
+		}
+	}
+	v, err := h.act(ctx, req.Id, usecase.UpdateRequestInfo, act)
 	return oapi.RequestInfo200JSONResponse(v), err
 }
 
@@ -270,7 +275,7 @@ func (h *Handler) RetryChecks(
 	ctx context.Context,
 	req oapi.RetryChecksRequestObject,
 ) (oapi.RetryChecksResponseObject, error) {
-	v, err := h.act(ctx, req.Id, usecase.UpdateRetryChecks, "")
+	v, err := h.act(ctx, req.Id, usecase.UpdateRetryChecks, domain.Action{})
 	return oapi.RetryChecks200JSONResponse(v), err
 }
 
@@ -305,16 +310,15 @@ func (h *Handler) DecideApplication(
 }
 
 // act передаёт действие процессу и отдаёт карточку уже после перехода
-func (h *Handler) act(ctx context.Context, id uuid.UUID, update, comment string) (oapi.ApplicationView, error) {
-	a, err := actor(ctx)
-	if err != nil {
+func (h *Handler) act(ctx context.Context, id uuid.UUID, update string, a domain.Action) (oapi.ApplicationView, error) {
+	var err error
+	if a.Actor, err = actor(ctx); err != nil {
 		return oapi.ApplicationView{}, err
 	}
-	err = h.apps.Act(ctx, id, update, domain.Action{Actor: a, Comment: comment})
-	if err != nil {
+	if err := h.apps.Act(ctx, id, update, a); err != nil {
 		return oapi.ApplicationView{}, err
 	}
-	return h.card(ctx, a, id)
+	return h.card(ctx, a.Actor, id)
 }
 
 func (h *Handler) card(ctx context.Context, a domain.Actor, id uuid.UUID) (oapi.ApplicationView, error) {
@@ -383,6 +387,18 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 	if d := app.Decision; d != nil {
 		decisionView(&v, d, app.DueAt, role)
 	}
+	// без срока запрос не отдаём: в контракте он обязательный, а need_info без срока не бывает
+	if r := app.InfoRequest; r != nil && app.DueAt != nil {
+		v.InfoRequest = &oapi.InfoRequest{
+			Documents: []oapi.DocumentKind{},
+			Reasons:   reasons(r.Reasons, role),
+			Comment:   opt(r.Comment),
+			DueAt:     *app.DueAt,
+		}
+		for _, k := range r.Documents {
+			v.InfoRequest.Documents = append(v.InfoRequest.Documents, oapi.DocumentKind(k))
+		}
+	}
 	if role != domain.RoleClient {
 		checks := make([]oapi.CheckResult, 0, len(app.Checks))
 		for _, c := range app.Checks {
@@ -405,11 +421,7 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 // балл с разбивкой и рекомендацию политики
 func decisionView(v *oapi.ApplicationView, d *domain.Decision, due *time.Time, role domain.Role) {
 	bank := role != domain.RoleClient
-	for _, r := range d.Reasons {
-		if r.Text != "" || bank {
-			v.Reasons = append(v.Reasons, oapi.Reason{Code: oapi.ReasonCode(r.Code), Text: r.Text})
-		}
-	}
+	v.Reasons = reasons(d.Reasons, role)
 	if t := d.Terms; t != nil {
 		o := oapi.Offer{
 			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
@@ -440,6 +452,17 @@ func decisionView(v *oapi.ApplicationView, d *domain.Decision, due *time.Time, r
 		}
 		v.Scoring = &sc
 	}
+}
+
+// reasons: причины без текста видит только банк
+func reasons(rs []domain.Reason, role domain.Role) []oapi.Reason {
+	out := []oapi.Reason{}
+	for _, r := range rs {
+		if r.Text != "" || role != domain.RoleClient {
+			out = append(out, oapi.Reason{Code: oapi.ReasonCode(r.Code), Text: r.Text})
+		}
+	}
+	return out
 }
 
 // set переносит необязательное поле запроса, если оно пришло

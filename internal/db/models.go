@@ -175,6 +175,17 @@ type Document struct {
 	CreatedAt        time.Time
 }
 
+type InfoRequest struct {
+	ID            int64
+	ApplicationID uuid.UUID
+	Documents     []string
+	Reasons       []byte
+	Comment       pgtype.Text
+	RequestedBy   pgtype.UUID
+	CreatedAt     time.Time
+	ClosedAt      pgtype.Timestamptz
+}
+
 type Payout struct {
 	ApplicationID uuid.UUID
 	AmountKop     int64

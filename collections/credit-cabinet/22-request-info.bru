@@ -24,4 +24,5 @@ body:json {
 assert {
   res.status: eq 200
   res.body.status: eq need_info
+  res.body.info_request.documents: contains statement
 }
