@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -50,11 +51,16 @@ func (f *fakeSources) Fetch(
 }
 
 type fakeChecks struct {
-	saved []domain.CheckResult
+	saved, failed []domain.CheckResult
 }
 
 func (f *fakeChecks) Add(_ context.Context, _ uuid.UUID, r domain.CheckResult) error {
 	f.saved = append(f.saved, r)
+	return nil
+}
+
+func (f *fakeChecks) Failed(_ context.Context, _ uuid.UUID, r domain.CheckResult) error {
+	f.failed = append(f.failed, r)
 	return nil
 }
 
@@ -63,9 +69,10 @@ func TestCheckFetch(t *testing.T) {
 	app := domain.Application{ID: id, Company: domain.Company{INN: "0000100012"}}
 	consent := domain.BKIConsent{ID: uuid.New(), GivenAt: time.Now()}
 	down := fmt.Errorf("fns: %w", domain.ErrUnavailable)
+	try := domain.Attempt{N: 2, Of: 5}
 	denied := fmt.Errorf("bki: %w", domain.ErrForbidden)
 	noConsent := []domain.CheckResult{{Source: domain.SourceBKI, Status: domain.CheckUnavailable,
-		Error: "бюро отказало: нет действующего согласия на запрос кредитной истории"}}
+		Error: "бюро отказало: нет действующего согласия на запрос кредитной истории", Attempt: try}}
 	fns := "fns 0000100012 " + uuid.Nil.String()
 	tests := []struct {
 		name    string
@@ -78,8 +85,19 @@ func TestCheckFetch(t *testing.T) {
 		saved   []domain.CheckResult
 		called  string
 	}{
-		{"ответил", domain.SourceFNS, consent, nil, nil, domain.CheckOK, nil,
-			[]domain.CheckResult{{Source: domain.SourceFNS, Status: domain.CheckOK, Payload: []byte(`{"a":1}`)}}, fns},
+		{
+			"ответил",
+			domain.SourceFNS,
+			consent,
+			nil,
+			nil,
+			domain.CheckOK,
+			nil,
+			[]domain.CheckResult{
+				{Source: domain.SourceFNS, Status: domain.CheckOK, Payload: []byte(`{"a":1}`), Attempt: try},
+			},
+			fns,
+		},
 		{
 			"нет в источнике",
 			domain.SourceFNS,
@@ -88,15 +106,25 @@ func TestCheckFetch(t *testing.T) {
 			fmt.Errorf("fns: %w", domain.ErrNotFound),
 			domain.CheckNotFound,
 			nil,
-			[]domain.CheckResult{{Source: domain.SourceFNS, Status: domain.CheckNotFound}},
+			[]domain.CheckResult{{Source: domain.SourceFNS, Status: domain.CheckNotFound, Attempt: try}},
 			fns,
 		},
 		// недоступность повторяет temporal, записывать рано
 		{"источник лежит", domain.SourceFNS, consent, nil, down, "", domain.ErrUnavailable, nil, fns},
 		{"нет заявки", domain.SourceFNS, consent, domain.ErrNotFound, nil, "", domain.ErrNotFound, nil, ""},
-		{"бки с согласием", domain.SourceBKI, consent, nil, nil, domain.CheckOK, nil,
-			[]domain.CheckResult{{Source: domain.SourceBKI, Status: domain.CheckOK, Payload: []byte(`{"a":1}`)}},
-			"bki 0000100012 " + consent.ID.String()},
+		{
+			"бки с согласием",
+			domain.SourceBKI,
+			consent,
+			nil,
+			nil,
+			domain.CheckOK,
+			nil,
+			[]domain.CheckResult{
+				{Source: domain.SourceBKI, Status: domain.CheckOK, Payload: []byte(`{"a":1}`), Attempt: try},
+			},
+			"bki 0000100012 " + consent.ID.String(),
+		},
 		// отказ бюро не повторяем и не роняем, это результат проверки с причиной
 		{"бюро отказало", domain.SourceBKI, consent, nil, denied, domain.CheckUnavailable, nil, noConsent,
 			"bki 0000100012 " + consent.ID.String()},
@@ -109,10 +137,20 @@ func TestCheckFetch(t *testing.T) {
 			checks := &fakeChecks{}
 			uc := usecase.NewCheck(fakeCards{app: app, err: tt.cardErr, consent: tt.consent}, checks, src)
 
-			got, err := uc.Fetch(t.Context(), id, tt.src)
+			got, err := uc.Fetch(t.Context(), id, tt.src, try)
 			require.ErrorIs(t, err, tt.err)
 			require.Equal(t, tt.want, got)
 			require.Equal(t, tt.saved, checks.saved)
+			// неудачную попытку видно на живой карте, хотя в базу она не пишется
+			if errors.Is(tt.srcErr, domain.ErrUnavailable) {
+				require.Equal(
+					t,
+					[]domain.CheckResult{{Source: tt.src, Error: tt.srcErr.Error(), Attempt: try}},
+					checks.failed,
+				)
+			} else {
+				require.Empty(t, checks.failed)
+			}
 			if tt.cardErr == nil {
 				require.Equal(t, tt.called, src.called)
 			} else {
