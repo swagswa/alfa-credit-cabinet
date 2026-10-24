@@ -125,13 +125,17 @@ func (u *issueUseCase) RequestCode(
 }
 
 func (u *issueUseCase) Sign(ctx context.Context, actor domain.Actor, id uuid.UUID, code string) error {
-	if _, err := u.repo.Card(ctx, id, owner(actor)); err != nil {
+	app, err := u.repo.Card(ctx, id, owner(actor))
+	if err != nil {
 		return err
+	}
+	if app.Status != domain.StatusSigning {
+		return fmt.Errorf("%w: подписать можно только на подписании", domain.ErrIllegalTransition)
 	}
 	// попытку списываем и при неверном коде, поэтому результат отдельно от ошибки транзакции
 	var ok bool
 	var left int
-	err := u.db.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) (err error) {
+	err = u.db.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) (err error) {
 		ok, left, err = u.attempt(ctx, tx, actor, id, code)
 		return err
 	})
