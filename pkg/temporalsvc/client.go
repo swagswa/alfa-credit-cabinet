@@ -9,6 +9,8 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
+	temporalotel "go.temporal.io/sdk/contrib/opentelemetry"
+	"go.temporal.io/sdk/interceptor"
 	"go.uber.org/zap"
 
 	"github.com/swagswa/alfa-credit-cabinet/pkg/zapadapter"
@@ -39,10 +41,18 @@ func NewClient(log *zap.Logger, cfg Config) *Client {
 func (c *Client) Name() string { return "temporal-client" }
 
 func (c *Client) Init(ctx context.Context) error {
+	// трейс идёт от запроса в api через update и workflow до activity, воркер берёт
+	// перехватчик у клиента
+	tracing, err := temporalotel.NewTracingInterceptor(temporalotel.TracerOptions{})
+	if err != nil {
+		return fmt.Errorf("temporal tracing: %w", err)
+	}
 	cl, err := client.DialContext(ctx, client.Options{
-		HostPort:  c.cfg.HostPort,
-		Namespace: c.cfg.Namespace,
-		Logger:    zapadapter.New(c.log),
+		HostPort:       c.cfg.HostPort,
+		Namespace:      c.cfg.Namespace,
+		Logger:         zapadapter.New(c.log),
+		Interceptors:   []interceptor.ClientInterceptor{tracing},
+		MetricsHandler: temporalotel.NewMetricsHandler(temporalotel.MetricsHandlerOptions{}),
 	})
 	if err != nil {
 		return fmt.Errorf("temporal dial %s: %w", c.cfg.HostPort, err)

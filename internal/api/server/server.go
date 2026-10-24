@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
+	echootel "github.com/labstack/echo-otel/v4"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	oapimw "github.com/oapi-codegen/echo-middleware"
@@ -43,7 +44,14 @@ func New(d Deps) (*echo.Echo, error) {
 	// ему только от приватных сетей, иначе лимит попыток входа обходится заголовком
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
-	e.Use(echomw.Recover(), echomw.RequestID(), requestLogger(d.Log))
+	// поток SSE живёт часами, health дёргает compose раз в 5 с: в трейсах и метриках это шум
+	skip := func(c echo.Context) bool { return c.Path() == basePath+"/events" || c.Path() == basePath+"/health" }
+	tel := echootel.NewMiddlewareWithConfig(echootel.Config{
+		Skipper: skip,
+		// статус ошибкам домена ставит наш errorHandler, без этого 404 и 409 попали бы в метрики как 500
+		OnNextError: func(c echo.Context, err error) { c.Error(err) },
+	})
+	e.Use(echomw.Recover(), echomw.RequestID(), tel, requestLogger(d.Log))
 	if d.CORSOrigin != "" {
 		e.Use(echomw.CORSWithConfig(echomw.CORSConfig{AllowOrigins: []string{d.CORSOrigin}, AllowCredentials: true}))
 	}

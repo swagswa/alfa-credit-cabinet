@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/ollama/ollama/api"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -42,7 +44,14 @@ func New(baseURL, model string, timeout time.Duration) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ollama url: %w", err)
 	}
-	return &Client{api: api.NewClient(u, &http.Client{Timeout: timeout}), model: model, timeout: timeout}, nil
+	return &Client{
+		api: api.NewClient(
+			u,
+			&http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)},
+		),
+		model:   model,
+		timeout: timeout,
+	}, nil
 }
 
 func (c *Client) Model() string { return c.model }

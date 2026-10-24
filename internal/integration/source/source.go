@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/google/uuid"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -30,7 +32,11 @@ type Client struct {
 }
 
 func New(urls URLs, timeout time.Duration) *Client {
-	return &Client{urls: urls, http: &http.Client{Timeout: timeout}, timeout: timeout}
+	return &Client{
+		urls:    urls,
+		http:    &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)},
+		timeout: timeout,
+	}
 }
 
 // Fetch отдаёт ответ источника. 404 это ErrNotFound, сеть, таймаут и 5xx это

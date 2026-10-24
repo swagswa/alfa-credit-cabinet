@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
 
@@ -21,7 +23,11 @@ type Client struct {
 }
 
 func New(baseURL string, timeout time.Duration) *Client {
-	return &Client{base: baseURL, http: &http.Client{Timeout: timeout}, timeout: timeout}
+	return &Client{
+		base:    baseURL,
+		http:    &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)},
+		timeout: timeout,
+	}
 }
 
 type response struct {

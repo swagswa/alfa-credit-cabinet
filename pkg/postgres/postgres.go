@@ -4,8 +4,11 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,10 +49,18 @@ func (c *Client) Init(ctx context.Context) error {
 	if c.cfg.ConnectTimeout > 0 {
 		pc.ConnConfig.ConnectTimeout = c.cfg.ConnectTimeout
 	}
+	// запросы спанами в трейсе; без экспортёра провайдер otel ничего не пишет. Взятие
+	// соединения из пула спаном не пишем: на каждый запрос лишняя строка в трейсе
+	pc.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithSpanNameCtxFunc(spanName),
+		otelpgx.WithMetricOperationName(spanName), otelpgx.WithDisableAcquireTracer())
 
 	pool, err := pgxpool.NewWithConfig(ctx, pc)
 	if err != nil {
 		return fmt.Errorf("pool: %w", err)
+	}
+	if err := otelpgx.RecordStats(pool); err != nil {
+		pool.Close()
+		return fmt.Errorf("pool stats: %w", err)
 	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
@@ -68,6 +79,24 @@ func (c *Client) Init(ctx context.Context) error {
 }
 
 func (c *Client) Run(context.Context) error { return nil }
+
+// sqlc кладёт в начало запроса "-- name: ApplicationCard :one", по нему спан и называем,
+// иначе в трейсе одни SELECT
+var queryName = regexp.MustCompile(`^-- name: (\w+)`)
+
+func spanName(_ context.Context, stmt string) string {
+	if m := queryName.FindStringSubmatch(stmt); m != nil {
+		return m[1]
+	}
+	stmt = strings.TrimSpace(stmt)
+	// у запросов, написанных руками, бывает комментарий перед SQL
+	for strings.HasPrefix(stmt, "--") {
+		_, stmt, _ = strings.Cut(stmt, "\n")
+		stmt = strings.TrimSpace(stmt)
+	}
+	op, _, _ := strings.Cut(stmt, " ")
+	return op
+}
 
 func (c *Client) Stop(context.Context) error {
 	if c.Pool != nil {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/oapi"
@@ -24,6 +25,8 @@ func errorHandler(log *zap.Logger) echo.HTTPErrorHandler {
 			log.Error("request failed",
 				zap.String("path", c.Request().URL.Path),
 				zap.String("request_id", c.Response().Header().Get(echo.HeaderXRequestID)),
+				// по нему из лога в Grafana переходим в трейс Jaeger
+				zap.Stringer("trace_id", trace.SpanContextFromContext(c.Request().Context()).TraceID()),
 				zap.Error(err))
 		}
 
