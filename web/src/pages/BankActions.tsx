@@ -7,6 +7,11 @@ import { kop, options, products } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 type App = components['schemas']['ApplicationView'];
 type Outcome = components['schemas']['DecisionOutcome'];
+const notices = {
+  decide: 'Решение сохранено.',
+  'request-info': 'Запрос отправлен клиенту.',
+  'retry-checks': 'Проверки запущены.',
+};
 export function BankActions({
   card,
   role,
@@ -75,13 +80,7 @@ export function BankActions({
             : await api.POST('/applications/{id}/retry-checks', { params: { path: { id: card.id } } });
       if (result.data) {
         setComment('');
-        notify(
-          action === 'decide'
-            ? 'Решение сохранено.'
-            : action === 'request-info'
-              ? 'Запрос отправлен клиенту.'
-              : 'Проверки запущены.',
-        );
+        notify(notices[action]);
         refresh();
       } else {
         setError(

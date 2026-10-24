@@ -304,17 +304,16 @@ export function Applications({
       setBusy(false);
     }
   }
+  const [title, description] = bank
+    ? ['Очередь банка', 'Заявки клиентов, проверки и решения']
+    : createOnly
+      ? ['Новая заявка', 'Заполните анкету и подберите финансирование']
+      : ['Мои заявки', 'Заявки, документы и решения банка'];
   return (
     <div className="workspace-page">
       <PageHeading
-        description={
-          bank
-            ? 'Заявки клиентов, проверки и решения'
-            : createOnly
-              ? 'Заполните анкету и подберите финансирование'
-              : 'Заявки, документы и решения банка'
-        }
-        title={bank ? 'Очередь банка' : createOnly ? 'Новая заявка' : 'Мои заявки'}
+        description={description}
+        title={title}
         back={id ? (bank ? root : '/client/applications') : undefined}
       >
         <div className="page-actions">
