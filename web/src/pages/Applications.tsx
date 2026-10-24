@@ -146,8 +146,12 @@ export function Applications({
         },
       });
       if (version !== recommendationVersion.current) return;
-      if (data) setRecommendation(data);
-      else setError(errorText(error, 'Не удалось подобрать продукт.'));
+      if (data) {
+        setRecommendation(data);
+        // без этого в анкете оставался оборотный кредит, а поле стоимости оборудования не появлялось
+        setChosenProduct((data.items.find((item) => item.primary) ?? data.items[0]).product);
+        key.current = null;
+      } else setError(errorText(error, 'Не удалось подобрать продукт.'));
     } catch {
       setError('Нет связи с сервером. Попробуйте ещё раз.');
     } finally {
@@ -660,7 +664,14 @@ export function Applications({
                 {selectedProduct && (
                   <div className="product-terms">
                     <h3>Условия продукта</h3>
-                    <p>Подходит для выбранной цели. Окончательные условия банк определит после рассмотрения заявки.</p>
+                    <p>
+                      {!recommendation
+                        ? ''
+                        : recommendation.items.some((item) => item.product === chosenProduct)
+                          ? 'Подходит для выбранной цели. '
+                          : 'Для этой цели банк рекомендует другой продукт, он указан выше. '}
+                      Окончательные условия банк определит после рассмотрения заявки.
+                    </p>
                     <p>
                       Сумма кредита: от {money(selectedProduct.amount_min_kop)} до{' '}
                       {money(selectedProduct.amount_max_kop)}. Срок: от {selectedProduct.term_min_months} до{' '}
