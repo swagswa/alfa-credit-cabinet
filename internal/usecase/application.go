@@ -221,10 +221,10 @@ func (u *applicationUseCase) Get(ctx context.Context, actor domain.Actor, id uui
 }
 
 // card отдаёт заявку тому, кому её видно: клиенту только его компаний,
-// банку всё, кроме черновиков, как и в очереди
+// банку только поданные, как и в очереди: отменённый черновик тоже не его
 func (u *applicationUseCase) card(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
 	app, err := u.apps.Card(ctx, id, owner(actor))
-	if err == nil && actor.Role != domain.RoleClient && app.Status == domain.StatusDraft {
+	if err == nil && actor.Role != domain.RoleClient && app.SubmittedAt == nil {
 		return domain.Application{}, domain.ErrNotFound
 	}
 	return app, err
