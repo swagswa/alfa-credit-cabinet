@@ -162,3 +162,17 @@ ON CONFLICT (application_id) DO NOTHING;
 SELECT id, given_at
 FROM bki_consents
 WHERE application_id = @application_id;
+
+-- name: AddInfoRequest :exec
+INSERT INTO info_requests (application_id, documents, reasons, comment, requested_by)
+VALUES (@application_id, coalesce(@documents::text[], '{}'), @reasons, sqlc.narg(comment), sqlc.narg(requested_by));
+
+-- name: CloseInfoRequest :exec
+UPDATE info_requests
+SET closed_at = now()
+WHERE application_id = @application_id AND closed_at IS NULL;
+
+-- name: OpenInfoRequest :one
+SELECT documents, reasons, comment
+FROM info_requests
+WHERE application_id = @application_id AND closed_at IS NULL;
