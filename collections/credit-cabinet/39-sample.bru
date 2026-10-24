@@ -1,0 +1,31 @@
+meta {
+  name: 39 Пример выписки
+  type: http
+  seq: 39
+}
+
+get {
+  url: {{webUrl}}/samples/{{clientInn}}?kind=statement&format=a
+  body: none
+  auth: none
+}
+
+params:query {
+  kind: statement
+  format: a
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("pdf", function () {
+    expect(res.getHeader("content-type")).to.include("application/pdf");
+  });
+}
+
+docs {
+  Отдаёт сервис mocks через nginx фронта, не api, поэтому другой адрес и без входа. Напрямую: localhost:8081/api/samples/...
+  format c это скан в PNG.
+}

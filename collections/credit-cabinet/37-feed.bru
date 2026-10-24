@@ -1,0 +1,34 @@
+meta {
+  name: 37 Лента клиента
+  type: http
+  seq: 37
+}
+
+get {
+  url: {{baseUrl}}/feed?limit=30
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 30
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.length: gt 0
+}
+
+tests {
+  test("есть события заявки", function () {
+    expect(res.body.some((i) => i.kind === "event" && i.application_id === bru.getVar("northId"))).to.equal(true);
+  });
+}
+
+docs {
+  Сначала подсказки по профилю компании, за ними смены статусов, новые сверху. Сотруднику банка 403.
+}

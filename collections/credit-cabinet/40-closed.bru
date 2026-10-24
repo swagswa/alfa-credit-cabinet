@@ -1,0 +1,28 @@
+meta {
+  name: 40 Закрытие после выдачи
+  type: http
+  seq: 40
+}
+
+get {
+  url: {{baseUrl}}/applications/{{northId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq closed
+}
+
+script:pre-request {
+  await bru.sleep(Number(bru.getEnvVar("closeWaitMs")));
+}
+
+docs {
+  Процесс закрывает заявку сам через CLOSE_AFTER после выдачи (на стенде минута), пауза в closeWaitMs.
+}

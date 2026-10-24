@@ -1,0 +1,44 @@
+meta {
+  name: 38 Отмена поданной заявки
+  type: http
+  seq: 38
+}
+
+post {
+  url: {{baseUrl}}/applications/{{appId}}/cancel
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+body:json {
+  {
+    "reason": "Паспорт пока не готов, подадим позже"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq cancelled_by_client
+  res.body.allowed_next.length: eq 0
+}
+
+script:pre-request {
+  // сессию coffee закрыл выход (26), входим заново
+  const r = await bru.sendRequest({
+    method: "POST",
+    url: bru.interpolate("{{baseUrl}}/login"),
+    headers: { "Content-Type": "application/json" },
+    data: { login: bru.getEnvVar("clientLogin"), password: bru.getEnvVar("password") },
+  });
+  bru.setVar("clientCookie", [].concat(r.headers["set-cookie"])[0].split(";")[0]);
+}
+
+docs {
+  Заявка coffee из шагов 07-14 без паспорта руководителя стоит в need_info (SF_DOCS_MISSING), отмена идёт
+  через процесс. Так же клиент отказывается от условий из approved, counter_offer и signing.
+  Ждать дольше NEED_INFO_TTL (на стенде 3 мин) нельзя: заявка уже expired, будет 409.
+}
