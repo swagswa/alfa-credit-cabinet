@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { acceptAndSign, apply, state, upload } from './cabinet';
 
-const coffee = { inn: '0000100012', goal: 'Закупка товара и сырья', product: 'Оборотный кредит', amount: '2500000', term: '24', revenue: '1200000' };
+const coffee = {
+  inn: '0000100012',
+  goal: 'Закупка товара и сырья',
+  product: 'Оборотный кредит',
+  amount: '2500000',
+  term: '24',
+  revenue: '1200000',
+};
 
 test.describe('кофейня', () => {
   test.use({ storageState: state('coffee') });
@@ -35,7 +42,13 @@ test.describe('логистика', () => {
 
   test('встречное предложение, принятие и выдача', async ({ page }) => {
     await apply(page, {
-      inn: '000020001010', goal: 'Оборудование и транспорт', product: 'Кредит на оборудование', amount: '6000000', term: '36', revenue: '2000000', equipmentCost: '6700000',
+      inn: '000020001010',
+      goal: 'Оборудование и транспорт',
+      product: 'Кредит на оборудование',
+      amount: '6000000',
+      term: '36',
+      revenue: '2000000',
+      equipmentCost: '6700000',
       documents: ['Паспорт', 'Финансовая отчётность', 'Договор поставки'],
     });
     await expect(page.getByRole('heading', { name: 'Предлагаем другие условия' })).toBeVisible();

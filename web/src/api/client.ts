@@ -19,11 +19,21 @@ export function useHistory(id: string, version: number, revision = 0) {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   useEffect(() => {
     let active = true;
-    api.GET('/applications/{id}/history', { params: { path: { id } } }).then(({ data }) => {
-      if (!active) return;
-      if (data) { setHistory(data); setState('ready'); } else setState('error');
-    }).catch(() => { if (active) setState('error'); });
-    return () => { active = false; };
+    api
+      .GET('/applications/{id}/history', { params: { path: { id } } })
+      .then(({ data }) => {
+        if (!active) return;
+        if (data) {
+          setHistory(data);
+          setState('ready');
+        } else setState('error');
+      })
+      .catch(() => {
+        if (active) setState('error');
+      });
+    return () => {
+      active = false;
+    };
   }, [id, version, revision]);
   return { history, state };
 }
