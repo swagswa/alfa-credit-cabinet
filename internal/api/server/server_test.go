@@ -200,6 +200,38 @@ func TestServer(t *testing.T) {
 	}
 }
 
+// тексты ошибок клиент видит как есть: без английского валидатора и без префикса ошибки домена
+func TestProblemText(t *testing.T) {
+	auth := newAuth(t)
+	_, client, err := auth.Login(t.Context(), "coffee", "demo12345", "10.0.0.1")
+	require.NoError(t, err)
+	pick := "/api/products/recommendation?goal=cash_gap&term_months=2&amount_kop="
+
+	tests := []struct {
+		name, path, field, text string
+	}{
+		{"сумма больше схемы", pick + "2000000000", "amount_kop", "сумма не больше 15 000 000 ₽"},
+		{"сумма не кратна", pick + "250500000", "amount_kop", "сумма должна быть кратна 10 000 ₽"},
+		{"срок больше схемы", "/api/products/recommendation?goal=cash_gap&amount_kop=100000000&term_months=61",
+			"term_months", "срок не больше 60 мес."},
+		{"контрольные цифры", "/api/companies/0000100013", "", "ИНН 0000100013 не проходит проверку контрольных цифр"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := call(t, newServer(t, auth, nil), "GET", tt.path, "", client)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+			var p oapi.Problem
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &p))
+			if tt.field == "" {
+				require.Equal(t, tt.text, p.Detail)
+				return
+			}
+			require.NotNil(t, p.Errors, rec.Body.String())
+			require.Equal(t, []oapi.FieldError{{Field: tt.field, Message: tt.text}}, *p.Errors)
+		})
+	}
+}
+
 func TestLoginLogout(t *testing.T) {
 	h := newServer(t, newAuth(t), nil)
 

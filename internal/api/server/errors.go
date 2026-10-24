@@ -2,8 +2,13 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -64,7 +69,9 @@ func problem(err error) oapi.Problem {
 	case errors.Is(err, domain.ErrTooLarge):
 		return newProblem(http.StatusRequestEntityTooLarge, oapi.ProblemCodeTooLarge, err.Error())
 	case errors.Is(err, domain.ErrInvalid):
-		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation, err.Error())
+		// «неверные данные: » клиенту ничего не говорит, оставляем саму причину
+		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation,
+			strings.TrimPrefix(err.Error(), domain.ErrInvalid.Error()+": "))
 	case errors.Is(err, domain.ErrUnauthorized):
 		return newProblem(http.StatusUnauthorized, oapi.ProblemCodeUnauthorized, "")
 	case errors.Is(err, domain.ErrTooManyRequests):
@@ -74,6 +81,11 @@ func problem(err error) oapi.Problem {
 		return newProblem(http.StatusServiceUnavailable, oapi.ProblemCodeUnavailable, "")
 	case errors.As(err, &he):
 		p := newProblem(he.Code, codeOf(he.Code), "")
+		if f, ok := schemaError(he.Internal); ok {
+			p.Detail = f.Message
+			p.Errors = &[]oapi.FieldError{f}
+			return p
+		}
 		// у валидатора в Message причина, у остальных обычно просто текст статуса
 		if msg, ok := he.Message.(string); ok && msg != http.StatusText(he.Code) {
 			p.Detail = msg
@@ -113,4 +125,86 @@ func newProblem(status int, code oapi.ProblemCode, detail string) oapi.Problem {
 		p.Code = &code
 	}
 	return p
+}
+
+// подписи полей, которые клиент вводит руками. Остальные ошибки схемы отдаём как есть:
+// это уже ошибка вызывающего кода, а не человека
+var fieldNames = map[string]string{
+	"amount_kop":          "сумма",
+	"term_months":         "срок",
+	"monthly_revenue_kop": "выручка",
+	"equipment_cost_kop":  "стоимость оборудования",
+	"rate_bp":             "ставка",
+	"comment":             "комментарий",
+	"inn":                 "ИНН",
+	"code":                "код подписи",
+}
+
+// schemaError переводит отказ валидатора по схеме в текст у поля, предел берёт из самой спеки
+func schemaError(err error) (oapi.FieldError, bool) {
+	var (
+		re *openapi3filter.RequestError
+		se *openapi3.SchemaError
+		pe *openapi3filter.ParseError
+	)
+	if !errors.As(err, &re) {
+		return oapi.FieldError{}, false
+	}
+	field, schema := "", errors.As(re.Err, &se)
+	switch {
+	case re.Parameter != nil:
+		field = re.Parameter.Name
+	case schema:
+		if path := se.JSONPointer(); len(path) > 0 {
+			field = path[len(path)-1]
+		}
+	case errors.As(re.Err, &pe):
+		// multipart: у файла схема проверяет только тип
+		if path := pe.Path(); len(path) > 0 && path[len(path)-1] == "file" {
+			return oapi.FieldError{Field: "file", Message: "принимаем PDF, PNG или JPEG"}, true
+		}
+	}
+	name, ok := fieldNames[field]
+	if !ok {
+		return oapi.FieldError{}, false
+	}
+	var msg string
+	switch {
+	case !schema:
+		return oapi.FieldError{Field: field, Message: "проверьте поле «" + name + "»"}, true
+	case se.SchemaField == "maximum" && se.Schema.Max != nil:
+		msg = "не больше " + limit(field, *se.Schema.Max)
+	case se.SchemaField == "minimum" && se.Schema.Min != nil:
+		msg = "не меньше " + limit(field, *se.Schema.Min)
+	case se.SchemaField == "multipleOf" && se.Schema.MultipleOf != nil:
+		msg = "должна быть кратна " + limit(field, *se.Schema.MultipleOf)
+	case se.SchemaField == "maxLength" && se.Schema.MaxLength != nil:
+		msg = fmt.Sprintf("не длиннее %d символов", *se.Schema.MaxLength)
+	default:
+		return oapi.FieldError{Field: field, Message: "проверьте поле «" + name + "»"}, true
+	}
+	return oapi.FieldError{Field: field, Message: name + " " + msg}, true
+}
+
+// limit пишет предел в единицах человека: копейки рублями, базисные пункты процентами
+func limit(field string, v float64) string {
+	switch {
+	case strings.HasSuffix(field, "_kop"):
+		return thousands(int64(v)/domain.KopInRub) + " ₽"
+	case strings.HasSuffix(field, "_bp"):
+		return strconv.FormatFloat(v/100, 'f', -1, 64) + "%"
+	case strings.HasSuffix(field, "_months"):
+		return strconv.FormatFloat(v, 'f', -1, 64) + " мес."
+	}
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+// thousands: 15000000 -> «15 000 000», как в кабинете
+func thousands(n int64) string {
+	const group = 3
+	s := strconv.FormatInt(n, 10)
+	for i := len(s) - group; i > 0; i -= group {
+		s = s[:i] + " " + s[i:]
+	}
+	return s
 }
