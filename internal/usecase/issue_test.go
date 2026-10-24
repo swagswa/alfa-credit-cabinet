@@ -124,7 +124,8 @@ func TestSign(t *testing.T) {
 
 	code, _, err = uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
-	_, err = e.pool.Exec(ctx, "UPDATE signing_codes SET expires_at = now() - interval '1 second'")
+	// срок ставим по часам приложения: у контейнера с базой на винде часы убегают на секунды
+	_, err = e.pool.Exec(ctx, "UPDATE signing_codes SET expires_at = $1", time.Now().Add(-time.Second))
 	require.NoError(t, err)
 	wrongCode(t, uc.Sign(ctx, e.client, id, code), "запросите новый")
 }
