@@ -440,6 +440,8 @@ paths:
           $ref: '#/components/responses/Problem'
         '401':
           $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
         '409':
@@ -463,6 +465,8 @@ paths:
                 $ref: '#/components/schemas/SigningCode'
         '401':
           $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
         '409':
@@ -475,7 +479,7 @@ paths:
       tags: [applications]
       operationId: signApplication
       summary: Подписать кодом
-      description: '`signing -> issued` после смоделированной выдачи. Неверный код: 422, после трёх неверных нужен новый код.'
+      description: '`signing -> issued` после смоделированной выдачи. Неверный код: 422 `incomplete` с ошибкой по полю `code`, после трёх неверных нужен новый код. Вне `signing`: 409.'
       requestBody:
         required: true
         content:
@@ -492,6 +496,8 @@ paths:
         '400':
           $ref: '#/components/responses/Problem'
         '401':
+          $ref: '#/components/responses/Problem'
+        '403':
           $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
@@ -1121,7 +1127,7 @@ components:
         code:
           type: string
           description: Машинный код для фронта
-          enum: [validation, unauthorized, forbidden, not_found, illegal_transition, version_conflict, idempotency_conflict, incomplete, wrong_code, too_large, too_many_requests, unavailable]
+          enum: [validation, unauthorized, forbidden, not_found, illegal_transition, version_conflict, idempotency_conflict, incomplete, too_large, too_many_requests, unavailable]
           example: illegal_transition
         errors:
           type: array
