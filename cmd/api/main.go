@@ -69,7 +69,8 @@ func main() {
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
-		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue)
+		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
+		usecase.NewStats(repo.NewStats(dbq.New(db))))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -92,6 +93,7 @@ func newServer(
 	docs usecase.DocumentUseCase,
 	feed usecase.FeedUseCase,
 	issue usecase.IssueUseCase,
+	stats usecase.StatsUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -109,6 +111,7 @@ func newServer(
 			Documents:    docs,
 			Feed:         feed,
 			Issue:        issue,
+			Stats:        stats,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,
 		}),

@@ -7,6 +7,7 @@ import { Button, MotionNavLink as NavLink, RouteSurface } from './motion';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Applications } from './pages/Applications';
+import { BankStats } from './pages/BankStats';
 import { api, settle } from './api/client';
 import type { components } from './api/schema.gen';
 
@@ -95,10 +96,16 @@ export function App() {
                     </NavLink>
                   </>
                 ) : (
-                  <NavLink to="/bank">
-                    <Icon name="applications" />
-                    Очередь заявок
-                  </NavLink>
+                  <>
+                    <NavLink to="/bank" end>
+                      <Icon name="applications" />
+                      Очередь заявок
+                    </NavLink>
+                    <NavLink to="/bank/stats">
+                      <Icon name="overview" />
+                      Сводка
+                    </NavLink>
+                  </>
                 )}
               </nav>
               <div className="sidebar-help">
@@ -153,6 +160,7 @@ export function App() {
                 <Route path="/client" element={only('/client', <Dashboard />)} />
                 <Route path="/client/new" element={only('/client', <Applications createOnly />)} />
                 <Route path="/client/applications/:id?" element={only('/client', <Applications />)} />
+                <Route path="/bank/stats" element={only('/bank', <BankStats />)} />
                 <Route
                   path="/bank/applications?/:id?"
                   element={only('/bank', <Applications bank role={session?.user.role} />)}

@@ -834,6 +834,38 @@ paths:
         '404':
           $ref: '#/components/responses/Problem'
 
+  /stats:
+    get:
+      tags: [underwriting]
+      operationId: bankStats
+      summary: Сводка для дашборда банка
+      description: |
+        Только для сотрудников. Считается по заявкам, поданным за последние `days` дней, черновики не входят.
+        Решение здесь первый переход заявки в `approved`, `counter_offer` или `rejected`: от подачи до него
+        считается время до решения, по автору перехода видно, решила система или андеррайтер.
+        Просрочено значит, что срок текущего шага (`due_at`) уже прошёл.
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 30
+      responses:
+        '200':
+          description: Сводка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStats'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+
   /events:
     get:
       tags: [system]
@@ -2007,6 +2039,62 @@ components:
           $ref: '#/components/schemas/StatementValues'
         financials:
           $ref: '#/components/schemas/FinancialsValues'
+
+    BankStats:
+      type: object
+      required: [days, submitted, by_status, decided, auto_decided, approved, decision_time, issued_kop]
+      properties:
+        days:
+          type: integer
+          example: 30
+        submitted:
+          type: integer
+          description: Подано за период
+          example: 42
+        by_status:
+          type: array
+          description: Где сейчас поданные за период заявки, только непустые статусы
+          items:
+            type: object
+            required: [status, count, overdue]
+            properties:
+              status:
+                $ref: '#/components/schemas/ApplicationStatus'
+              count:
+                type: integer
+                example: 5
+              overdue:
+                type: integer
+                description: Срок шага уже прошёл
+                example: 1
+        decided:
+          type: integer
+          description: Получили решение
+          example: 30
+        auto_decided:
+          type: integer
+          description: Из них решила система без андеррайтера
+          example: 24
+        approved:
+          type: integer
+          description: Из них одобрение или контрпредложение
+          example: 21
+        decision_time:
+          type: object
+          description: От подачи до решения, секунды. Без решений нули
+          required: [median_sec, p90_sec]
+          properties:
+            median_sec:
+              type: integer
+              example: 14
+            p90_sec:
+              type: integer
+              example: 5400
+        issued_kop:
+          type: integer
+          format: int64
+          description: Выдано по заявкам периода
+          example: 1250000000
 
     Document:
       type: object

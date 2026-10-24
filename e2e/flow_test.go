@@ -332,3 +332,31 @@ func TestLiveStatus(t *testing.T) {
 		}
 	}
 }
+
+// дашборд банка: только сотрудникам, период от 1 до 90 дней
+func TestBankStats(t *testing.T) {
+	t.Parallel()
+	c := as(t, "coffee")
+	app := create(t, c, application("0000100012", 1*mln, 12, 12*mln/10))
+	submit(t, c, app.Id)
+
+	res, err := as(t, "manager").BankStatsWithResponse(t.Context(), &oapi.BankStatsParams{Days: new(1)})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode(), string(res.Body))
+	s := res.JSON200
+	require.Equal(t, 1, s.Days)
+	require.Positive(t, s.Submitted)
+	total := 0
+	for _, b := range s.ByStatus {
+		total += b.Count
+	}
+	require.Equal(t, s.Submitted, total)
+	require.LessOrEqual(t, s.AutoDecided, s.Decided)
+
+	forbidden, err := c.BankStatsWithResponse(t.Context(), nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusForbidden, forbidden.StatusCode())
+	bad, err := as(t, "underwriter").BankStatsWithResponse(t.Context(), &oapi.BankStatsParams{Days: new(91)})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, bad.StatusCode())
+}
