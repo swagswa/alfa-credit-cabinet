@@ -29,9 +29,24 @@ func (h *Handler) ListProducts(
 			Repayment:            oapi.ProductRepayment(p.Repayment),
 			MinBusinessAgeMonths: p.MinBusinessAgeMonths,
 			Requirements:         p.Requirements,
+			Documents:            productDocs(p.Documents),
 		})
 	}
 	return res, nil
+}
+
+func productDocs(rules []domain.DocumentRule) []oapi.ProductDocument {
+	res := make([]oapi.ProductDocument, len(rules))
+	for i, r := range rules {
+		res[i] = oapi.ProductDocument{Kind: oapi.DocumentKind(r.Kind)}
+		if r.When != "" {
+			res[i].When = new(oapi.ProductDocumentWhen(r.When))
+		}
+		if r.AmountOverKop > 0 {
+			res[i].AmountOverKop = &r.AmountOverKop
+		}
+	}
+	return res
 }
 
 func (h *Handler) RecommendProducts(
