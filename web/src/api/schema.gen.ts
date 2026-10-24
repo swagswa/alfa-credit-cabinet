@@ -570,8 +570,13 @@ export interface paths {
          * @description `EventSource`, cookie уходит сама. Обычный хендлер echo, из генерации strict server исключён
          *     через `exclude-operation-ids`. События из `LISTEN/NOTIFY`, приходят после коммита.
          *
-         *     Формат: `event: status` или `event: document`, в `data` JSON `StreamEvent`. Клиент получает события
-         *     своих заявок, сотрудник банка все. После переподключения фронт перечитывает карточку или список.
+         *     Формат: `event: status`, `event: document` или `event: check`, в `data` JSON `StreamEvent`. Клиент
+         *     получает события своих заявок, сотрудник банка все поданные. После переподключения фронт перечитывает
+         *     карточку или список.
+         *
+         *     `check` это ход проверок: источник ответил (`check_status` есть) или попытка не удалась и будет
+         *     повторена (`check_status` нет, `attempt` из `attempts`). Неудачные попытки в базе не хранятся,
+         *     после перезагрузки карточка показывает только результаты.
          */
         get: operations["streamEvents"];
         put?: never;
@@ -1546,6 +1551,23 @@ export interface components {
              */
             document_id?: string;
             document_status?: components["schemas"]["DocumentStatus"];
+            source?: components["schemas"]["CheckSource"];
+            check_status?: components["schemas"]["CheckStatus"];
+            /**
+             * @description Только у события check, номер попытки запроса в источник
+             * @example 3
+             */
+            attempt?: number;
+            /**
+             * @description Сколько попыток всего, после последней источник считается недоступным
+             * @example 5
+             */
+            attempts?: number;
+            /**
+             * @description Причина неудачной попытки, только сотрудникам банка
+             * @example egrul: 503
+             */
+            error?: string;
         };
         Health: {
             /**

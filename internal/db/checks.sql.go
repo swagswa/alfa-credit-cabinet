@@ -13,24 +13,59 @@ import (
 )
 
 const addCheckResult = `-- name: AddCheckResult :exec
-INSERT INTO check_results (application_id, source, status, payload, error)
-VALUES ($1, $2, $3, $4, $5)
+WITH r AS (
+    INSERT INTO check_results (application_id, source, status, payload, error)
+    VALUES ($1, $2, $3, $6, $7)
+)
+SELECT notify_application($1, jsonb_build_object(
+    'source', $2::text, 'check_status', $3::text,
+    'attempt', $4::integer, 'attempts', $5::integer))
 `
 
 type AddCheckResultParams struct {
 	ApplicationID uuid.UUID
 	Source        string
 	Status        string
+	Attempt       int32
+	Attempts      int32
 	Payload       []byte
 	Error         pgtype.Text
 }
 
+// ответ источника сразу уходит в SSE: на живой карте видно, кто уже ответил
 func (q *Queries) AddCheckResult(ctx context.Context, arg AddCheckResultParams) error {
 	_, err := q.db.Exec(ctx, addCheckResult,
 		arg.ApplicationID,
 		arg.Source,
 		arg.Status,
+		arg.Attempt,
+		arg.Attempts,
 		arg.Payload,
+		arg.Error,
+	)
+	return err
+}
+
+const notifyCheckAttempt = `-- name: NotifyCheckAttempt :exec
+SELECT notify_application($1, jsonb_build_object(
+    'source', $2::text, 'attempt', $3::integer, 'attempts', $4::integer,
+    'error', $5::text))
+`
+
+type NotifyCheckAttemptParams struct {
+	ApplicationID uuid.UUID
+	Source        string
+	Attempt       int32
+	Attempts      int32
+	Error         string
+}
+
+func (q *Queries) NotifyCheckAttempt(ctx context.Context, arg NotifyCheckAttemptParams) error {
+	_, err := q.db.Exec(ctx, notifyCheckAttempt,
+		arg.ApplicationID,
+		arg.Source,
+		arg.Attempt,
+		arg.Attempts,
 		arg.Error,
 	)
 	return err
