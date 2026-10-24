@@ -78,7 +78,7 @@ export async function upload(page: Page, kinds: string[]) {
 // код подписи кабинет показывает сам, смс в прототипе нет
 export async function acceptAndSign(page: Page) {
   await page.getByRole('button', { name: 'Принять условия' }).click();
-  await page.getByRole('button', { name: 'Получить новый код' }).click();
+  await page.getByRole('button', { name: 'Получить код' }).click();
   const hint = await page.getByText(/^Код: \d{6}\./).textContent();
   await page.getByLabel('Код подписания').fill(hint!.match(/\d{6}/)![0]);
   await page.getByRole('button', { name: 'Подписать' }).click();
