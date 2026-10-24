@@ -117,6 +117,8 @@ services:
       REDIS_ADDR: redis:6379
       # стенд по http: с Secure браузер cookie не сохранит; за https включить
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      LOGIN_ATTEMPTS: ${LOGIN_ATTEMPTS:-10}
+      LOGIN_WINDOW: ${LOGIN_WINDOW:-1m}
       SIGNING_CODE_TTL: ${SIGNING_CODE_TTL:-5m}
       EGRUL_URL: http://mocks:8081
     ports:
