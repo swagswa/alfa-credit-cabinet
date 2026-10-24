@@ -77,7 +77,14 @@ func ApplicationWorkflow(ctx workflow.Context, id uuid.UUID) error {
 		err := workflow.SetUpdateHandlerWithOptions(ctx, u.name,
 			func(ctx workflow.Context, act domain.Action) error { return p.act(ctx, u, act) },
 			workflow.UpdateHandlerOptions{
-				Validator: func(_ workflow.Context, act domain.Action) error { return p.validate(u, act) },
+				Validator: func(_ workflow.Context, act domain.Action) error {
+					// переход уже в базе и клиент его видит, а процесс ещё ждёт ответа activity:
+					// решит обработчик, когда дождётся
+					if p.busy {
+						return nil
+					}
+					return p.validate(u, act)
+				},
 			})
 		if err != nil {
 			return fmt.Errorf("update handler %s: %w", u.name, err)
@@ -247,11 +254,10 @@ func (p *process) left(s domain.Status) func() bool {
 	return func() bool { return p.status != s && !p.busy }
 }
 
-// validate решает до записи в историю, принимать ли действие. Отказ сразу уходит в API.
+// validate решает, принимать ли действие. Из валидатора отказ уходит в API без записи
+// в историю, обработчик повторяет проверку после перехода, который шёл в момент запроса.
 func (p *process) validate(u update, a domain.Action) error {
 	switch {
-	case p.busy:
-		return rejected("заявка как раз меняется, обновите карточку")
 	case u.from != nil && !slices.Contains(u.from, p.status):
 		return rejected(fmt.Sprintf("в статусе %s так нельзя", p.status))
 	case u.to == domain.StatusNeedInfo && p.status == domain.StatusChecking:
@@ -275,6 +281,12 @@ func (p *process) validate(u update, a domain.Action) error {
 // act исполняет принятое действие. Ошибку перехода (например, устаревшую карточку)
 // отдаём в API как есть: заявка остаётся, где была, процесс ждёт дальше.
 func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
+	if err := workflow.Await(ctx, func() bool { return !p.busy }); err != nil {
+		return wrapWait(err)
+	}
+	if err := p.validate(u, a); err != nil {
+		return err
+	}
 	if u.to == domain.StatusNeedInfo && p.status == domain.StatusChecking {
 		p.infoRequest = &a
 		return nil
