@@ -12,7 +12,7 @@ import (
 // ставки в б.п., в тексте клиенту проценты
 const percent = 100
 
-// Policy идёт по алгоритму 6.3: класс E, возраст, лимиты, ручное, исход.
+// Policy по шагам: класс E, возраст, лимиты, ручное, исход. Цифры в rules/policy.yaml.
 func (u *decisionUseCase) Policy(
 	app *domain.Application,
 	f *domain.Facts,
@@ -92,7 +92,7 @@ func (u *decisionUseCase) room(grade string, f *domain.Facts) int64 {
 	return int64(u.policy.DSRMax[grade]*float64(f.MonthlyRevenueKop)) - f.BKIPaymentsKop
 }
 
-// limit это L из 6.3 и код того, что его ограничило.
+// limit: лимит по продукту и классу и код того, что его ограничило.
 func (u *decisionUseCase) limit(code domain.ProductCode, grade string, f *domain.Facts) (lim int64, why string) {
 	p, _ := u.catalog.Product(code)
 	g := u.policy.Products[code].Grades[grade]

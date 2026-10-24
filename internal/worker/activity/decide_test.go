@@ -107,7 +107,7 @@ func TestDecide(t *testing.T) {
 				MonthlyRevenueKop: 3.5 * mln,
 			},
 			append(confirmed(t, "0000300011"), file("passport")),
-			// в 6.5 лимит 2M = 7 млн, но приход по выписке генератора чуть меньше 3,5 млн в месяц
+			// в scoring_cases.yaml лимит 2M = 7 млн, но приход по выписке генератора чуть меньше 3,5 млн в месяц
 			domain.StatusManualReview,
 			[]string{"R_MANUAL_AMOUNT", "R_AMOUNT_MULT", "R_GUARANTOR", "R_RATE_PREMIUM"},
 			6.99 * mln,

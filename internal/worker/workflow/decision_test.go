@@ -16,7 +16,7 @@ import (
 
 const mln = 1_000_000 * domain.KopInRub
 
-// Расчёты демо-компаний из 06 6.5 в том виде, в каком их отдаёт activity.
+// Расчёты демо-компаний из testdata/scoring_cases.yaml в том виде, в каком их отдаёт activity.
 // Цифры и коды тут для узнаваемости, сам расчёт проверяют тесты usecase и activity.
 var (
 	coffee = domain.Decision{

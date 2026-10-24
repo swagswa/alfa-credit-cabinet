@@ -56,7 +56,7 @@ func confirmed(t *testing.T, inn string) []domain.Document {
 	}
 }
 
-// Сквозная проверка: живые ответы моков -> факты -> балл, ожидания из таблицы 6.5.
+// Сквозная проверка: живые ответы моков -> факты -> балл, ожидания из testdata/scoring_cases.yaml.
 func TestFactsDemo(t *testing.T) {
 	d := decisions(t)
 	now := time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC)
@@ -102,7 +102,7 @@ func TestFactsDemo(t *testing.T) {
 			want{20, 0, 0, 7, "62", []string{}, []int{6, 14, 0, 14, 16, 0, 4, 0, 6}, 60, "C"},
 		},
 		{
-			// в 6.5 F8 = 6 и 25 баллов, но в фикстуре у нас погашен кредит без просрочек: уровень 3, 8 баллов
+			// в scoring_cases.yaml F8 = 6 и 25 баллов, но в фикстуре у нас погашен кредит без просрочек: уровень 3, 8 баллов
 			"стройка", "0000400016",
 			domain.Draft{Product: domain.WorkingCapital, AmountKop: 5 * mln, MonthlyRevenueKop: 4 * mln},
 			append(confirmed(t, "0000400016"), passport),
