@@ -1336,7 +1336,7 @@ components:
 
     Product:
       type: object
-      required: [code, name, description, amount_min_kop, amount_max_kop, term_min_months, term_max_months, rate_min_bp, rate_max_bp, repayment, min_business_age_months, requirements]
+      required: [code, name, description, amount_min_kop, amount_max_kop, term_min_months, term_max_months, rate_min_bp, rate_max_bp, repayment, min_business_age_months, requirements, documents]
       properties:
         code:
           $ref: '#/components/schemas/ProductCode'
@@ -1381,6 +1381,31 @@ components:
           example:
             - Без залога
             - Поручительство собственника, если сумма больше 3 млн руб. (для ООО)
+        documents:
+          type: array
+          description: |
+            Какие документы банк попросит, те же правила, что у процесса. Кабинет по ним показывает
+            чек-лист до подачи. Доверенность сверх этого нужна любому продукту, если подаёт представитель
+          items:
+            $ref: '#/components/schemas/ProductDocument'
+          example:
+            - {kind: passport}
+            - {kind: statement, when: no_turnover}
+            - {kind: financials, when: amount_over, amount_over_kop: 300000000}
+
+    ProductDocument:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: '#/components/schemas/DocumentKind'
+        when:
+          type: string
+          description: Пусто значит всегда. no_turnover если оборотов по счёту в банке мало, amount_over если сумма больше amount_over_kop
+          enum: [no_turnover, amount_over]
+        amount_over_kop:
+          type: integer
+          format: int64
 
     Recommendation:
       type: object
