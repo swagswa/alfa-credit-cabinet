@@ -535,6 +535,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Сводка для дашборда банка
+         * @description Только для сотрудников. Считается по заявкам, поданным за последние `days` дней, черновики не входят.
+         *     Решение здесь первый переход заявки в `approved`, `counter_offer` или `rejected`: от подачи до него
+         *     считается время до решения, по автору перехода видно, решила система или андеррайтер.
+         *     Просрочено значит, что срок текущего шага (`due_at`) уже прошёл.
+         */
+        get: operations["bankStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -1339,6 +1362,54 @@ export interface components {
         DocumentValues: {
             statement?: components["schemas"]["StatementValues"];
             financials?: components["schemas"]["FinancialsValues"];
+        };
+        BankStats: {
+            /** @example 30 */
+            days: number;
+            /**
+             * @description Подано за период
+             * @example 42
+             */
+            submitted: number;
+            /** @description Где сейчас поданные за период заявки, только непустые статусы */
+            by_status: {
+                status: components["schemas"]["ApplicationStatus"];
+                /** @example 5 */
+                count: number;
+                /**
+                 * @description Срок шага уже прошёл
+                 * @example 1
+                 */
+                overdue: number;
+            }[];
+            /**
+             * @description Получили решение
+             * @example 30
+             */
+            decided: number;
+            /**
+             * @description Из них решила система без андеррайтера
+             * @example 24
+             */
+            auto_decided: number;
+            /**
+             * @description Из них одобрение или контрпредложение
+             * @example 21
+             */
+            approved: number;
+            /** @description От подачи до решения, секунды. Без решений нули */
+            decision_time: {
+                /** @example 14 */
+                median_sec: number;
+                /** @example 5400 */
+                p90_sec: number;
+            };
+            /**
+             * Format: int64
+             * @description Выдано по заявкам периода
+             * @example 1250000000
+             */
+            issued_kop: number;
         };
         Document: {
             /**
@@ -2239,6 +2310,31 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    bankStats: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сводка */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankStats"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
     streamEvents: {
