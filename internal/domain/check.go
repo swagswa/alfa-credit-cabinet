@@ -29,11 +29,17 @@ const (
 )
 
 // Payload ответ источника как есть, только у ok.
-// At ставит база, при записи не нужен.
+// At ставит база, при записи не нужен. Attempt не хранится, он только для живой карты.
 type CheckResult struct {
 	Source  Source
 	Status  CheckStatus
 	Payload []byte
 	Error   string
 	At      time.Time
+	Attempt Attempt
+}
+
+// Attempt какая по счёту попытка запроса в источник и сколько их всего.
+type Attempt struct {
+	N, Of int
 }

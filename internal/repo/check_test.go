@@ -1,6 +1,7 @@
 package repo_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
@@ -49,4 +50,46 @@ func TestCheckRepository(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 	require.Equal(t, []string{"fns ok micro -", "bki not_found - -", "egrul unavailable - egrul: 503"}, got)
+}
+
+func TestCheckNotify(t *testing.T) {
+	pool := testenv.Postgres(t, migrations.FS)
+	ctx := t.Context()
+	require.NoError(t, postgres.Exec(migrations.SeedDemo)(ctx, pool))
+	var id uuid.UUID
+	err := pool.QueryRow(ctx, `
+		INSERT INTO applications (company_id, created_by, idempotency_key, product, purpose, amount_kop, term_months)
+		SELECT company_id, user_id, 'k', 'working_capital', 'purchase', 100000000, 12 FROM company_members LIMIT 1
+		RETURNING id`).Scan(&id)
+	require.NoError(t, err)
+	conn, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	defer conn.Release()
+	_, err = conn.Exec(ctx, "LISTEN applications")
+	require.NoError(t, err)
+
+	r := repo.NewCheck(db.New(pool))
+	try := domain.Attempt{N: 3, Of: 5}
+	require.NoError(
+		t,
+		r.Failed(ctx, id, domain.CheckResult{Source: domain.SourceEGRUL, Error: "egrul: 503", Attempt: try}),
+	)
+	require.NoError(
+		t,
+		r.Add(ctx, id, domain.CheckResult{Source: domain.SourceEGRUL, Status: domain.CheckNotFound, Attempt: try}),
+	)
+
+	want := []domain.Event{
+		{Source: domain.SourceEGRUL, Attempt: 3, Attempts: 5, CheckError: "egrul: 503"},
+		{Source: domain.SourceEGRUL, CheckStatus: domain.CheckNotFound, Attempt: 3, Attempts: 5},
+	}
+	for _, w := range want {
+		n, err := conn.Conn().WaitForNotification(ctx)
+		require.NoError(t, err)
+		var ev domain.Event
+		require.NoError(t, json.Unmarshal([]byte(n.Payload), &ev))
+		require.Equal(t, id, ev.ApplicationID)
+		ev.ApplicationID, ev.CompanyID, ev.Status, ev.Version = uuid.Nil, uuid.Nil, "", 0
+		require.Equal(t, w, ev)
+	}
 }

@@ -875,8 +875,13 @@ paths:
         `EventSource`, cookie уходит сама. Обычный хендлер echo, из генерации strict server исключён
         через `exclude-operation-ids`. События из `LISTEN/NOTIFY`, приходят после коммита.
 
-        Формат: `event: status` или `event: document`, в `data` JSON `StreamEvent`. Клиент получает события
-        своих заявок, сотрудник банка все. После переподключения фронт перечитывает карточку или список.
+        Формат: `event: status`, `event: document` или `event: check`, в `data` JSON `StreamEvent`. Клиент
+        получает события своих заявок, сотрудник банка все поданные. После переподключения фронт перечитывает
+        карточку или список.
+
+        `check` это ход проверок: источник ответил (`check_status` есть) или попытка не удалась и будет
+        повторена (`check_status` нет, `attempt` из `attempts`). Неудачные попытки в базе не хранятся,
+        после перезагрузки карточка показывает только результаты.
       parameters:
         - name: application_id
           in: query
@@ -2237,6 +2242,22 @@ components:
           example: 0192b6f5-1a20-7c4e-8d11-3e9f0a7b6c52
         document_status:
           $ref: '#/components/schemas/DocumentStatus'
+        source:
+          $ref: '#/components/schemas/CheckSource'
+        check_status:
+          $ref: '#/components/schemas/CheckStatus'
+        attempt:
+          type: integer
+          description: Только у события check, номер попытки запроса в источник
+          example: 3
+        attempts:
+          type: integer
+          description: Сколько попыток всего, после последней источник считается недоступным
+          example: 5
+        error:
+          type: string
+          description: Причина неудачной попытки, только сотрудникам банка
+          example: 'egrul: 503'
 
     Health:
       type: object

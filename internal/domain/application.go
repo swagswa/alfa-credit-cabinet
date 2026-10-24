@@ -163,4 +163,10 @@ type Event struct {
 	// у события document, его шлёт триггер на documents
 	DocumentID     uuid.UUID `json:"document_id"`
 	DocumentStatus DocStatus `json:"document_status"`
+	// у события check: ответ источника или неудачная попытка, тогда CheckStatus пустой
+	Source      Source      `json:"source"`
+	CheckStatus CheckStatus `json:"check_status"`
+	Attempt     int         `json:"attempt"`
+	Attempts    int         `json:"attempts"`
+	CheckError  string      `json:"error"`
 }

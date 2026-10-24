@@ -22,7 +22,7 @@ type CheckUseCase interface {
 	// Fetch спрашивает источник и записывает ответ. Недоступный источник
 	// не записывается, а отдаётся ошибкой: его повторит temporal. Отказ бюро
 	// без согласия повторять бесполезно, он пишется как unavailable с причиной.
-	Fetch(ctx context.Context, id uuid.UUID, src domain.Source) (domain.CheckStatus, error)
+	Fetch(ctx context.Context, id uuid.UUID, src domain.Source, try domain.Attempt) (domain.CheckStatus, error)
 	// SaveUnavailable записывает, что источник так и не ответил.
 	SaveUnavailable(ctx context.Context, id uuid.UUID, src domain.Source, reason string) error
 }
@@ -37,7 +37,12 @@ func NewCheck(apps repo.ApplicationRepository, checks repo.CheckRepository, sour
 	return &checkUseCase{apps: apps, checks: checks, sources: sources}
 }
 
-func (u *checkUseCase) Fetch(ctx context.Context, id uuid.UUID, src domain.Source) (domain.CheckStatus, error) {
+func (u *checkUseCase) Fetch(
+	ctx context.Context,
+	id uuid.UUID,
+	src domain.Source,
+	try domain.Attempt,
+) (domain.CheckStatus, error) {
 	app, err := u.apps.Card(ctx, id, nil)
 	if err != nil {
 		return "", err
@@ -51,14 +56,16 @@ func (u *checkUseCase) Fetch(ctx context.Context, id uuid.UUID, src domain.Sourc
 		}
 	}
 	payload, err := u.sources.Fetch(ctx, src, app.Company.INN, consent)
-	r := domain.CheckResult{Source: src, Status: domain.CheckOK, Payload: payload}
+	r := domain.CheckResult{Source: src, Status: domain.CheckOK, Payload: payload, Attempt: try}
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
-		r = domain.CheckResult{Source: src, Status: domain.CheckNotFound}
+		r = domain.CheckResult{Source: src, Status: domain.CheckNotFound, Attempt: try}
 	case errors.Is(err, domain.ErrForbidden):
-		r = domain.CheckResult{Source: src, Status: domain.CheckUnavailable, Error: noConsent}
+		r = domain.CheckResult{Source: src, Status: domain.CheckUnavailable, Error: noConsent, Attempt: try}
 	case err != nil:
-		return "", err
+		// попытку повторит temporal, а обе стороны пусть видят, что источник моргает
+		failed := domain.CheckResult{Source: src, Error: err.Error(), Attempt: try}
+		return "", errors.Join(err, u.checks.Failed(ctx, id, failed))
 	}
 	if err := u.checks.Add(ctx, id, r); err != nil {
 		return "", err

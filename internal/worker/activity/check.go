@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	sdkactivity "go.temporal.io/sdk/activity"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/usecase"
@@ -25,7 +26,12 @@ func (a *CheckActivities) FetchSource(
 	id uuid.UUID,
 	src domain.Source,
 ) (domain.CheckStatus, error) {
-	status, err := a.checks.Fetch(ctx, id, src)
+	info := sdkactivity.GetInfo(ctx)
+	try := domain.Attempt{N: int(info.Attempt)}
+	if info.RetryPolicy != nil {
+		try.Of = int(info.RetryPolicy.MaximumAttempts)
+	}
+	status, err := a.checks.Fetch(ctx, id, src, try)
 	return status, classify(err)
 }
 
