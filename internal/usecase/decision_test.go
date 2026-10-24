@@ -52,7 +52,7 @@ func TestDecision(t *testing.T) {
 	}
 }
 
-// одна кофейня класса A на разных продуктах (пример из 6.3) и крайние случаи политики
+// одна кофейня класса A на разных продуктах (как в scoring_cases.yaml) и крайние случаи политики
 func TestPolicy(t *testing.T) {
 	uc := decisions(t)
 	coffee := demoCases(t)[0]

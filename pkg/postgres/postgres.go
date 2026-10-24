@@ -86,11 +86,11 @@ func (c *Client) Ping(ctx context.Context) error {
 // Exec вместе с Query и QueryRow делает Client подходящим для db.New: репозитории
 // собираются до старта, а пул появляется только в Init.
 func (c *Client) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
-	return c.Pool.Exec(ctx, sql, args...) //nolint:wrapcheck // обёртка прозрачная, ошибку подпишет вызывающий
+	return c.Pool.Exec(ctx, sql, args...)
 }
 
 func (c *Client) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
-	return c.Pool.Query(ctx, sql, args...) //nolint:wrapcheck // то же
+	return c.Pool.Query(ctx, sql, args...)
 }
 
 func (c *Client) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {

@@ -42,7 +42,7 @@ type ApplicationRepository interface {
 	List(ctx context.Context, f domain.ApplicationFilter) ([]domain.Application, int, error)
 	// Checks отдаёт последний результат по каждому источнику, по алфавиту источников.
 	Checks(ctx context.Context, id uuid.UUID) ([]domain.CheckResult, error)
-	// History это журнал заявки, старые сверху.
+	// History отдаёт журнал, старые сверху.
 	History(ctx context.Context, id uuid.UUID) ([]domain.AuditEntry, error)
 	// SaveDraft пишет анкету, если заявка всё ещё draft той же версии, иначе ErrConflict.
 	SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error
@@ -155,15 +155,15 @@ func (r *applicationRepo) SaveDecision(ctx context.Context, id uuid.UUID, m *dom
 	}
 	o := db.SetOfferParams{ID: id, ScoringVersion: p.ScoringVersion, PolicyVersion: p.PolicyVersion}
 	if s := d.Score; s != nil {
-		p.Score = pgtype.Int2{Int16: int16(s.Points), Valid: true} //nolint:gosec // балл 0..100
+		p.Score = pgtype.Int2{Int16: int16(s.Points), Valid: true}
 		p.Grade = text(s.Grade)
 		o.Score, o.Grade = p.Score, p.Grade
 	}
 	if t := d.Terms; t != nil {
 		o.Product = text(string(t.Product))
 		o.AmountKop, o.PaymentKop = kop(t.AmountKop), kop(t.PaymentKop)
-		o.TermMonths = pgtype.Int4{Int32: int32(t.TermMonths), Valid: true} //nolint:gosec // 3..60
-		o.RateBp = pgtype.Int4{Int32: int32(t.RateBP), Valid: true}         //nolint:gosec // б.п.
+		o.TermMonths = pgtype.Int4{Int32: int32(t.TermMonths), Valid: true}
+		o.RateBp = pgtype.Int4{Int32: int32(t.RateBP), Valid: true}
 		o.Guarantor, o.Pledge = t.Guarantor, t.Pledge
 	}
 	if err := r.q.AddDecision(ctx, p); err != nil {
@@ -259,7 +259,7 @@ func (r *applicationRepo) Create(
 		Product:           string(d.Product),
 		Purpose:           string(d.Purpose),
 		AmountKop:         d.AmountKop,
-		TermMonths:        int32(d.TermMonths), //nolint:gosec // 3-60 по схеме и CHECK
+		TermMonths:        int32(d.TermMonths),
 		MonthlyRevenueKop: kop(d.MonthlyRevenueKop),
 		EquipmentCostKop:  kop(d.EquipmentCostKop),
 		BkiConsent:        d.BKIConsent,
@@ -308,8 +308,8 @@ func (r *applicationRepo) List(ctx context.Context, f domain.ApplicationFilter) 
 		Grades:   f.Grades,
 		Product:  text(string(f.Product)),
 		Sort:     f.Sort,
-		Lim:      int32(f.Limit),  //nolint:gosec // до 100 по схеме
-		Off:      int32(f.Offset), //nolint:gosec // смещение страницы, не миллиарды
+		Lim:      int32(f.Limit),
+		Off:      int32(f.Offset),
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("applications: %w", err)
@@ -364,11 +364,11 @@ func (r *applicationRepo) History(ctx context.Context, id uuid.UUID) ([]domain.A
 func (r *applicationRepo) SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error {
 	n, err := r.q.UpdateDraft(ctx, db.UpdateDraftParams{
 		ID:                id,
-		Version:           int32(version), //nolint:gosec // версия растёт по единице
+		Version:           int32(version),
 		Product:           string(d.Product),
 		Purpose:           string(d.Purpose),
 		AmountKop:         d.AmountKop,
-		TermMonths:        int32(d.TermMonths), //nolint:gosec // 3-60 по схеме и CHECK
+		TermMonths:        int32(d.TermMonths),
 		MonthlyRevenueKop: kop(d.MonthlyRevenueKop),
 		EquipmentCostKop:  kop(d.EquipmentCostKop),
 		BkiConsent:        d.BKIConsent,

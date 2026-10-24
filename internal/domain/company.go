@@ -9,7 +9,7 @@ const (
 	KindIP CompanyKind = "IP"
 )
 
-// Company это выписка ЕГРЮЛ/ЕГРИП для автоподстановки в анкету.
+// Выписка ЕГРЮЛ/ЕГРИП для автоподстановки в анкету.
 // Director и KPP у ИП пустые, учредителей у ИП нет.
 type Company struct {
 	INN          string

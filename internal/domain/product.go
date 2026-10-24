@@ -61,7 +61,7 @@ type DocumentRule struct {
 	AmountOverKop int64
 }
 
-// Input это величина из запроса, на которую смотрят условия подбора.
+// Величина из запроса, на которую смотрят условия подбора.
 type Input string
 
 const (
@@ -90,7 +90,7 @@ type GoalRule struct {
 	Picks []Pick
 }
 
-// Catalog это rules/products.yaml после загрузки: суммы уже в копейках, ставки в б.п.
+// Каталог из rules/products.yaml, суммы уже в копейках, ставки в б.п.
 type Catalog struct {
 	Version             string
 	KeyRateBP           int

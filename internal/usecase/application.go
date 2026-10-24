@@ -44,7 +44,7 @@ type ApplicationUseCase interface {
 	// Get отдаёт карточку. Сотруднику банка вместе с результатами проверок.
 	Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error)
 	List(ctx context.Context, actor domain.Actor, f domain.ApplicationFilter) ([]domain.Application, int, error)
-	// History это журнал заявки. Клиент видит только свои комментарии, заметки банка и системы нет.
+	// History: клиент видит только свои комментарии, без заметок банка и системы.
 	History(ctx context.Context, actor domain.Actor, id uuid.UUID) ([]domain.AuditEntry, error)
 	// Edit меняет анкету черновика той версии, которую видел клиент.
 	Edit(ctx context.Context, actor domain.Actor, id uuid.UUID, version int, edit func(*domain.Draft)) (
@@ -54,15 +54,15 @@ type ApplicationUseCase interface {
 	Submit(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error)
 	// Cancel отменяет черновик сам, поданную заявку через её процесс.
 	Cancel(ctx context.Context, actor domain.Actor, id uuid.UUID, reason string) (domain.Application, error)
-	// ProvideInfo это ответ клиента на запрос банка. Документы годятся подтверждённые
+	// ProvideInfo принимает ответ клиента на запрос банка. Документы годятся подтверждённые
 	// или те, что не распознаём (паспорт, доверенность). Выручку пишем до перехода.
 	ProvideInfo(ctx context.Context, actor domain.Actor, id uuid.UUID, a Answer) error
-	// Decide это решение андеррайтера по заявке на ручном рассмотрении. Условия проверяем
+	// Decide для андеррайтера, заявка на ручном рассмотрении. Условия проверяем
 	// по продукту, как анкету при подаче, платёж считаем сами. К месту ли решение, решает процесс.
 	Decide(ctx context.Context, id uuid.UUID, a domain.Action) error
 }
 
-// Answer это то, что клиент прислал на запрос уточнений.
+// Что клиент прислал на запрос уточнений.
 type Answer struct {
 	Documents  []uuid.UUID
 	RevenueKop *int64

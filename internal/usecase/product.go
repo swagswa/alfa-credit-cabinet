@@ -19,7 +19,7 @@ type RecommendQuery struct {
 	MonthlyRevenueKop int64 // 0 если клиент не указал
 }
 
-// Offer это ориентир по базовой ставке продукта, без надбавки за риск.
+// Ориентир по базовой ставке продукта, без надбавки за риск.
 type Offer struct {
 	Product           domain.ProductCode
 	Primary           bool

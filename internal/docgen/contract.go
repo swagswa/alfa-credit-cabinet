@@ -12,7 +12,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
 
-// Contract это то, что идёт в кредитный договор: условия из решения и реквизиты заявки.
+// Что попадает в договор: условия из решения и реквизиты заявки.
 type Contract struct {
 	Number int64
 	Date   time.Time

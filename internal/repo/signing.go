@@ -40,7 +40,7 @@ func (r *signingRepo) SaveCode(ctx context.Context, appID uuid.UUID, c domain.Si
 	err := r.q.SaveSigningCode(ctx, db.SaveSigningCodeParams{
 		ApplicationID: appID,
 		CodeHash:      c.Hash,
-		AttemptsLeft:  int16(c.AttemptsLeft), //nolint:gosec // от 0 до 3, CHECK в схеме
+		AttemptsLeft:  int16(c.AttemptsLeft),
 		ExpiresAt:     c.ExpiresAt,
 	})
 	if err != nil {
@@ -58,7 +58,6 @@ func (r *signingRepo) LockCode(ctx context.Context, appID uuid.UUID) (domain.Sig
 }
 
 func (r *signingRepo) SetAttempts(ctx context.Context, appID uuid.UUID, n int) error {
-	//nolint:gosec // от 0 до 3, CHECK в схеме
 	err := r.q.SetSigningAttempts(ctx, db.SetSigningAttemptsParams{ApplicationID: appID, AttemptsLeft: int16(n)})
 	if err != nil {
 		return fmt.Errorf("signing attempts %s: %w", appID, err)

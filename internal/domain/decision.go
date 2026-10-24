@@ -9,10 +9,10 @@ const (
 	StageUnderwriter = "underwriter"
 )
 
-// Verdicts это исходы, которые может выбрать андеррайтер.
+// Из этого выбирает андеррайтер.
 var Verdicts = []Status{StatusApproved, StatusCounterOffer, StatusRejected}
 
-// Facts это данные проверок, приведённые к виду, на который смотрят правила.
+// Данные проверок в том виде, на который смотрят правила.
 // Собираются из check_results, анкеты и подтверждённых документов, суммы в копейках.
 type Facts struct {
 	IsIP bool
@@ -110,13 +110,13 @@ func ratio(a, b int64) float64 {
 	return 0
 }
 
-// StopHit это сработавший стоп-фактор. Outcome: rejected, need_info или manual_review.
+// Outcome: rejected, need_info или manual_review.
 type StopHit struct {
 	Code    string `json:"code"`
 	Outcome Status `json:"outcome"`
 }
 
-// FactorScore это вклад одного фактора скоринга. Reason пустой, если бин без кода.
+// Вклад одного фактора. Reason пустой, если бин без кода.
 type FactorScore struct {
 	Code   string  `json:"code"`
 	Name   string  `json:"name"`
@@ -126,7 +126,7 @@ type FactorScore struct {
 	Reason string  `json:"reason,omitempty"`
 }
 
-// Score это итог скоринга: риск компании, от продукта не зависит.
+// Риск компании, от продукта не зависит.
 type Score struct {
 	Points  int           `json:"points"`
 	Grade   string        `json:"grade"`
@@ -135,7 +135,7 @@ type Score struct {
 	Version string        `json:"version"`
 }
 
-// Terms это условия: предложение клиенту или рекомендация андеррайтеру.
+// Предложение клиенту или рекомендация андеррайтеру.
 type Terms struct {
 	Product    ProductCode `json:"product"`
 	AmountKop  int64       `json:"amount_kop"`
@@ -146,14 +146,14 @@ type Terms struct {
 	Pledge     bool        `json:"pledge"`
 }
 
-// Reason это код объяснения и текст клиенту по шаблону. Text пустой, если клиенту
+// Text из шаблона, пустой, если клиенту
 // код не показываем (мягкие стоп-факторы видит только банк).
 type Reason struct {
 	Code string `json:"code"`
 	Text string `json:"text,omitempty"`
 }
 
-// Decision это результат стадии. Outcome совпадает со статусом, в который идёт заявка;
+// Результат стадии. Outcome совпадает со статусом, в который идёт заявка;
 // у checks без запретов он пустой, дальше скоринг. Terms у approved и counter_offer,
 // Recommendation у manual_review. Решение андеррайтера несёт балл и рекомендацию
 // политики, на которые он смотрел; Override, если разошёлся с рекомендацией.
@@ -214,7 +214,7 @@ type ScoreReason struct {
 	Text string
 }
 
-// ScoringRules это rules/scoring.yaml после загрузки. Grades по убыванию Min.
+// rules/scoring.yaml после загрузки, Grades по убыванию Min.
 type ScoringRules struct {
 	Version    string
 	Factors    []Factor
@@ -223,7 +223,7 @@ type ScoringRules struct {
 	Reasons    map[string]ScoreReason
 }
 
-// Op из фиксированного набора, выражений в правилах нет (ADR 0009).
+// Op из фиксированного набора, выражений в правилах нет.
 type Op string
 
 const (
@@ -266,7 +266,7 @@ type ProductPolicy struct {
 	Grades       map[string]GradeTerms
 }
 
-// PolicyRules это rules/policy.yaml после загрузки: суммы в копейках, надбавки в б.п.
+// Загруженный rules/policy.yaml: суммы в копейках, надбавки в б.п.
 type PolicyRules struct {
 	Version           string
 	DSRMax            map[string]float64

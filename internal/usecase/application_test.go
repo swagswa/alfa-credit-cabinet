@@ -411,7 +411,7 @@ func TestDecide(t *testing.T) {
 		payment int64 // считает usecase, 0 у отказа
 	}{
 		{"контрпредложение", domain.Action{Outcome: domain.StatusCounterOffer, Terms: counter(7*mln, 12),
-			Comment: "лимит политики"}, nil, 656_846_29}, // 656 846 руб. как в 6.5
+			Comment: "лимит политики"}, nil, 656_846_29}, // 656 846 руб., как в scoring_cases.yaml
 		{"отказ с причиной, условия не нужны", domain.Action{Outcome: domain.StatusRejected, Terms: counter(7*mln, 12),
 			Codes: []string{"R_GRADE_E"}, Comment: "аффилированность"}, nil, 0},
 		{"комментарий из пробелов", domain.Action{Outcome: domain.StatusRejected, Codes: []string{"R_GRADE_E"},

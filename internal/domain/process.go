@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// Action это действие человека над идущей заявкой: ответ клиента, запрос сотрудника,
+// Действие человека над идущей заявкой: ответ клиента, запрос сотрудника,
 // отмена, решение андеррайтера. Version карточки, которую он видел, сверяет Transition.
 type Action struct {
 	Actor   Actor
@@ -28,7 +28,7 @@ type Deadlines struct {
 	Close time.Duration
 }
 
-// SigningCode это код подписи без самого кода: сверяем по хэшу.
+// Сам код не храним, сверяем по хэшу.
 type SigningCode struct {
 	Hash         []byte
 	AttemptsLeft int

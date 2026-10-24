@@ -103,14 +103,20 @@ linters:
         - .Blob(
         - .WithTx(
         - (github.com/jackc/pgx/v5.Tx).Commit(
+        # pkg/postgres прозрачно прокидывает пул, ошибку подпишет вызывающий
+        - (*github.com/jackc/pgx/v5/pgxpool.Pool).Exec(
+        - (*github.com/jackc/pgx/v5/pgxpool.Pool).Query(
       ignore-sig-regexps:
         - '\.New.*Error\('
+        # ошибка activity идёт в API как есть, иначе теряется её тип
+        - 'go\.temporal\.io/sdk/.*Future\)\.Get\('
       # свои пакеты подписывают ошибки там, где они возникли; второй слой
       # обёрток над repo и usecase только удлиняет текст ошибки
       ignore-package-globs:
         - github.com/swagswa/alfa-credit-cabinet/*
     staticcheck:
-      checks: [all, -ST1000, -ST1016, -QF1008]
+      # комменты по-русски, «Имя это ...» перед каждым типом читается как шаблон
+      checks: [all, -ST1000, -ST1016, -ST1020, -ST1021, -ST1022, -QF1008]
     depguard:
       rules:
         deprecated:
@@ -140,4 +146,9 @@ linters:
         linters: [mnd]
       - path: 'internal/(mocks|docgen)/'
         text: G404
+        linters: [gosec]
+      # int -> int32/int16 под параметры sqlc: диапазоны держат CHECK в схеме
+      # и валидация по openapi, на каждую строку nolint не вешаем
+      - path: 'internal/repo/'
+        text: G115
         linters: [gosec]
