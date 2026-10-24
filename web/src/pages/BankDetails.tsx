@@ -3,14 +3,8 @@ import { Button, MotionDetails } from '../motion';
 import { BankActions } from './BankActions';
 import { useHistory } from '../api/client';
 import { isCompleted } from '../api/dashboard';
-import { actors, labels, money, rate, products } from '../api/presentation';
+import { actors, labels, money, rate, products, sources } from '../api/presentation';
 import type { components } from '../api/schema.gen';
-const sources = {
-  egrul: 'Реестр компаний и предпринимателей',
-  fns: 'Налоговая служба',
-  bki: 'Бюро кредитных историй',
-  internal: 'Внутренние данные банка',
-};
 export function BankDetails({
   card,
   role,

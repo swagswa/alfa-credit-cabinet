@@ -1,0 +1,21 @@
+meta {
+  name: 44 Пульт: режимы источников
+  type: http
+  seq: 44
+}
+
+get {
+  url: {{baseUrl}}/admin/faults
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{adminCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.length: eq 4
+  res.body[1].mode: eq flaky
+}
