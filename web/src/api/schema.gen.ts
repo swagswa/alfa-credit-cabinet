@@ -48,7 +48,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Текущий пользователь и его компании */
+        /**
+         * Текущий пользователь и его компании
+         * @description Открыт и без входа, чтобы первый экран не сыпал 401 в консоль: нет сессии или она истекла,
+         *     значит 204. Остальные закрытые операции без сессии по-прежнему отвечают 401.
+         */
         get: operations["me"];
         put?: never;
         post?: never;
@@ -1679,7 +1683,13 @@ export interface operations {
                     "application/json": components["schemas"]["Me"];
                 };
             };
-            401: components["responses"]["Problem"];
+            /** @description Входа нет */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listProducts: {

@@ -165,8 +165,9 @@ func TestServer(t *testing.T) {
 	}{
 		{name: "health без сессии", method: "GET", path: "/api/health", status: 200},
 		{name: "health при упавшей базе", dbErr: errors.New("down"), method: "GET", path: "/api/health", status: 503},
-		{name: "закрытая операция без сессии", method: "GET", path: "/api/me", status: 401},
-		{name: "битая сессия как её отсутствие", method: "GET", path: "/api/me", session: "junk", status: 401},
+		{name: "закрытая операция без сессии", method: "GET", path: "/api/products", status: 401},
+		{name: "битая сессия как её отсутствие", method: "GET", path: "/api/products", session: "junk", status: 401},
+		{name: "кто я без сессии", method: "GET", path: "/api/me", status: 204},
 		{name: "текущий пользователь", method: "GET", path: "/api/me", session: client, status: 200},
 		{name: "health с сессией клиента", method: "GET", path: "/api/health", session: client, status: 200},
 		{
@@ -254,7 +255,8 @@ func TestLoginLogout(t *testing.T) {
 	require.Negative(t, rec.Result().Cookies()[0].MaxAge, "cookie стирается")
 
 	// токен по подписи ещё жив, но сессии на сервере больше нет
-	require.Equal(t, http.StatusUnauthorized, call(t, h, "GET", "/api/me", "", session).Code)
+	require.Equal(t, http.StatusNoContent, call(t, h, "GET", "/api/me", "", session).Code)
+	require.Equal(t, http.StatusUnauthorized, call(t, h, "GET", "/api/products", "", session).Code)
 }
 
 func TestLoginLimit(t *testing.T) {

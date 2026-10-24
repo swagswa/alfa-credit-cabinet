@@ -10,8 +10,9 @@ g, admin, underwriter
 
 p, anonymous, /api/login, POST
 p, anonymous, /api/health, GET
+# без сессии отвечает 204, по нему фронт понимает, что входа нет
+p, anonymous, /api/me, GET
 
-p, user, /api/me, GET
 p, user, /api/logout, POST
 p, user, /api/products, GET
 # что кому видно в потоке, решает usecase: клиенту только свои компании

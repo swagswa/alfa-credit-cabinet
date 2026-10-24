@@ -28,7 +28,7 @@ export function App() {
       api.GET('/me'),
       ({ data, response }) => {
         if (data) setSession(data);
-        else if (response.status !== 401) setError('Не удалось проверить вход. Обновите страницу.');
+        else if (response.status !== 204) setError('Не удалось проверить вход. Обновите страницу.');
         setLoading(false);
       },
       () => {
