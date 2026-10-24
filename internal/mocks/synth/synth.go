@@ -61,6 +61,10 @@ func (c Company) Closing() int64 {
 	return c.Opening + in - out
 }
 
+// Defaulted это разметка для проверки скоринга: дефолт с вероятностью mix.pd от скрытого
+// качества, бросок от своего seed. Источники про него ничего не знают.
+func (c Company) Defaulted() bool { return mix.pd.chance(RNG(c.INN+Version+"/default"), c.q) }
+
 func (c Company) IsIP() bool { return len(c.INN) == 12 }
 
 // profile задаёт то, что видно в скоринге: средняя выручка в месяц (руб),
