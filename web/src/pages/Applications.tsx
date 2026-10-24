@@ -1,5 +1,6 @@
 import {
   goals,
+  kinds,
   kop,
   labels,
   money,
@@ -7,6 +8,7 @@ import {
   options,
   products as productNames,
   representatives,
+  requiredDocs,
 } from '../api/presentation';
 import { Icon, PageHeading, StatusBadge, FieldPair } from '../ui/Workspace';
 import { useCabinetCache } from '../CabinetCache';
@@ -97,6 +99,8 @@ export function Applications({
   const [products, setProducts] = useState<components['schemas']['Product'][]>(cache.get('products') ?? []);
   const [catalogError, setCatalogError] = useState('');
   const selectedProduct = products.find((item) => item.code === chosenProduct);
+  const cardProduct = products.find((item) => item.code === card?.product);
+  const warning = card ? submitWarning(card, cardProduct) : '';
   useEffect(() => {
     if (bank) return;
     return settle(
@@ -401,9 +405,12 @@ export function Applications({
                       </MotionDetails>
                     )}
                     {!bank && card.allowed_next.includes('submitted') && (
-                      <Button view="primary" loading={busy} onClick={submit}>
-                        Отправить в банк
-                      </Button>
+                      <>
+                        {warning && <p role="note">{warning}</p>}
+                        <Button view="primary" loading={busy} onClick={submit}>
+                          Отправить в банк
+                        </Button>
+                      </>
                     )}
                     {!bank && <Decision key={card.id} card={card} refresh={() => setRevision((value) => value + 1)} />}
                     {bank && <BankDetails key={`bank-${card.id}`} card={card} role={role} />}
@@ -411,6 +418,7 @@ export function Applications({
                       key={`documents-${card.id}`}
                       card={card}
                       bank={bank}
+                      product={cardProduct}
                       refresh={() => setRevision((value) => value + 1)}
                     />
                   </>
@@ -739,6 +747,21 @@ export function Applications({
       </section>
     </div>
   );
+}
+
+// подать можно и без документов, но тогда сразу дозапрос с коротким сроком: предупреждаем до кнопки
+function submitWarning(card: App, product?: components['schemas']['Product']) {
+  const missing = requiredDocs(card, product).filter((kind) => !card.documents.some((doc) => doc.kind === kind));
+  const unconfirmed = card.documents.some(
+    (doc) => ['statement', 'financials'].includes(doc.kind) && doc.status !== 'confirmed',
+  );
+  return [
+    missing.length &&
+      `Не приложено: ${missing.map((kind) => kinds[kind].toLowerCase()).join(', ')}. Банк запросит это после отправки.`,
+    unconfirmed && 'Итоги выписки или отчётности не подтверждены, в расчёт они не попадут.',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 const draftDetails = (card: App) => ({
