@@ -43,7 +43,7 @@
 | @alfalab/core-components | 50.37.0 | MIT |
 | openapi-fetch | 0.17.0 | MIT |
 
-Только для сборки и проверок, в образ не попадают: vite 8.3.5 (MIT), @vitejs/plugin-react 6.1.2 (MIT), typescript 5.9.3 (Apache-2.0), openapi-typescript 7.13.0 (MIT), eslint 9.39.5 и @eslint/js (MIT), typescript-eslint 8.72.0 (MIT), eslint-plugin-react-hooks 7.1.1 (MIT), globals 17.13.0 (MIT), @types/react и @types/react-dom 19.3.0 (MIT), @types/node 26.6.5 (MIT), yaml 2.9.1 (ISC, мок API для разработки фронта без бэкенда), @playwright/test 1.64.1 (Apache-2.0, E2E против стенда, браузер Chromium ставится им же).
+Только для сборки и проверок, в образ не попадают: vite 8.3.5 (MIT), @vitejs/plugin-react 6.1.2 (MIT), typescript 5.9.3 (Apache-2.0), openapi-typescript 7.13.0 (MIT), eslint 9.39.5 и @eslint/js (MIT), prettier 3.9.10 (MIT), typescript-eslint 8.72.0 (MIT), eslint-plugin-react-hooks 7.1.1 (MIT), globals 17.13.0 (MIT), @types/react и @types/react-dom 19.3.0 (MIT), @types/node 26.6.5 (MIT), yaml 2.9.1 (ISC, мок API для разработки фронта без бэкенда), @playwright/test 1.64.1 (Apache-2.0, E2E против стенда, браузер Chromium ставится им же).
 
 Фирменные шрифты Альфа-Банка не используются, интерфейс на системном шрифте. Логотип банка только в контексте прототипа для Альфа-Хак.
 

@@ -38,6 +38,7 @@ jobs:
       - run: npm ci
       - name: типы совпадают с контрактом
         run: npm run gen:api && git diff --exit-code src/api/schema.gen.ts
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run build
 

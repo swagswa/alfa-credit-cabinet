@@ -1,0 +1,7 @@
+dist
+node_modules
+playwright-report
+test-results
+src/api/schema.gen.ts
+package-lock.json
+e2e/.auth
