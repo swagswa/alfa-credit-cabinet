@@ -99,9 +99,35 @@ sequenceDiagram
 
 Каждая смена статуса проходит через `Transition` в `internal/usecase/application.go`: одна транзакция, в ней `SELECT ... FOR UPDATE`, проверка по таблице переходов, `version + 1`, запись в журнал `application_events` и `pg_notify`. Workflow вызывает его из activity, подача из `api` напрямую. Temporal решает, что делать дальше, интерфейс и журнал читают только Postgres.
 
-Действия людей (`provide-info`, `request-info`, `retry-checks`, `decision`, `cancel` по поданной заявке) `api` отправляет в процесс как Workflow Update и ждёт результата. Не к месту действие отклоняет валидатор до записи в историю процесса, клиент получает 409 `illegal_transition`.
+Действия людей (`provide-info`, `request-info`, `retry-checks`, `decision`, `accept`, `sign`, `cancel` по поданной заявке) `api` отправляет в процесс как Workflow Update и ждёт результата. Не к месту действие отклоняет валидатор до записи в историю процесса, клиент получает 409 `illegal_transition`.
 
-После проверок activity `Decide` считает решение по последним ответам источников, анкете и документам: стоп-факторы, а если они не остановили, скоринг и политику по `rules/*.yaml`. Сама activity ничего не пишет, решение ложится в `decisions` в той же транзакции, что и переход, поэтому её повтор безопасен. Стоп-фактор ведёт заявку из `checking` сразу в `rejected` или `need_info`, иначе через `scoring` в исход политики. Решение андеррайтера приходит Update `Decide`. Дальше процесс ждёт, пока клиент примет условия (Update `AcceptOffer`) или срок `OFFER_TTL` уведёт заявку в `expired`. После принятия activity `PrepareContract` собирает договор с графиком в PDF и кладёт в документы, заявка уходит в `signing`. Код подписи сверяет `api` по хэшу в базе, процессу приходит Update `Sign` уже без кода: activity `Payout` пишет смоделированную выдачу, заявка в `issued`, через `CLOSE_AFTER` в `closed`. Договор и выдача идемпотентны по id заявки, повтор activity ничего не дублирует.
+После проверок activity `Decide` считает решение по последним ответам источников, анкете и документам: стоп-факторы, а если они не остановили, скоринг и политику по `rules/*.yaml`. Сама activity ничего не пишет, решение ложится в `decisions` в той же транзакции, что и переход, поэтому её повтор безопасен. Жёсткий стоп-фактор ведёт заявку из `checking` сразу в `rejected` или `need_info`, иначе через `scoring` в исход политики; мягкие (например `SF_DOC_MISMATCH`) не останавливают скоринг, но исход у них `manual_review`. Решение андеррайтера приходит Update `Decide`. Дальше процесс ждёт, пока клиент примет условия (Update `AcceptOffer`) или срок `OFFER_TTL` уведёт заявку в `expired`. После принятия activity `PrepareContract` собирает договор с графиком в PDF и кладёт в документы, заявка уходит в `signing`. Код подписи сверяет `api` по хэшу в базе, процессу приходит Update `Sign` уже без кода: activity `Payout` пишет смоделированную выдачу, заявка в `issued`, через `CLOSE_AFTER` в `closed`. Договор и выдача идемпотентны по id заявки, повтор activity ничего не дублирует.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Клиент
+    participant A as api
+    participant P as Postgres
+    participant T as Temporal
+    participant W as worker
+
+    Note over W: approved или counter_offer, таймер OFFER_TTL
+    C->>A: POST /applications/{id}/accept с version
+    A->>T: Update AcceptOffer
+    W->>P: Transition в accepted
+    W->>P: PrepareContract: договор с графиком в documents
+    W->>P: Transition в signing, таймер SIGNING_TTL
+    C->>A: POST /applications/{id}/signing-code
+    A->>P: sha256 кода, 3 попытки, срок SIGNING_CODE_TTL
+    A-->>C: код в ответе, вместо SMS
+    C->>A: POST /applications/{id}/sign
+    A->>P: сверка под FOR UPDATE, неверный код минус попытка, 422
+    A->>T: Update Sign без кода
+    W->>P: Payout: строка в payouts
+    W->>P: Transition в issued
+    Note over W: через CLOSE_AFTER Transition в closed
+```
 
 ## Где что лежит
 
@@ -110,7 +136,7 @@ sequenceDiagram
 | `api/openapi.yaml` | контракт, из него генерируются сервер (`internal/api/oapi`) и типы фронта (`web/src/api/schema.gen.ts`) |
 | `cmd/{api,worker,docs-worker,mocks,docgen}` | только сборка зависимостей и запуск |
 | `internal/domain` | статусы, роли, таблица переходов, коды причин, ошибки; без I/O |
-| `internal/usecase` | логика и транзакции: заявки, проверки, документы, вход |
+| `internal/usecase` | логика и транзакции: заявки, проверки, документы, скоринг и политика, договор, код подписи и выдача, вход |
 | `internal/repo`, `internal/db` | доступ к данным; SQL руками в `internal/db/queries`, код генерирует sqlc |
 | `internal/api/{handler,middleware,server}` | перевод типов API в доменные, сессия и права, ошибки в `application/problem+json` |
 | `internal/worker/{workflow,activity}` | процессы Temporal и их шаги |

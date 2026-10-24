@@ -75,14 +75,14 @@ stateDiagram-v2
 | `submitted` | `checking` | system | старт workflow | сразу |
 | `checking` | `need_info` | system, manager, underwriter | стоп-фактор с исходом `need_info` или запрос сотрудника (`requestInfo`) | |
 | `checking` | `rejected` | system | жёсткий стоп-фактор | |
-| `checking` | `manual_review` | system | мягкий стоп-фактор или источник недоступен после ретраев | |
+| `checking` | `manual_review` | system | источник не ответил после ретраев (`SF_SOURCE_UNAVAILABLE`) | |
 | `checking` | `scoring` | system | проверки пройдены | |
 | `need_info` | `checking` | client | ответил на запрос (`provideInfo`) | |
 | `need_info` | `expired` | system | клиент не ответил | 5 раб. дней / 3 мин |
 | `need_info` | `cancelled_by_client` | client | `cancelApplication` | |
 | `scoring` | `approved` | system | политика: условия как запрошены | |
 | `scoring` | `counter_offer` | system | политика: изменены сумма, срок или продукт | |
-| `scoring` | `manual_review` | system | класс D или сумма выше лимита авторешения | |
+| `scoring` | `manual_review` | system | класс D, сумма выше лимита авторешения или мягкий стоп-фактор (`SF_DOC_MISMATCH` и др.) | |
 | `scoring` | `rejected` | system | класс E или лимит ниже минимума всех продуктов | |
 | `manual_review` | `approved` | underwriter | решение с комментарием (`decideApplication`) | SLA 1 раб. день / 5 мин: по таймеру только событие `escalation`, статус не меняется |
 | `manual_review` | `counter_offer` | underwriter | то же | то же |
@@ -95,8 +95,8 @@ stateDiagram-v2
 | `counter_offer` | `accepted` | client | принял условия (`acceptOffer`) | |
 | `counter_offer` | `cancelled_by_client` | client | отказался (`cancelApplication`) | |
 | `counter_offer` | `expired` | system | не принял | 10 раб. дней / 5 мин |
-| `accepted` | `signing` | system | договор и график сформированы | сразу |
-| `signing` | `issued` | client | ввёл верный код (`signApplication`), выдача смоделирована | |
+| `accepted` | `signing` | system | договор и график сформированы; отмены из `accepted` нет | сразу |
+| `signing` | `issued` | client | ввёл верный код (`requestSigningCode`, затем `signApplication`), выдача смоделирована | код: 3 попытки, живёт 5 мин |
 | `signing` | `cancelled_by_client` | client | `cancelApplication` | |
 | `signing` | `expired` | system | не подписал | 3 раб. дня / 5 мин |
 | `issued` | `closed` | system | постобработка | 1 день / 1 мин |
