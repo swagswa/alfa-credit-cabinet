@@ -43,3 +43,15 @@ type CheckResult struct {
 type Attempt struct {
 	N, Of int
 }
+
+// Fault сбой источника на стенде. INN пустой: на весь источник. Left только у flaky:
+// сколько запросов ещё упадёт.
+type Fault struct {
+	Source Source
+	INN    string
+	Mode   string
+	Left   int
+}
+
+// FaultOff снимает сбой источника.
+const FaultOff = "ok"

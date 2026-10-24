@@ -111,6 +111,8 @@ type API struct {
 	SigningCodeTTL time.Duration `env:"SIGNING_CODE_TTL" envDefault:"5m"`
 	// SeedDemo заводит тестовые учётки и демо-компании, на стенде для жюри включён
 	SeedDemo bool `env:"SEED_DEMO" envDefault:"false"`
+	// MocksURL ручка сбоев моков для пульта admin, на проде её нет
+	MocksURL string `env:"MOCKS_URL" envDefault:"http://localhost:8081"`
 }
 
 type Worker struct {

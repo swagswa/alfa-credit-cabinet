@@ -124,6 +124,7 @@ services:
       LOGIN_WINDOW: ${LOGIN_WINDOW:-1m}
       SIGNING_CODE_TTL: ${SIGNING_CODE_TTL:-5m}
       EGRUL_URL: http://mocks:8081
+      MOCKS_URL: http://mocks:8081
     ports:
       - "8080:8080"
     healthcheck:
