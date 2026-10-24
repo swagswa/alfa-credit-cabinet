@@ -151,7 +151,7 @@ services:
       BKI_URL: http://mocks:8081
       BANK_URL: http://mocks:8081
       # сроки демо; на проде 5, 1 и 10 рабочих дней
-      NEED_INFO_TTL: ${NEED_INFO_TTL:-3m}
+      NEED_INFO_TTL: ${NEED_INFO_TTL:-10m}
       REVIEW_SLA: ${REVIEW_SLA:-5m}
       OFFER_TTL: ${OFFER_TTL:-5m}
       SIGNING_TTL: ${SIGNING_TTL:-5m}

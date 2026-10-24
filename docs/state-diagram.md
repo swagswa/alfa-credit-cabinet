@@ -78,7 +78,7 @@ stateDiagram-v2
 | `checking` | `manual_review` | system | источник не ответил после ретраев (`SF_SOURCE_UNAVAILABLE`) | |
 | `checking` | `scoring` | system | проверки пройдены | |
 | `need_info` | `checking` | client | ответил на запрос (`provideInfo`) | |
-| `need_info` | `expired` | system | клиент не ответил | 5 раб. дней / 3 мин |
+| `need_info` | `expired` | system | клиент не ответил | 5 раб. дней / 10 мин |
 | `need_info` | `cancelled_by_client` | client | `cancelApplication` | |
 | `scoring` | `approved` | system | политика: условия как запрошены | |
 | `scoring` | `counter_offer` | system | политика: изменены сумма, срок или продукт | |

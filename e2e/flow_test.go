@@ -226,7 +226,7 @@ func TestCancelOnNeedInfo(t *testing.T) {
 }
 
 // AC11: клиент молчит, по таймеру expired. Срок тот же, что у стенда: по умолчанию
-// 3 минуты, в CI короткий
+// 10 минут, в CI короткий
 func TestNeedInfoExpires(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -236,7 +236,7 @@ func TestNeedInfoExpires(t *testing.T) {
 	app := create(t, c, application("0000100012", 1*mln, 12, 12*mln/10))
 	submit(t, c, app.Id)
 	wait(t, c, app.Id, oapi.ApplicationStatusNeedInfo)
-	waitWithin(t, c, app.Id, oapi.ApplicationStatusExpired, durationEnv("NEED_INFO_TTL", 3*time.Minute)+waitFor)
+	waitWithin(t, c, app.Id, oapi.ApplicationStatusExpired, durationEnv("NEED_INFO_TTL", 10*time.Minute)+waitFor)
 }
 
 // AC07: повтор с тем же ключом отдаёт ту же заявку, с другим телом 409
