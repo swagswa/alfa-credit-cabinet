@@ -205,10 +205,10 @@ services:
     image: swaggerapi/swagger-ui:v5.34.0
     environment:
       SWAGGER_JSON: /spec/openapi.yaml
+      # открывается через web на /swagger/, отдельного порта нет
+      BASE_URL: /swagger
     volumes:
       - ./api/openapi.yaml:/spec/openapi.yaml:ro
-    ports:
-      - "8082:8080"
 
   ollama:
     profiles: [ai]
