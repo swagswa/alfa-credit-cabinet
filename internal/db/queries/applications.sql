@@ -4,15 +4,14 @@ FROM applications
 WHERE id = $1
 FOR UPDATE;
 
--- name: SetApplicationStatus :one
+-- name: SetApplicationStatus :exec
 UPDATE applications
 SET status = @status::text,
     version = version + 1,
     due_at = sqlc.narg(due_at),
     submitted_at = CASE WHEN @status::text = 'submitted' THEN now() ELSE submitted_at END,
     updated_at = now()
-WHERE id = @id
-RETURNING version;
+WHERE id = @id;
 
 -- name: AddTransitionEvent :exec
 INSERT INTO application_events (application_id, from_status, to_status, actor_id, actor_role, reason_codes, comment)
@@ -21,11 +20,7 @@ VALUES (@application_id, @from_status, @to_status, sqlc.narg(actor_id), @actor_r
 
 -- уведомление уходит слушателям после коммита, на нём живёт SSE
 -- name: NotifyApplication :exec
-SELECT pg_notify('applications', json_build_object(
-    'application_id', @id::uuid,
-    'company_id', @company_id::uuid,
-    'status', @status::text,
-    'version', @version::integer)::text);
+SELECT notify_application(@id);
 
 -- name: CompanyByINN :one
 SELECT c.id, EXISTS (
@@ -136,20 +131,14 @@ WHERE id = @id AND status = 'need_info';
 WITH e AS (
     INSERT INTO application_events (application_id, kind, actor_role) VALUES (@id, 'escalation', 'system')
 )
-SELECT pg_notify('applications', json_build_object(
-    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
-FROM applications a
-WHERE a.id = @id;
+SELECT notify_application(@id);
 
 -- name: AddNote :exec
 WITH e AS (
     INSERT INTO application_events (application_id, kind, actor_id, actor_role, comment)
     VALUES (@id, 'signing', sqlc.narg(actor_id), @actor_role, @comment)
 )
-SELECT pg_notify('applications', json_build_object(
-    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
-FROM applications a
-WHERE a.id = @id;
+SELECT notify_application(@id);
 
 -- согласие из анкеты становится записью при подаче, повтор ничего не меняет
 -- name: AddBKIConsent :exec
