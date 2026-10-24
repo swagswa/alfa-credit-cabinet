@@ -88,6 +88,8 @@ export function Applications({
   const [proxy, setProxy] = useState(false);
   const [company, setCompany] = useState<components['schemas']['Company'] | null>(null);
   const [lookupBusy, setLookupBusy] = useState(false);
+  const [own, setOwn] = useState<components['schemas']['CompanyRef'][]>([]);
+  const [registryDown, setRegistryDown] = useState(false);
   const [chosenProduct, setChosenProduct] = useState<components['schemas']['ProductCode']>('working_capital');
   const [goal, setGoal] = useState<components['schemas']['Goal']>('purchase');
   const [revenue, setRevenue] = useState('');
@@ -97,6 +99,17 @@ export function Applications({
   const [products, setProducts] = useState<components['schemas']['Product'][]>(cache.get('products') ?? []);
   const [catalogError, setCatalogError] = useState('');
   const selectedProduct = products.find((item) => item.code === chosenProduct);
+  // своя компания уже есть в кабинете: поиск в реестре только добавляет сведения и черновик не блокирует
+  const known = own.find((item) => item.inn === inn);
+  const found = company?.inn === inn ? company : known;
+  useEffect(() => {
+    if (!createOnly) return;
+    return settle(api.GET('/me'), ({ data }) => {
+      if (!data) return;
+      setOwn(data.companies.map((item) => item.company));
+      if (data.companies.length === 1) setInn((value) => value || data.companies[0].company.inn);
+    });
+  }, [createOnly]);
   useEffect(() => {
     if (bank) return;
     return settle(
@@ -119,13 +132,19 @@ export function Applications({
     setLookupBusy(true);
     setError('');
     setCompany(null);
+    setRegistryDown(false);
     try {
-      const { data, error } = await api.GET('/companies/{inn}', { params: { path: { inn } } });
+      const { data, error, response } = await api.GET('/companies/{inn}', { params: { path: { inn } } });
       if (version !== lookupVersion.current) return;
       if (data) setCompany(data);
-      else setError(errorText(error, 'Не удалось найти компанию.'));
+      else if (response.status >= 500) {
+        setRegistryDown(true);
+        if (!known) setError('Реестр сейчас не отвечает. Попробуйте через минуту.');
+      } else setError(errorText(error, 'Не удалось найти компанию.'));
     } catch {
-      if (version === lookupVersion.current) setError('Нет связи с реестром. Попробуйте ещё раз.');
+      if (version !== lookupVersion.current) return;
+      setRegistryDown(true);
+      if (!known) setError('Нет связи с реестром. Попробуйте ещё раз.');
     } finally {
       if (version === lookupVersion.current) setLookupBusy(false);
     }
@@ -247,7 +266,7 @@ export function Applications({
   }, [id, revision, offset, status, product, grade, sort, bank, cache, createOnly, group]);
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || !company || company.inn !== inn || !selectedProduct) return;
+    if (busy || !found || !selectedProduct) return;
     const amountKop = kop(amount);
     if (
       !Number.isSafeInteger(amountKop) ||
@@ -272,7 +291,7 @@ export function Applications({
           term_months: Number(term),
           product: chosenProduct,
           purpose: goal,
-          representative_role: proxy ? 'proxy' : company.kind === 'IP' ? 'owner_ip' : 'director',
+          representative_role: proxy ? 'proxy' : found.kind === 'IP' ? 'owner_ip' : 'director',
           bki_consent: consent,
           pd_consent: personalConsent,
           ...(revenue ? { monthly_revenue_kop: kop(revenue) } : {}),
@@ -547,11 +566,19 @@ export function Applications({
                     lookupVersion.current++;
                     setLookupBusy(false);
                     setCompany(null);
+                    setRegistryDown(false);
                     key.current = null;
-                    setInn(event.target.value);
+                    setInn(event.target.value.replace(/\D/g, ''));
                   }}
+                  onKeyDown={(event) => {
+                    // Enter в поле ИНН ищет компанию, а не отправляет анкету
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    if (/^\d{10}(\d{2})?$/.test(inn)) void lookup();
+                  }}
+                  inputMode="numeric"
+                  maxLength={12}
                   required
-                  pattern="[0-9]{10}([0-9]{2})?"
                   disabled={busy}
                 />
                 <Button
@@ -562,6 +589,18 @@ export function Applications({
                 >
                   Найти компанию
                 </Button>
+                {!company && known && (
+                  <div className="company-result">
+                    <span className="hint">Ваша компания в кабинете</span>
+                    <br />
+                    <strong>{known.short_name}</strong>
+                    <p>
+                      {registryDown
+                        ? 'Реестр сейчас не отвечает, продолжим с данными из кабинета. Банк проверит компанию после подачи.'
+                        : 'Можно продолжать. Сведения из реестра покажем по кнопке «Найти компанию».'}
+                    </p>
+                  </div>
+                )}
                 {company && (
                   <div className="company-result">
                     <span className="hint">Компания найдена · Демо-данные</span>
@@ -728,7 +767,7 @@ export function Applications({
                   type="submit"
                   view="primary"
                   loading={busy}
-                  disabled={!company || company.inn !== inn || !selectedProduct || !personalConsent}
+                  disabled={!found || !selectedProduct || !personalConsent}
                 >
                   Сохранить черновик
                 </Button>

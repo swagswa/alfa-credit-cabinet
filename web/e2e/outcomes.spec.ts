@@ -90,19 +90,8 @@ test.describe('реестр не отвечает', () => {
   test('после ретраев ручное рассмотрение, менеджер видит причину и может повторить проверки', async ({
     page,
     browser,
-    request,
   }) => {
-    const egrul = (mode: string) =>
-      request.put(`${process.env.E2E_MOCKS_URL ?? 'http://localhost:8081'}/mocks/admin/faults`, {
-        data: { source: 'egrul', mode, inn: '0000500010' },
-      });
-    // пока реестр лежит, кабинет не находит компанию и черновик не создать: на поиск сбой снимаем и сразу возвращаем
-    await egrul('ok');
-    await page.route('**/api/companies/*', async (route) => {
-      const response = await route.fetch();
-      await egrul('http_503');
-      await route.fulfill({ response });
-    });
+    // реестр у этой учётки лежит всегда: компания берётся из кабинета, поиск только честно говорит, что реестр молчит
     await apply(page, {
       ...purchase,
       inn: '0000500010',
