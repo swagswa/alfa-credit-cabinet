@@ -372,6 +372,24 @@ export function mockApi(): Plugin {
             [...events, ...tips].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit),
           );
         }
+        if (actor && pathname === '/api/stats' && req.method === 'GET') {
+          if (actor.user.role === 'client') return problem(403, 'Сводка доступна банку');
+          const apps = [...applications.values()].map((entry) => entry.app).filter((app) => app.status !== 'draft');
+          const counts = new Map<components['schemas']['ApplicationStatus'], number>();
+          for (const app of apps) counts.set(app.status, (counts.get(app.status) ?? 0) + 1);
+          const by_status = [...counts].map(([status, count]) => ({ status, count, overdue: 0 }));
+          const days = Number(new URL(req.url!, 'http://localhost').searchParams.get('days')) || 30;
+          return json(200, {
+            days,
+            submitted: apps.length,
+            by_status,
+            decided: 0,
+            auto_decided: 0,
+            approved: 0,
+            decision_time: { median_sec: 0, p90_sec: 0 },
+            issued_kop: 0,
+          });
+        }
         if (actor && pathname === '/api/events' && req.method === 'GET') {
           res.writeHead(200, {
             'Content-Type': 'text/event-stream',
