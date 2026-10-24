@@ -29,9 +29,14 @@ export function settle<T>(request: Promise<T>, done: (result: T) => void, fail =
   };
 }
 
-// title в problem+json это текст http-статуса по-английски, клиенту показываем причины по полям
-export function errorText(error: { errors?: { message: string }[] } | undefined, fallback: string) {
-  const text = error?.errors?.map((e) => e.message).join('; ');
+// title в problem+json это текст http-статуса по-английски, клиенту показываем причины по полям,
+// а без них detail: на 400 и 413 сервер пишет его по-русски для человека
+export function errorText(
+  error: { errors?: { message: string }[]; detail?: string; status?: number } | undefined,
+  fallback: string,
+) {
+  const text =
+    error?.errors?.map((e) => e.message).join('; ') || ([400, 413].includes(error?.status ?? 0) ? error?.detail : '');
   return text ? text[0].toUpperCase() + text.slice(1) + '.' : fallback;
 }
 
