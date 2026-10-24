@@ -8,6 +8,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Applications } from './pages/Applications';
 import { BankStats } from './pages/BankStats';
+import { Faults } from './pages/Faults';
 import { api, settle } from './api/client';
 import type { components } from './api/schema.gen';
 
@@ -44,6 +45,7 @@ export function App() {
   if (loading) return <p role="status">Проверяем вход...</p>;
   if (error && !session) return <p role="alert">{error}</p>;
   const client = session?.user.role === 'client';
+  const admin = session?.user.role === 'admin';
   const home = client ? '/client' : '/bank';
   const name = client
     ? (session?.companies[0]?.company.short_name ?? session?.user.full_name)
@@ -105,6 +107,12 @@ export function App() {
                       <Icon name="overview" />
                       Сводка
                     </NavLink>
+                    {admin && (
+                      <NavLink to="/bank/faults">
+                        <Icon name="refresh" />
+                        Пульт сбоев
+                      </NavLink>
+                    )}
                   </>
                 )}
               </nav>
@@ -161,6 +169,10 @@ export function App() {
                 <Route path="/client/new" element={only('/client', <Applications createOnly />)} />
                 <Route path="/client/applications/:id?" element={only('/client', <Applications />)} />
                 <Route path="/bank/stats" element={only('/bank', <BankStats />)} />
+                <Route
+                  path="/bank/faults"
+                  element={only('/bank', admin ? <Faults /> : <Navigate to="/bank" replace />)}
+                />
                 <Route
                   path="/bank/applications?/:id?"
                   element={only('/bank', <Applications bank role={session?.user.role} />)}

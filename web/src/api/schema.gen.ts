@@ -539,6 +539,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/faults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Сбои источников на стенде
+         * @description Только admin. Источники на стенде это моки, у каждого можно включить сбой, чтобы показать
+         *     повторы проверок и уход заявки специалисту. Сбои на отдельную компанию (их ставят через сам мок)
+         *     здесь не видны, сбой из фикстуры у компании unavailable тоже.
+         */
+        get: operations["listFaults"];
+        /**
+         * Включить или снять сбой источника
+         * @description `ok` снимает сбой. `flaky` роняет три запроса подряд, дальше источник отвечает: проверка пройдёт
+         *     с четвёртой попытки из пяти. `http_503` и `timeout` держатся, пока их не снимут: после пяти попыток
+         *     заявка уходит в `manual_review`.
+         */
+        put: operations["setFault"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -1573,6 +1601,20 @@ export interface components {
              */
             error?: string;
         };
+        SourceFault: {
+            source: components["schemas"]["CheckSource"];
+            /**
+             * @description ok работает, http_503 лежит, timeout не отвечает, flaky моргает, not_found не знает компанию
+             * @example http_503
+             * @enum {string}
+             */
+            mode: "ok" | "http_503" | "timeout" | "flaky" | "not_found";
+            /**
+             * @description Только у flaky, сколько запросов ещё упадёт
+             * @example 2
+             */
+            readonly left?: number;
+        };
         Health: {
             /**
              * @example ok
@@ -2371,6 +2413,55 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    listFaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Режим каждого источника, без сбоя ok */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceFault"][];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    setFault: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceFault"];
+            };
+        };
+        responses: {
+            /** @description Режим включён */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     bankStats: {

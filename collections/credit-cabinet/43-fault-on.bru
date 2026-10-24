@@ -1,0 +1,30 @@
+meta {
+  name: 43 Пульт: фнс моргает
+  type: http
+  seq: 43
+}
+
+put {
+  url: {{baseUrl}}/admin/faults
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{adminCookie}}
+}
+
+body:json {
+  {
+    "source": "fns",
+    "mode": "flaky"
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Три следующих запроса в ФНС падают, дальше источник отвечает. Под менеджером 403.
+}

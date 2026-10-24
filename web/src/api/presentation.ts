@@ -87,3 +87,10 @@ export const fieldNames: Record<string, string> = {
   balance_total_kop: 'Итог баланса',
   monthly_in: 'Поступления по месяцам',
 };
+
+export const sources: Record<components['schemas']['CheckSource'], string> = {
+  egrul: 'Реестр компаний и предпринимателей',
+  fns: 'Налоговая служба',
+  bki: 'Бюро кредитных историй',
+  internal: 'Внутренние данные банка',
+};

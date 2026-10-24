@@ -13,6 +13,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
 	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/faults"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rules"
@@ -71,7 +72,7 @@ func main() {
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
-		usecase.NewStats(db, repo.NewStats(dbq.New(db))))
+		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -96,6 +97,7 @@ func newServer(
 	feed usecase.FeedUseCase,
 	issue usecase.IssueUseCase,
 	stats usecase.StatsUseCase,
+	faultPanel usecase.FaultUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -114,6 +116,7 @@ func newServer(
 			Feed:         feed,
 			Issue:        issue,
 			Stats:        stats,
+			Faults:       faultPanel,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,
 		}),

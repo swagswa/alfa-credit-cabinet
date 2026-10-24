@@ -1,0 +1,28 @@
+meta {
+  name: 42 Вход администратора
+  type: http
+  seq: 42
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "admin",
+    "password": "{{password}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.user.role: eq admin
+}
+
+script:post-response {
+  const c = res.getHeader("set-cookie");
+  bru.setVar("adminCookie", [].concat(c)[0].split(";")[0]);
+}

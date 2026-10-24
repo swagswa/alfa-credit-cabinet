@@ -1445,3 +1445,55 @@ section .rejection-result {
 .personas small {
   color: #5c5f66;
 }
+
+.faults {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.faults li {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  align-items: center;
+  gap: 8px 16px;
+  background: #ffffffa6;
+  border: 1px solid #ffffffa0;
+  border-radius: 20px;
+  padding: 14px 20px;
+}
+.faults [role='group'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.faults small {
+  grid-column: 2;
+  color: #71747c;
+}
+.faults-log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.faults-log li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.faults-log time {
+  color: #71747c;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .faults li {
+    grid-template-columns: 1fr;
+  }
+  .faults small {
+    grid-column: 1;
+  }
+}
