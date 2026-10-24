@@ -217,22 +217,27 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
           </Button>
         </form>
       )}
-      {/* info_request бэк пока не отдаёт, что нужно, видно из причин выше; без формы ответить нечем и заявка висит до expired */}
       {!bank && card.status === 'need_info' && (
         <form onSubmit={provide}>
           <h2>Нужно от вас</h2>
-          {card.info_request?.comment && <p>{card.info_request.comment}</p>}
-          {due && <p>Ответить до: {new Date(due).toLocaleString('ru-RU')}</p>}
-          {card.info_request && (
-            <ul>
-              {card.info_request.documents.map((doc) => (
-                <li key={doc}>{kinds[doc]}</li>
+          {!!card.info_request?.documents.length && (
+            <ul aria-label="Запрошенные документы">
+              {card.info_request.documents.map((kind) => (
+                <li key={kind}>
+                  {kinds[kind]}
+                  {card.documents.some((doc) => doc.kind === kind) && ', загружен'}
+                </li>
               ))}
             </ul>
           )}
-          {card.info_request?.reasons.map((reason, index) => (
-            <p key={index}>{reason.text}</p>
-          ))}
+          {/* причины из решения уже выведены выше, второй раз не дублируем */}
+          {card.info_request?.reasons
+            .filter((reason) => reason.text && !card.reasons.some((r) => r.code === reason.code))
+            .map((reason) => (
+              <p key={reason.code}>{reason.text}</p>
+            ))}
+          {card.info_request?.comment && <p>Комментарий банка: {card.info_request.comment}</p>}
+          {due && <p>Ответить до: {new Date(due).toLocaleString('ru-RU')}</p>}
           <Input
             block
             label="Уточнённая выручка за месяц, ₽"

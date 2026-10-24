@@ -841,6 +841,13 @@ export function mockApi(): Plugin {
                   comment: 'Приложите и подтвердите выписку и отчётность.',
                   due_at: new Date(Date.now() + 180000).toISOString(),
                 };
+              } else if (entry.owner === 'coffee' && !entry.app.documents.some((doc) => doc.kind === 'passport')) {
+                entry.app.status = 'need_info';
+                entry.app.info_request = {
+                  documents: ['passport'],
+                  reasons: [{ code: 'SF_DOCS_MISSING', text: 'Не хватает документа: паспорт руководителя' }],
+                  due_at: new Date(Date.now() + 180000).toISOString(),
+                };
               } else if (entry.owner === 'unavailable') {
                 entry.app.status = 'manual_review';
                 entry.app.reasons = [{ code: 'SF_SOURCE_UNAVAILABLE', text: 'Источник временно недоступен.' }];
