@@ -7,6 +7,7 @@ import { kop, options, products } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 type App = components['schemas']['ApplicationView'];
 type Outcome = components['schemas']['DecisionOutcome'];
+type Code = components['schemas']['ReasonCode'];
 const notices = {
   decide: 'Решение сохранено.',
   'request-info': 'Запрос отправлен клиенту.',
@@ -28,12 +29,17 @@ export function BankActions({
   const [rate, setRate] = useState(String('rate_bp' in base ? base.rate_bp / 100 : 19));
   const [product, setProduct] = useState(base.product);
   const [comment, setComment] = useState('');
-  const [reason, setReason] = useState<components['schemas']['ReasonCode']>('R_MANUAL_RISK');
+  const [reason, setReason] = useState<Code>('R_MANUAL_RISK');
+  // клиенту доходят только причины из расчёта, где тексты уже с числами заявки: код вне расчёта
+  // он не увидит. «Смотрит специалист» после решения уже неправда, их не предлагаем
+  const explained = card.reasons.filter((r) => r.text && !r.code.startsWith('R_MANUAL'));
+  const [codes, setCodes] = useState<Code[]>(explained.filter((r) => r.code.startsWith('R_')).map((r) => r.code));
   const [pledge, setPledge] = useState('pledge_required' in base && !!base.pledge_required);
   const [guarantor, setGuarantor] = useState('guarantor_required' in base && !!base.guarantor_required);
   const [msp, setMsp] = useState('msp_guarantee' in base && !!base.msp_guarantee);
-  const [statement, setStatement] = useState(true);
-  const [financials, setFinancials] = useState(true);
+  // клиент чаще всего их уже прислал, просить повторно по умолчанию не надо
+  const [statement, setStatement] = useState(false);
+  const [financials, setFinancials] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function act(action: 'decide' | 'request-info' | 'retry-checks', event?: FormEvent) {
@@ -41,6 +47,10 @@ export function BankActions({
     if (busy) return;
     if (action !== 'retry-checks' && comment.trim().length < 3) {
       setError('Добавьте комментарий от 3 символов.');
+      return;
+    }
+    if (action === 'decide' && outcome === 'rejected' && explained.length && !codes.length) {
+      setError('Отметьте хотя бы одну причину отказа.');
       return;
     }
     setBusy(true);
@@ -62,7 +72,7 @@ export function BankActions({
               body: {
                 outcome,
                 comment: comment.trim(),
-                reason_codes: [reason],
+                reason_codes: explained.length ? codes : [reason],
                 ...(outcome !== 'rejected' ? { terms } : {}),
               },
             })
@@ -218,19 +228,43 @@ export function BankActions({
               />
             </>
           )}
-          <Select
-            block
-            label="Причина решения"
-            selected={reason}
-            options={[
-              { key: 'R_MANUAL_RISK', content: 'Ручная оценка риска' },
-              { key: 'R_APPROVED', content: 'Одобрение' },
-              { key: 'R_AMOUNT_DSR', content: 'Ограничение долговой нагрузки' },
-              { key: 'R_GRADE_E', content: 'Высокий риск' },
-            ]}
-            onChange={({ selected }) => setReason(selected!.key as components['schemas']['ReasonCode'])}
-            disabled={busy}
-          />
+          {card.checks?.some((c) => c.status === 'unavailable') && (
+            <p role="note">Часть источников не ответила, расчёта политики нет: решение будет без него.</p>
+          )}
+          {explained.length ? (
+            <fieldset>
+              <legend>Что клиент увидит в блоке «Почему принято такое решение»</legend>
+              {explained.map((r, index) => (
+                <Checkbox
+                  key={`${r.code}-${index}`}
+                  label={r.text}
+                  checked={codes.includes(r.code)}
+                  onChange={(_, p) =>
+                    setCodes((value) => (p.checked ? [...value, r.code] : value.filter((c) => c !== r.code)))
+                  }
+                  disabled={busy}
+                />
+              ))}
+              {!codes.length && <p>Без отмеченных причин клиент увидит только условия, без объяснения.</p>}
+            </fieldset>
+          ) : (
+            <>
+              <Select
+                block
+                label="Причина решения"
+                selected={reason}
+                options={[
+                  { key: 'R_MANUAL_RISK', content: 'Ручная оценка риска' },
+                  { key: 'R_APPROVED', content: 'Одобрение' },
+                  { key: 'R_AMOUNT_DSR', content: 'Ограничение долговой нагрузки' },
+                  { key: 'R_GRADE_E', content: 'Высокий риск' },
+                ]}
+                onChange={({ selected }) => setReason(selected!.key as Code)}
+                disabled={busy}
+              />
+              <p>В расчёте нет причин, которые можно показать клиенту: он увидит только условия решения.</p>
+            </>
+          )}
           <Input
             block
             label="Комментарий к решению"
