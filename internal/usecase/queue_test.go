@@ -138,6 +138,17 @@ func TestStaffCard(t *testing.T) {
 	require.ErrorIs(t, err, domain.ErrNotFound)
 	_, err = e.uc.History(t.Context(), manager, ids["c2"])
 	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	// и после отмены тоже: в банк он так и не попал, согласий у банка нет
+	_, err = e.pool.Exec(t.Context(), "UPDATE applications SET status = 'cancelled_by_client' WHERE id = $1", ids["c2"])
+	require.NoError(t, err)
+	_, err = e.uc.Get(t.Context(), manager, ids["c2"])
+	require.ErrorIs(t, err, domain.ErrNotFound)
+	_, total, err := e.uc.List(t.Context(), manager, domain.ApplicationFilter{Limit: 20})
+	require.NoError(t, err)
+	require.Equal(t, 4, total)
+	_, err = e.uc.Get(t.Context(), e.client, ids["c2"])
+	require.NoError(t, err)
 }
 
 func TestHistory(t *testing.T) {
