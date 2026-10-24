@@ -89,6 +89,9 @@ paths:
       tags: [auth]
       operationId: me
       summary: Текущий пользователь и его компании
+      description: |
+        Открыт и без входа, чтобы первый экран не сыпал 401 в консоль: нет сессии или она истекла,
+        значит 204. Остальные закрытые операции без сессии по-прежнему отвечают 401.
       responses:
         '200':
           description: Пользователь
@@ -96,8 +99,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Me'
-        '401':
-          $ref: '#/components/responses/Problem'
+        '204':
+          description: Входа нет
 
   /products:
     get:
