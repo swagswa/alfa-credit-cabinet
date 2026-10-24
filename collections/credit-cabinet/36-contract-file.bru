@@ -1,0 +1,30 @@
+meta {
+  name: 36 Файл договора
+  type: http
+  seq: 36
+}
+
+get {
+  url: {{baseUrl}}/documents/{{contractId}}/file
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("pdf с именем договора", function () {
+    expect(res.getHeader("content-type")).to.include("application/pdf");
+    expect(res.getHeader("content-disposition")).to.include("dogovor-");
+  });
+}
+
+docs {
+  PDF с условиями и графиком платежей, имя dogovor-<номер заявки>.pdf.
+}

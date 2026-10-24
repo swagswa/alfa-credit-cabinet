@@ -1,0 +1,33 @@
+meta {
+  name: 34 Карточка после выдачи
+  type: http
+  seq: 34
+}
+
+get {
+  url: {{baseUrl}}/applications/{{northId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq issued
+  res.body.allowed_next.length: eq 0
+}
+
+tests {
+  test("в документах договор", function () {
+    const c = res.body.documents.find((d) => d.kind === "loan_agreement");
+    expect(c).to.be.an("object");
+    bru.setVar("contractId", c.id);
+  });
+}
+
+docs {
+  Договор (loan_agreement) банк кладёт сам после принятия условий, загрузить его клиенту нельзя.
+}

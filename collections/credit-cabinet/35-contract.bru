@@ -1,0 +1,21 @@
+meta {
+  name: 35 Договор
+  type: http
+  seq: 35
+}
+
+get {
+  url: {{baseUrl}}/documents/{{contractId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.kind: eq loan_agreement
+  res.body.content_type: eq application/pdf
+}
