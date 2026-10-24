@@ -862,6 +862,35 @@ export interface components {
              *     ]
              */
             requirements: string[];
+            /**
+             * @description Какие документы банк попросит, те же правила, что у процесса. Кабинет по ним показывает
+             *     чек-лист до подачи. Доверенность сверх этого нужна любому продукту, если подаёт представитель
+             * @example [
+             *       {
+             *         "kind": "passport"
+             *       },
+             *       {
+             *         "kind": "statement",
+             *         "when": "no_turnover"
+             *       },
+             *       {
+             *         "kind": "financials",
+             *         "when": "amount_over",
+             *         "amount_over_kop": 300000000
+             *       }
+             *     ]
+             */
+            documents: components["schemas"]["ProductDocument"][];
+        };
+        ProductDocument: {
+            kind: components["schemas"]["DocumentKind"];
+            /**
+             * @description Пусто значит всегда. no_turnover если оборотов по счёту в банке мало, amount_over если сумма больше amount_over_kop
+             * @enum {string}
+             */
+            when?: "no_turnover" | "amount_over";
+            /** Format: int64 */
+            amount_over_kop?: number;
         };
         Recommendation: {
             goal: components["schemas"]["Goal"];
