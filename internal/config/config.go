@@ -18,6 +18,12 @@ type Logger struct {
 	Level string `env:"LOG_LEVEL" envDefault:"info"`
 }
 
+// Telemetry задаёт порт метрик. Наружу compose его не публикует, метрики забирает Prometheus внутри сети.
+// Адрес коллектора трейсов OTEL_EXPORTER_OTLP_ENDPOINT читает сам SDK.
+type Telemetry struct {
+	MetricsAddr string `env:"METRICS_ADDR" envDefault:":9100"`
+}
+
 type Postgres struct {
 	URL            string        `env:"DATABASE_URL,required"`
 	MaxConns       int32         `env:"DATABASE_MAX_CONNS"       envDefault:"10"`
@@ -86,6 +92,7 @@ type Sources struct {
 
 type API struct {
 	Logger
+	Telemetry
 	Postgres
 	Temporal
 	HTTP
@@ -108,6 +115,7 @@ type API struct {
 
 type Worker struct {
 	Logger
+	Telemetry
 	Postgres
 	Temporal
 	Sources
@@ -124,6 +132,7 @@ type Worker struct {
 
 type DocsWorker struct {
 	Logger
+	Telemetry
 	Postgres
 	Temporal
 	Recognition
@@ -142,6 +151,7 @@ type Recognition struct {
 
 type Mocks struct {
 	Logger
+	Telemetry
 	HTTP
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/redisdb"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/svc"
+	"github.com/swagswa/alfa-credit-cabinet/pkg/telemetry"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/temporalsvc"
 	"github.com/swagswa/alfa-credit-cabinet/pkg/token"
 )
@@ -75,7 +76,8 @@ func main() {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
 
-	err = svc.Run(ctx, lg.Zap, lg, db, rdb, tc, events, httpserver.New("http", cfg.Server(), e))
+	tel := telemetry.New("api", cfg.MetricsAddr)
+	err = svc.Run(ctx, lg.Zap, tel, lg, db, rdb, tc, events, httpserver.New("http", cfg.Server(), e))
 	if err != nil {
 		lg.Zap.Fatal("api stopped", zap.Error(err))
 	}
