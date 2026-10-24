@@ -1423,3 +1423,25 @@ section .rejection-result {
     transition: none;
   }
 }
+.personas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.personas button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  background: #fff;
+  border: 1px solid #e7e9ed;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.personas button:hover {
+  border-color: #b5b8bf;
+}
+.personas small {
+  color: #5c5f66;
+}
