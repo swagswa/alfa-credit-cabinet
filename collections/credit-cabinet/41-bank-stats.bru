@@ -1,0 +1,28 @@
+meta {
+  name: 41 Сводка банка
+  type: http
+  seq: 41
+}
+
+get {
+  url: {{baseUrl}}/stats?days=7
+  body: none
+  auth: none
+}
+
+params:query {
+  days: 7
+}
+
+headers {
+  Cookie: {{bankCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.submitted: gte 2
+}
+
+docs {
+  Сводка по заявкам, поданным за неделю. Под клиентом 403, days вне 1-90 даёт 400.
+}
