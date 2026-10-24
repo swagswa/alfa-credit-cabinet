@@ -430,7 +430,7 @@ export interface paths {
         };
         /**
          * Пример документа для демо
-         * @description Кнопка «Взять пример выписки». Отдаёт сервис mocks через nginx, не api: фронт скачивает файл
+         * @description Кнопка «Загрузить пример выписки». Отдаёт сервис mocks через nginx, не api: фронт скачивает файл
          *     и загружает его обычным `uploadDocument`. Из генерации сервера исключено (`exclude-operation-ids`).
          */
         get: operations["getSampleDocument"];
