@@ -68,10 +68,7 @@ const addEscalation = `-- name: AddEscalation :exec
 WITH e AS (
     INSERT INTO application_events (application_id, kind, actor_role) VALUES ($1, 'escalation', 'system')
 )
-SELECT pg_notify('applications', json_build_object(
-    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
-FROM applications a
-WHERE a.id = $1
+SELECT notify_application($1)
 `
 
 // эскалация статус не меняет, но карточку и очередь стоит обновить
@@ -109,10 +106,7 @@ WITH e AS (
     INSERT INTO application_events (application_id, kind, actor_id, actor_role, comment)
     VALUES ($1, 'signing', $2, $3, $4)
 )
-SELECT pg_notify('applications', json_build_object(
-    'application_id', a.id, 'company_id', a.company_id, 'status', a.status, 'version', a.version)::text)
-FROM applications a
-WHERE a.id = $1
+SELECT notify_application($1)
 `
 
 type AddNoteParams struct {
@@ -549,28 +543,12 @@ func (q *Queries) LockApplication(ctx context.Context, id uuid.UUID) (LockApplic
 }
 
 const notifyApplication = `-- name: NotifyApplication :exec
-SELECT pg_notify('applications', json_build_object(
-    'application_id', $1::uuid,
-    'company_id', $2::uuid,
-    'status', $3::text,
-    'version', $4::integer)::text)
+SELECT notify_application($1)
 `
 
-type NotifyApplicationParams struct {
-	ID        uuid.UUID
-	CompanyID uuid.UUID
-	Status    string
-	Version   int32
-}
-
 // уведомление уходит слушателям после коммита, на нём живёт SSE
-func (q *Queries) NotifyApplication(ctx context.Context, arg NotifyApplicationParams) error {
-	_, err := q.db.Exec(ctx, notifyApplication,
-		arg.ID,
-		arg.CompanyID,
-		arg.Status,
-		arg.Version,
-	)
+func (q *Queries) NotifyApplication(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, notifyApplication, id)
 	return err
 }
 
@@ -593,7 +571,7 @@ func (q *Queries) OpenInfoRequest(ctx context.Context, applicationID uuid.UUID) 
 	return i, err
 }
 
-const setApplicationStatus = `-- name: SetApplicationStatus :one
+const setApplicationStatus = `-- name: SetApplicationStatus :exec
 UPDATE applications
 SET status = $1::text,
     version = version + 1,
@@ -601,7 +579,6 @@ SET status = $1::text,
     submitted_at = CASE WHEN $1::text = 'submitted' THEN now() ELSE submitted_at END,
     updated_at = now()
 WHERE id = $3
-RETURNING version
 `
 
 type SetApplicationStatusParams struct {
@@ -610,11 +587,9 @@ type SetApplicationStatusParams struct {
 	ID     uuid.UUID
 }
 
-func (q *Queries) SetApplicationStatus(ctx context.Context, arg SetApplicationStatusParams) (int32, error) {
-	row := q.db.QueryRow(ctx, setApplicationStatus, arg.Status, arg.DueAt, arg.ID)
-	var version int32
-	err := row.Scan(&version)
-	return version, err
+func (q *Queries) SetApplicationStatus(ctx context.Context, arg SetApplicationStatusParams) error {
+	_, err := q.db.Exec(ctx, setApplicationStatus, arg.Status, arg.DueAt, arg.ID)
+	return err
 }
 
 const setMember = `-- name: SetMember :exec
