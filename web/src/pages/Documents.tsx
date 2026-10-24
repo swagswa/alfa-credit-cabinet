@@ -52,23 +52,27 @@ export function Documents({
     setBusy(true);
     setError('');
     try {
+      // текстовый PDF: скан формата c у кофейни OCR читает с ошибкой в одной цифре, и показ ИИ проваливался
       const { data, error } = await api.GET('/samples/{inn}', {
-        params: { path: { inn: card.company.inn }, query: { kind: 'statement', format: 'c' } },
+        params: { path: { inn: card.company.inn }, query: { kind: 'statement', format: 'a' } },
         parseAs: 'blob',
       });
+      setBusy(false);
       if (data) {
         setKind('statement');
-        setFile(new File([data], `sample-${card.company.inn}.png`, { type: data.type }));
+        await send(new File([data], `sample-${card.company.inn}.pdf`, { type: data.type }), 'statement');
       } else setError(errorText(error, 'Пример недоступен. Выберите свой файл.'));
     } catch {
       setError('Не удалось получить пример. Выберите свой файл.');
-    } finally {
       setBusy(false);
     }
   }
-  async function upload(event: FormEvent<HTMLFormElement>) {
+  function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!file || busy) return;
+    if (file) void send(file, kind);
+  }
+  async function send(file: File, kind: Kind) {
+    if (busy) return;
     if (
       !['application/pdf', 'image/png', 'image/jpeg'].includes(file.type) ||
       file.size > 10 * 1024 * 1024 ||
@@ -213,7 +217,7 @@ export function Documents({
       {error && <BottomNotice message={error} onClose={() => setError('')} />}
       {editable && choices.includes('statement') && (
         <Button loading={busy} onClick={sample}>
-          Взять пример выписки
+          Загрузить пример выписки
         </Button>
       )}
       {editable && (
