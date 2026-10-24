@@ -55,6 +55,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
     } catch { setError('Нет связи с сервером. Попробуйте ещё раз.'); }
     finally { setBusy(false); }
   }
+  const due = card.info_request?.due_at ?? card.due_at;
   if (!editable && !bank && !card.documents.length) return null;
   return <section>
 <h2>Документы для заявки</h2>{editable && <div className="document-checklist"><h3>{required.length ? "Сейчас нужно от вас" : "Обязательные документы пока не запрошены"}</h3>{!required.length && editable && <p>Банк сообщит в этой карточке, если понадобятся документы. Дополнительный файл можно приложить по своей инициативе.</p>}{(required.length > 1 ? required : []).map(type => {const doc=card.documents.find(d=>d.kind===type);return <div className="document-task" key={type}><div><strong>{kinds[type]}</strong><p>{doc ? statuses[doc.status] : "Нужно загрузить"}</p></div>{editable&&<Button size={40} onClick={()=>{setKind(type);setFile(null);document.getElementById("document-upload")?.scrollIntoView({behavior:reduced ? "instant" : "smooth"});}}>Прикрепить {type==="power_of_attorney"?"доверенность":type==="statement"?"выписку":"документ"}</Button>}</div>})}</div>}
@@ -69,11 +70,12 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
       <p>PDF, PNG или JPEG · до 10 МБ · до 5 страниц.</p>
       <Button type="submit" loading={busy} disabled={!file}>Загрузить</Button>
     </form>}
-    {!bank && card.status === 'need_info' && card.info_request && <form onSubmit={provide}>
-      <h2>Нужно от вас</h2><p>{card.info_request.comment}</p>
-      <p>Ответить до: {new Date(card.info_request.due_at).toLocaleString('ru-RU')}</p>
-      <ul>{card.info_request.documents.map((doc) => <li key={doc}>{kinds[doc]}</li>)}</ul>
-      {card.info_request.reasons.map((reason, index) => <p key={index}>{reason.text}</p>)}
+    {/* info_request бэк пока не отдаёт, что нужно, видно из причин выше; без формы ответить нечем и заявка висит до expired */}
+    {!bank && card.status === 'need_info' && <form onSubmit={provide}>
+      <h2>Нужно от вас</h2>{card.info_request?.comment && <p>{card.info_request.comment}</p>}
+      {due && <p>Ответить до: {new Date(due).toLocaleString('ru-RU')}</p>}
+      {card.info_request && <ul>{card.info_request.documents.map((doc) => <li key={doc}>{kinds[doc]}</li>)}</ul>}
+      {card.info_request?.reasons.map((reason, index) => <p key={index}>{reason.text}</p>)}
       <Input block label="Уточнённая выручка за месяц, ₽" type="number" min={1} step="0.01" value={revenue} onChange={(event) => setRevenue(event.target.value)} disabled={busy} />
       <Input block label="Комментарий банку" maxLength={1000} value={comment} onChange={(event) => setComment(event.target.value)} disabled={busy} />
       <p>Выписку и отчётность нужно подтвердить перед отправкой.</p>
