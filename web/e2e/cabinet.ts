@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 
 // вход один раз на прогон: на /login лимит попыток с одного ip, повторы тестов в него упираются
 export const state = (user: string) => `e2e/.auth/${user}.json`;
@@ -11,10 +11,13 @@ export async function login(page: Page, user: string) {
   await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible();
 }
 
-// селекты core-components не нативные: открыть поле и кликнуть вариант
+// селекты core-components не нативные: открыть поле и кликнуть вариант.
+// карточка перерисовывается по sse после загрузки документа и закрывает открытый список, тогда открываем заново
 async function choose(page: Page, label: string, option: string) {
-  await page.getByLabel(label).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
+  await expect(async () => {
+    await page.getByLabel(label).click();
+    await page.getByRole('option', { name: option, exact: true }).click({ timeout: 2_000 });
+  }).toPass();
 }
 
 // png 1x1: бэк смотрит только тип и размер, содержимое скана ему не важно
@@ -78,4 +81,11 @@ export async function acceptAndSign(page: Page) {
   await page.getByLabel('Код подписания').fill(hint!.match(/\d{6}/)![0]);
   await page.getByRole('button', { name: 'Подписать' }).click();
   await expect(page.getByRole('heading', { name: 'Всё готово. Деньги на счёте!' })).toBeVisible();
+}
+
+// та же заявка глазами сотрудника, в отдельном контексте: cookie сессии один на браузер
+export async function asBank(browser: Browser, user: string, client: Page) {
+  const page = await (await browser.newContext({ storageState: state(user) })).newPage();
+  await page.goto(client.url().replace('/client/', '/bank/'));
+  return page;
 }
