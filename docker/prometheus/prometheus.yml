@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  # наши процессы отдают метрики на METRICS_ADDR (:9100), наружу порт не открыт
+  - job_name: credit
+    static_configs:
+      - targets: [api:9100, worker:9100, mocks:9100]
+  # docs-worker есть только в профиле ai, без него цель просто down
+  - job_name: credit-ai
+    static_configs:
+      - targets: [docs-worker:9100]
+  - job_name: temporal
+    static_configs:
+      - targets: [temporal:9090]
