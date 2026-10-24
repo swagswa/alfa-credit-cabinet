@@ -297,7 +297,7 @@ export interface paths {
         put?: never;
         /**
          * Подписать кодом
-         * @description `signing -> issued` после смоделированной выдачи. Неверный код: 422, после трёх неверных нужен новый код.
+         * @description `signing -> issued` после смоделированной выдачи. Неверный код: 422 `incomplete` с ошибкой по полю `code`, после трёх неверных нужен новый код. Вне `signing`: 409.
          */
         post: operations["signApplication"];
         delete?: never;
@@ -692,7 +692,7 @@ export interface components {
              * @example illegal_transition
              * @enum {string}
              */
-            code?: "validation" | "unauthorized" | "forbidden" | "not_found" | "illegal_transition" | "version_conflict" | "idempotency_conflict" | "incomplete" | "wrong_code" | "too_large" | "too_many_requests" | "unavailable";
+            code?: "validation" | "unauthorized" | "forbidden" | "not_found" | "illegal_transition" | "version_conflict" | "idempotency_conflict" | "incomplete" | "too_large" | "too_many_requests" | "unavailable";
             /** @description Ошибки по полям, если есть */
             errors?: components["schemas"]["FieldError"][];
         };
@@ -1880,6 +1880,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
         };
@@ -1906,6 +1907,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
         };
@@ -1937,6 +1939,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
