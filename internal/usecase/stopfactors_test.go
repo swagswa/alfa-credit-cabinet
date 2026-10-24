@@ -113,6 +113,7 @@ func TestCheck(t *testing.T) {
 			}
 			require.Equal(t, tt.codes, hits)
 			require.Len(t, d.Reasons, len(hits))
+			require.Len(t, d.Documents, len(tt.facts.MissingDocuments))
 			if len(tt.codes) > 0 {
 				require.Equal(t, tt.text, d.Reasons[0].Text)
 			}

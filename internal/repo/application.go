@@ -29,6 +29,11 @@ type ApplicationRepository interface {
 	SaveDecision(ctx context.Context, id uuid.UUID, m *domain.Move) error
 	// Decision отдаёт последнее решение по заявке, nil, если решений ещё не было.
 	Decision(ctx context.Context, id uuid.UUID) (*domain.Decision, error)
+	// AddInfoRequest открывает запрос клиенту, by нулевой у системы.
+	AddInfoRequest(ctx context.Context, id, by uuid.UUID, r domain.InfoRequest) error
+	CloseInfoRequest(ctx context.Context, id uuid.UUID) error
+	// InfoRequest отдаёт открытый запрос, nil, если его нет.
+	InfoRequest(ctx context.Context, id uuid.UUID) (*domain.InfoRequest, error)
 
 	// Company находит компанию по ИНН и говорит, представляет ли её userID.
 	Company(ctx context.Context, userID uuid.UUID, inn string) (id uuid.UUID, member bool, err error)
@@ -196,6 +201,46 @@ func (r *applicationRepo) Decision(ctx context.Context, id uuid.UUID) (*domain.D
 		unmarshal(row.Terms, &d.Terms),
 		unmarshal(row.Recommendation, &d.Recommendation),
 	)
+}
+
+func (r *applicationRepo) AddInfoRequest(ctx context.Context, id, by uuid.UUID, req domain.InfoRequest) error {
+	reasons := req.Reasons
+	if reasons == nil {
+		reasons = []domain.Reason{}
+	}
+	err := r.q.AddInfoRequest(ctx, db.AddInfoRequestParams{
+		ApplicationID: id,
+		Documents:     strs(req.Documents),
+		Reasons:       jsonb(&reasons),
+		Comment:       text(req.Comment),
+		RequestedBy:   pgtype.UUID{Bytes: by, Valid: by != uuid.Nil},
+	})
+	if err != nil {
+		return fmt.Errorf("info request %s: %w", id, err)
+	}
+	return nil
+}
+
+func (r *applicationRepo) CloseInfoRequest(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.CloseInfoRequest(ctx, id); err != nil {
+		return fmt.Errorf("close info request %s: %w", id, err)
+	}
+	return nil
+}
+
+func (r *applicationRepo) InfoRequest(ctx context.Context, id uuid.UUID) (*domain.InfoRequest, error) {
+	row, err := r.q.OpenInfoRequest(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil //nolint:nilnil // запроса нет, это не ошибка
+	}
+	if err != nil {
+		return nil, fmt.Errorf("info request %s: %w", id, err)
+	}
+	req := &domain.InfoRequest{Comment: row.Comment.String}
+	for _, k := range row.Documents {
+		req.Documents = append(req.Documents, domain.DocKind(k))
+	}
+	return req, unmarshal(row.Reasons, &req.Reasons)
 }
 
 // jsonb: nil остаётся NULL

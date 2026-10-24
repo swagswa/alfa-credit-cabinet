@@ -10,13 +10,14 @@ import (
 func (u *decisionUseCase) Check(f *domain.Facts) domain.Decision {
 	// по возрастанию силы: отказ сильнее запроса, запрос сильнее ручного
 	strength := []domain.Status{"", domain.StatusManualReview, domain.StatusNeedInfo, domain.StatusRejected}
+	d := domain.Decision{Stage: domain.StageChecks, PolicyVersion: u.policy.Version}
 	docs := make([]string, 0, len(f.MissingDocuments))
 	for _, k := range f.MissingDocuments {
 		docs = append(docs, u.policy.DocumentNames[k])
+		d.Documents = append(d.Documents, domain.DocKind(k))
 	}
 	args := map[string]string{"doc": strings.Join(docs, ", ")}
 
-	d := domain.Decision{Stage: domain.StageChecks, PolicyVersion: u.policy.Version}
 	for _, r := range u.policy.StopFactors {
 		v, _ := f.Input(r.Input)
 		if !hit(r.Op, v, r.Value) {

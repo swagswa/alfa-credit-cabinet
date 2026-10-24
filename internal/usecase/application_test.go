@@ -220,6 +220,96 @@ func TestTransitionNotify(t *testing.T) {
 	}, got)
 }
 
+func TestInfoRequest(t *testing.T) {
+	e := newAppEnv(t)
+	manager := e.user("manager")
+	passport := domain.Reason{Code: "SF_DOCS_MISSING", Text: "Не хватает документа: паспорт руководителя"}
+
+	tests := []struct {
+		name string
+		from domain.Status
+		m    domain.Move
+		want domain.InfoRequest
+		by   *uuid.UUID
+	}{
+		{"стоп-фактор без паспорта", domain.StatusChecking, domain.Move{
+			To: domain.StatusNeedInfo, Actor: system, Codes: []string{"SF_DOCS_MISSING"},
+			Decision: &domain.Decision{
+				Stage: domain.StageChecks, Outcome: domain.StatusNeedInfo,
+				Reasons: []domain.Reason{passport}, Documents: []domain.DocKind{"passport"},
+			},
+		}, domain.InfoRequest{Documents: []domain.DocKind{"passport"}, Reasons: []domain.Reason{passport}}, nil},
+		{"менеджер просит выписку и отчётность", domain.StatusManualReview, domain.Move{
+			To: domain.StatusNeedInfo, Actor: manager, Version: 1, Comment: "Выписка из другого банка за 12 месяцев",
+			Documents: []domain.DocKind{domain.DocStatement, domain.DocFinancials},
+		}, domain.InfoRequest{
+			Documents: []domain.DocKind{domain.DocStatement, domain.DocFinancials},
+			Reasons:   []domain.Reason{},
+			Comment:   "Выписка из другого банка за 12 месяцев",
+		}, &manager.ID},
+		{"компании нет в ЕГРЮЛ", domain.StatusChecking, domain.Move{
+			To: domain.StatusNeedInfo, Actor: system, Codes: []string{"SF_NOT_FOUND"},
+		}, domain.InfoRequest{Reasons: []domain.Reason{{Code: "SF_NOT_FOUND"}}}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := e.app(tt.from)
+			require.NoError(t, e.uc.Transition(t.Context(), id, tt.m))
+
+			app, err := e.uc.Get(t.Context(), manager, id)
+			require.NoError(t, err)
+			require.Equal(t, &tt.want, app.InfoRequest)
+			var by *uuid.UUID
+			err = e.pool.QueryRow(t.Context(), "SELECT requested_by FROM info_requests WHERE application_id = $1", id).
+				Scan(&by)
+			require.NoError(t, err)
+			require.Equal(t, tt.by, by)
+		})
+	}
+}
+
+func TestInfoRequestClosed(t *testing.T) {
+	e := newAppEnv(t)
+	ask := domain.Move{To: domain.StatusNeedInfo, Actor: system, Codes: []string{"SF_NOT_FOUND"}}
+
+	tests := []struct {
+		name string
+		m    domain.Move
+	}{
+		{"клиент ответил", domain.Move{To: domain.StatusChecking, Actor: e.client}},
+		{"срок вышел", domain.Move{To: domain.StatusExpired, Actor: system}},
+		{"клиент отменил", domain.Move{To: domain.StatusCancelledByClient, Actor: e.client}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := e.app(domain.StatusChecking)
+			require.NoError(t, e.uc.Transition(t.Context(), id, ask))
+			require.NoError(t, e.uc.Transition(t.Context(), id, tt.m))
+
+			app, err := e.uc.Get(t.Context(), e.client, id)
+			require.NoError(t, err)
+			require.Nil(t, app.InfoRequest)
+			var closed int
+			err = e.pool.QueryRow(
+				t.Context(),
+				"SELECT count(*) FROM info_requests WHERE application_id = $1 AND closed_at IS NOT NULL",
+				id,
+			).Scan(&closed)
+			require.NoError(t, err)
+			require.Equal(t, 1, closed)
+		})
+	}
+
+	// после ответа проверки могут снова упереться в запрос: старый закрыт, новый открывается
+	id := e.app(domain.StatusChecking)
+	for _, m := range []domain.Move{ask, {To: domain.StatusChecking, Actor: e.client}, ask} {
+		require.NoError(t, e.uc.Transition(t.Context(), id, m))
+	}
+	app, err := e.uc.Get(t.Context(), e.client, id)
+	require.NoError(t, err)
+	require.NotNil(t, app.InfoRequest)
+}
+
 // fakeWorkflows ведёт себя как Temporal с REJECT_DUPLICATE: второй старт с тем же id отклоняется
 type fakeWorkflows struct {
 	err     error

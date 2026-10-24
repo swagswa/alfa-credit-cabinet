@@ -108,3 +108,32 @@ func TestSaveDecision(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &uwd, got)
 }
+
+func TestInfoRequest(t *testing.T) {
+	pool := testenv.Postgres(t, migrations.FS)
+	ctx := t.Context()
+	require.NoError(t, postgres.Exec(migrations.SeedDemo)(ctx, pool))
+	var id uuid.UUID
+	err := pool.QueryRow(ctx, `
+		INSERT INTO applications (company_id, created_by, idempotency_key, product, purpose, amount_kop, term_months)
+		SELECT company_id, user_id, 'k', 'working_capital', 'purchase', 100000000, 12 FROM company_members LIMIT 1
+		RETURNING id`).Scan(&id)
+	require.NoError(t, err)
+	r := repo.NewApplication(db.New(pool))
+
+	req := domain.InfoRequest{
+		Documents: []domain.DocKind{domain.DocStatement, domain.DocFinancials},
+		Reasons:   []domain.Reason{{Code: "SF_DOCS_MISSING", Text: "Не хватает документа: выписка"}},
+	}
+	require.NoError(t, r.AddInfoRequest(ctx, id, uuid.Nil, req))
+	got, err := r.InfoRequest(ctx, id)
+	require.NoError(t, err)
+	require.Equal(t, &req, got)
+	require.Error(t, r.AddInfoRequest(ctx, id, uuid.Nil, req), "открытый запрос на заявку один")
+	require.Error(t, r.AddInfoRequest(ctx, id, uuid.Nil, domain.InfoRequest{Documents: []domain.DocKind{"selfie"}}))
+
+	require.NoError(t, r.CloseInfoRequest(ctx, id))
+	got, err = r.InfoRequest(ctx, id)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}

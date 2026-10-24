@@ -132,8 +132,14 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		if err := apps.Move(ctx, app, m); err != nil {
 			return err
 		}
-		if m.To == domain.StatusSubmitted {
+		switch {
+		case m.To == domain.StatusSubmitted:
 			return apps.AddBKIConsent(ctx, id)
+		case m.To == domain.StatusNeedInfo:
+			return apps.AddInfoRequest(ctx, id, m.Actor.ID, m.InfoRequest())
+		case app.Status == domain.StatusNeedInfo:
+			// ответил клиент, вышел срок или отменили: запрос больше не висит
+			return apps.CloseInfoRequest(ctx, id)
 		}
 		return nil
 	})
@@ -202,6 +208,9 @@ func (u *applicationUseCase) company(
 func (u *applicationUseCase) Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Application, error) {
 	app, err := u.card(ctx, actor, id)
 	if err != nil {
+		return app, err
+	}
+	if app.InfoRequest, err = u.apps.InfoRequest(ctx, id); err != nil {
 		return app, err
 	}
 	if app.Decision, err = u.apps.Decision(ctx, id); err != nil || actor.Role == domain.RoleClient {

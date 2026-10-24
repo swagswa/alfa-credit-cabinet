@@ -66,6 +66,15 @@ type Application struct {
 	Checks []CheckResult
 	// Decision последнее решение, только в карточке
 	Decision *Decision
+	// InfoRequest открытый запрос банка, только в карточке и только в need_info
+	InfoRequest *InfoRequest
+}
+
+// InfoRequest что банк ждёт от клиента. Reasons как показали клиенту.
+type InfoRequest struct {
+	Documents []DocKind
+	Reasons   []Reason
+	Comment   string
 }
 
 // ActorName пустой у системы.
@@ -124,6 +133,22 @@ type Move struct {
 	DueAt *time.Time
 	// Decision пишется вместе с переходом, условия из него становятся текущими
 	Decision *Decision
+	// Documents просит сотрудник вместе с переходом в need_info
+	Documents []DocKind
+}
+
+// InfoRequest из перехода в need_info. По стоп-фактору документы и тексты причин
+// берём из решения, у остальных причины только кодами: клиент их не увидит, банк увидит.
+func (m *Move) InfoRequest() InfoRequest {
+	r := InfoRequest{Documents: m.Documents, Comment: m.Comment}
+	if d := m.Decision; d != nil {
+		r.Documents, r.Reasons = d.Documents, d.Reasons
+		return r
+	}
+	for _, c := range m.Codes {
+		r.Reasons = append(r.Reasons, Reason{Code: c})
+	}
+	return r
 }
 
 // Уведомление для SSE. Теги под payload
