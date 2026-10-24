@@ -27,7 +27,7 @@ import {
 import { BottomNotice, notify } from '../BottomNotice';
 import { Progress } from './Progress';
 import { BankDetails } from './BankDetails';
-import { Decision } from './Decision';
+import { Cancel, Decision } from './Decision';
 import { Documents } from './Documents';
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -413,6 +413,9 @@ export function Applications({
                       bank={bank}
                       refresh={() => setRevision((value) => value + 1)}
                     />
+                    {!bank && (
+                      <Cancel key={`cancel-${card.id}`} card={card} refresh={() => setRevision((value) => value + 1)} />
+                    )}
                   </>
                 )}
               </article>
