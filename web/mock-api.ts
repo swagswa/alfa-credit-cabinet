@@ -1,4 +1,4 @@
-﻿import { validDate } from './src/api/date';
+import { validDate } from './src/api/date';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import type { Plugin } from 'vite';
