@@ -71,7 +71,7 @@ func main() {
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
-		usecase.NewStats(repo.NewStats(dbq.New(db))))
+		usecase.NewStats(db, repo.NewStats(dbq.New(db))))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}

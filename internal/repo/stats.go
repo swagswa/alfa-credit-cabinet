@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
@@ -11,6 +13,7 @@ import (
 type StatsRepository interface {
 	// Stats считает сводку по заявкам, поданным начиная с since. Days не заполняет.
 	Stats(ctx context.Context, since time.Time) (domain.Stats, error)
+	WithTx(tx pgx.Tx) StatsRepository
 }
 
 type statsRepo struct {
@@ -19,6 +22,10 @@ type statsRepo struct {
 
 func NewStats(q *db.Queries) StatsRepository {
 	return &statsRepo{q: q}
+}
+
+func (r *statsRepo) WithTx(tx pgx.Tx) StatsRepository {
+	return &statsRepo{q: r.q.WithTx(tx)}
 }
 
 func (r *statsRepo) Stats(ctx context.Context, since time.Time) (domain.Stats, error) {
