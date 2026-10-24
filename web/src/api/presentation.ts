@@ -9,6 +9,15 @@ export const rate = (bp: number) => `${(bp / 100).toLocaleString('ru-RU')}%`;
 // в полях ввода рубли, в api копейки
 export const kop = (rubles: string) => Math.round(Number(rubles) * 100);
 
+// те же правила документов, что у процесса: что банк попросит после подачи, если не приложить сейчас.
+// выписку «если мало оборотов» до проверок не узнать, её не требуем
+export function requiredDocs(card: S['ApplicationView'], product?: S['Product']): S['DocumentKind'][] {
+  const need = (product?.documents ?? [])
+    .filter((d) => !d.when || (d.when === 'amount_over' && card.amount_kop > (d.amount_over_kop ?? 0)))
+    .map((d) => d.kind);
+  return card.representative_role === 'proxy' ? [...need, 'power_of_attorney'] : need;
+}
+
 export const options = <K extends string>(map: Record<K, string>) =>
   (Object.entries(map) as [K, string][]).map(([key, content]) => ({ key, content }));
 

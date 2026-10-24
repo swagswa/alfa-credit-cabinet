@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
 import { Attach } from '@alfalab/core-components/attach';
 import { api, errorText } from '../api/client';
-import { kinds, kop } from '../api/presentation';
+import { kinds, kop, requiredDocs } from '../api/presentation';
 import { DocumentDetails } from './DocumentDetails';
 import type { components } from '../api/schema.gen';
 
@@ -19,9 +19,19 @@ const statuses: Record<components['schemas']['DocumentStatus'], string> = {
   confirmed: 'Подтверждён',
 };
 
-export function Documents({ card, bank, refresh }: { card: App; bank: boolean; refresh: () => void }) {
+export function Documents({
+  card,
+  bank,
+  product,
+  refresh,
+}: {
+  card: App;
+  bank: boolean;
+  product?: components['schemas']['Product'];
+  refresh: () => void;
+}) {
   const reduced = useMotionDisabled();
-  const [kind, setKind] = useState<Kind>(card.representative_role === 'proxy' ? 'power_of_attorney' : 'statement');
+  const [kind, setKind] = useState<Kind>(card.representative_role === 'proxy' ? 'power_of_attorney' : 'passport');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -35,6 +45,9 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
   ];
   const choices = required.length ? required : (Object.keys(kinds) as Kind[]).filter((k) => k !== 'loan_agreement');
   const editable = !bank && ['draft', 'need_info'].includes(card.status);
+  // в черновике чек-лист по правилам продукта, вид документа при этом выбирается любой
+  const draft = card.status === 'draft';
+  const checklist = draft ? requiredDocs(card, product) : required.length > 1 ? required : [];
   async function sample() {
     setBusy(true);
     setError('');
@@ -122,11 +135,20 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
       {editable && (
         <div className="document-checklist">
           <h3>
-            {required.length || card.status === 'need_info'
-              ? 'Сейчас нужно от вас'
-              : 'Обязательные документы пока не запрошены'}
+            {draft && checklist.length
+              ? 'Что приложить до отправки'
+              : required.length || card.status === 'need_info'
+                ? 'Сейчас нужно от вас'
+                : 'Обязательные документы пока не запрошены'}
           </h3>
-          {!required.length && editable && (
+          {draft && !!checklist.length && (
+            <p>
+              Без этих документов банк запросит их уже после отправки, и на ответ будет ограниченное время.
+              {product?.documents.some((d) => d.when === 'no_turnover') &&
+                ' Выписку из другого банка могут попросить, если оборотов по вашему счёту у нас мало.'}
+            </p>
+          )}
+          {!required.length && !(draft && checklist.length) && editable && (
             <p>
               {card.status === 'need_info'
                 ? 'Что загрузить, написано в причинах выше.'
@@ -134,7 +156,7 @@ export function Documents({ card, bank, refresh }: { card: App; bank: boolean; r
               Дополнительный файл можно приложить по своей инициативе.
             </p>
           )}
-          {(required.length > 1 ? required : []).map((type) => {
+          {checklist.map((type) => {
             const doc = card.documents.find((d) => d.kind === type);
             return (
               <div className="document-task" key={type}>
