@@ -123,7 +123,7 @@ type Worker struct {
 	RulesDir string `env:"RULES_DIR" envDefault:"rules"`
 
 	// по умолчанию сроки демо, на проде 5, 1, 10 и 3 рабочих дня, закрытие через сутки
-	NeedInfoTTL time.Duration `env:"NEED_INFO_TTL" envDefault:"3m"`
+	NeedInfoTTL time.Duration `env:"NEED_INFO_TTL" envDefault:"10m"`
 	ReviewSLA   time.Duration `env:"REVIEW_SLA"    envDefault:"5m"`
 	OfferTTL    time.Duration `env:"OFFER_TTL"     envDefault:"5m"`
 	SigningTTL  time.Duration `env:"SIGNING_TTL"   envDefault:"5m"`
