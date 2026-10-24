@@ -3,7 +3,7 @@ import { Button, MotionDetails } from '../motion';
 import { BankActions } from './BankActions';
 import { useHistory } from '../api/client';
 import { isCompleted } from '../api/dashboard';
-import { actors, labels, money, products } from '../api/presentation';
+import { actors, labels, money, rate, products } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 const sources = {
   egrul: 'Реестр компаний и предпринимателей',
@@ -85,16 +85,21 @@ export function BankDetails({
           )}
         </article>
       ))}
-      <h2>Рекомендация политики</h2>
-      {card.recommendation ? (
-        <p>
-          {products[card.recommendation.product]}: {money(card.recommendation.amount_kop)},{' '}
-          {card.recommendation.term_months} мес., {card.recommendation.rate_bp / 100}% годовых.{' '}
-          {card.recommendation.guarantor_required ? 'Нужно поручительство.' : ''}{' '}
-          {card.recommendation.pledge_required ? 'Нужен залог.' : ''}
-        </p>
-      ) : (
-        <p>Рекомендация пока не поступила.</p>
+      {/* у автоматического решения рекомендации нет, пустой блок только сбивает */}
+      {(card.recommendation || card.status === 'manual_review') && (
+        <>
+          <h2>Рекомендация политики</h2>
+          {card.recommendation ? (
+            <p>
+              {products[card.recommendation.product]}: {money(card.recommendation.amount_kop)},{' '}
+              {card.recommendation.term_months} мес., {rate(card.recommendation.rate_bp)} годовых.{' '}
+              {card.recommendation.guarantor_required ? 'Нужно поручительство.' : ''}{' '}
+              {card.recommendation.pledge_required ? 'Нужен залог.' : ''}
+            </p>
+          ) : (
+            <p>Рекомендация пока не поступила.</p>
+          )}
+        </>
       )}
       <h2>Оценка риска</h2>
       <p className="hint">
@@ -124,7 +129,7 @@ export function BankDetails({
                 {card.scoring.factors.map((factor, index) => (
                   <tr key={`${factor.code}-${index}`}>
                     <th>{factor.name}</th>
-                    <td>{factor.value}</td>
+                    <td>{factor.value.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
                     <td>
                       {factor.points} / {factor.max_points}
                     </td>
