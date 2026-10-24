@@ -808,7 +808,12 @@ function submitWarning(card: App, product?: components['schemas']['Product']) {
   const unconfirmed = card.documents.some(
     (doc) => ['statement', 'financials'].includes(doc.kind) && doc.status !== 'confirmed',
   );
+  const consents = [
+    !card.pd_consent && 'обработку персональных данных',
+    !card.bki_consent && 'запрос кредитной истории',
+  ].filter(Boolean);
   return [
+    consents.length && `Нет согласия на ${consents.join(' и ')}, отметьте его в разделе «Изменить данные заявки».`,
     missing.length &&
       `Не приложено: ${missing.map((kind) => kinds[kind].toLowerCase()).join(', ')}. Банк запросит это после отправки.`,
     unconfirmed && 'Итоги выписки или отчётности не подтверждены, в расчёт они не попадут.',
@@ -831,6 +836,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
   const [amount, setAmount] = useState(String(card.amount_kop / 100));
   const [term, setTerm] = useState(String(card.term_months));
   const [consent, setConsent] = useState(card.bki_consent);
+  const [personalConsent, setPersonalConsent] = useState(card.pd_consent);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [details, setDetails] = useState(() => draftDetails(card));
@@ -848,6 +854,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
           amount_kop: kop(amount),
           term_months: Number(term),
           bki_consent: consent,
+          pd_consent: personalConsent,
           product: details.product,
           purpose: details.purpose,
           representative_role: details.representative_role,
@@ -878,6 +885,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
     setAmount(String(card.amount_kop / 100));
     setTerm(String(card.term_months));
     setConsent(card.bki_consent);
+    setPersonalConsent(card.pd_consent);
     setDetails(draftDetails(card));
     setMessage('');
   }
@@ -963,6 +971,12 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
         required
         value={term}
         onChange={(event) => setTerm(event.target.value)}
+        disabled={busy}
+      />
+      <Checkbox
+        label="Согласие на обработку персональных данных"
+        checked={personalConsent}
+        onChange={(_, payload) => setPersonalConsent(payload.checked)}
         disabled={busy}
       />
       <Checkbox
