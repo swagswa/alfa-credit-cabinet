@@ -2,58 +2,58 @@
   "inn": "001234567887",
   "period_from": "2025-10-01",
   "period_to": "2026-09-30",
-  "opening_balance": 492743.96,
-  "turnover_in": 14909015.00,
-  "turnover_out": 14366608.73,
-  "closing_balance": 1035150.23,
+  "opening_balance": 507215.12,
+  "turnover_in": 15346872.00,
+  "turnover_out": 14781077.29,
+  "closing_balance": 1073009.83,
   "monthly_in": [
     {
       "month": "2025-10",
-      "amount": 664355.00
+      "amount": 753605.00
     },
     {
       "month": "2025-11",
-      "amount": 1832516.00
+      "amount": 1654433.00
     },
     {
       "month": "2025-12",
-      "amount": 633901.00
+      "amount": 730120.00
     },
     {
       "month": "2026-01",
-      "amount": 1258305.00
+      "amount": 1211630.00
     },
     {
       "month": "2026-02",
-      "amount": 853781.00
+      "amount": 899681.00
     },
     {
       "month": "2026-03",
-      "amount": 1807532.00
+      "amount": 1635166.00
     },
     {
       "month": "2026-04",
-      "amount": 2222464.00
+      "amount": 2186504.00
     },
     {
       "month": "2026-05",
-      "amount": 1592415.00
+      "amount": 1650726.00
     },
     {
       "month": "2026-06",
-      "amount": 1397746.00
+      "amount": 1485184.00
     },
     {
       "month": "2026-07",
-      "amount": 443038.00
+      "amount": 673326.00
     },
     {
       "month": "2026-08",
-      "amount": 877723.00
+      "amount": 1042970.00
     },
     {
       "month": "2026-09",
-      "amount": 1325239.00
+      "amount": 1423527.00
     }
   ]
 }
