@@ -2,7 +2,7 @@ import { notify } from '../BottomNotice';
 import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
 import { Button } from '../motion';
-import { api } from '../api/client';
+import { api, errorText } from '../api/client';
 import { kop } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 const fields = {
@@ -62,7 +62,7 @@ export function FinancialsForm({
       if (data) {
         notify('Значения подтверждены.');
         refresh();
-      } else setError(error?.title ?? 'Не удалось подтвердить значения.');
+      } else setError(errorText(error, 'Не удалось подтвердить значения.'));
     } catch {
       setError('Нет связи с сервером. Попробуйте ещё раз.');
     } finally {

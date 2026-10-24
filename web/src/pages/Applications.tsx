@@ -1,4 +1,13 @@
-import { goals, kop, labels, money, options, products as productNames, representatives } from '../api/presentation';
+import {
+  goals,
+  kop,
+  labels,
+  money,
+  rate,
+  options,
+  products as productNames,
+  representatives,
+} from '../api/presentation';
 import { Icon, PageHeading, StatusBadge, FieldPair } from '../ui/Workspace';
 import { useCabinetCache } from '../CabinetCache';
 import { applicationGroups, isApplicationGroup, isCompleted } from '../api/dashboard';
@@ -23,7 +32,7 @@ import { Documents } from './Documents';
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Input } from '@alfalab/core-components/input';
-import { api, settle } from '../api/client';
+import { api, errorText, settle } from '../api/client';
 import type { components, operations } from '../api/schema.gen';
 
 type App = components['schemas']['ApplicationView'];
@@ -114,7 +123,7 @@ export function Applications({
       const { data, error } = await api.GET('/companies/{inn}', { params: { path: { inn } } });
       if (version !== lookupVersion.current) return;
       if (data) setCompany(data);
-      else setError(error?.title ?? 'Не удалось найти компанию.');
+      else setError(errorText(error, 'Не удалось найти компанию.'));
     } catch {
       if (version === lookupVersion.current) setError('Нет связи с реестром. Попробуйте ещё раз.');
     } finally {
@@ -138,7 +147,7 @@ export function Applications({
       });
       if (version !== recommendationVersion.current) return;
       if (data) setRecommendation(data);
-      else setError(error?.title ?? 'Не удалось подобрать продукт.');
+      else setError(errorText(error, 'Не удалось подобрать продукт.'));
     } catch {
       setError('Нет связи с сервером. Попробуйте ещё раз.');
     } finally {
@@ -271,7 +280,7 @@ export function Applications({
         },
       });
       if (!data) {
-        setError(problem?.title ?? 'Не удалось сохранить черновик.');
+        setError(errorText(problem, 'Не удалось сохранить черновик.'));
         return;
       }
       cache.rememberApplication(data, true);
@@ -297,7 +306,7 @@ export function Applications({
         cache.rememberApplication(data);
         setCard(data);
         notify('Заявка отправлена в банк.');
-      } else setError(problem?.title ?? 'Не удалось отправить заявку.');
+      } else setError(errorText(problem, 'Не удалось отправить заявку.'));
     } catch {
       setError('Нет связи с сервером. Проверьте статус перед повторной отправкой.');
     } finally {
@@ -355,27 +364,29 @@ export function Applications({
                     <p>
                       {money(card.amount_kop)}, {card.term_months} мес.
                     </p>
-                    <p>
-                      {
+                    {!bank && (
+                      <p>
                         {
-                          draft: 'Проверьте сведения и отправьте заявку в банк.',
-                          submitted: 'Заявка получена банком.',
-                          checking: 'Проверяем сведения. Пока от вас ничего не требуется.',
-                          scoring: 'Оцениваем условия финансирования.',
-                          need_info: 'Ответьте на запрос банка ниже.',
-                          manual_review: 'Сотрудник банка рассматривает заявку.',
-                          approved: 'Проверьте и примите условия ниже.',
-                          counter_offer: 'Сравните предложенные условия с вашим запросом.',
-                          accepted: 'Готовим документы для подписания.',
-                          signing: 'Подпишите документы кодом ниже.',
-                          rejected: 'Банк не одобрил заявку. Причины указаны ниже.',
-                          issued: 'Выдача завершена.',
-                          closed: 'Заявка завершена.',
-                          cancelled_by_client: 'Заявка отменена.',
-                          expired: 'Срок действия заявки истёк.',
-                        }[card.status]
-                      }
-                    </p>
+                          {
+                            draft: 'Проверьте сведения и отправьте заявку в банк.',
+                            submitted: 'Заявка получена банком.',
+                            checking: 'Проверяем сведения. Пока от вас ничего не требуется.',
+                            scoring: 'Оцениваем условия финансирования.',
+                            need_info: 'Ответьте на запрос банка ниже.',
+                            manual_review: 'Сотрудник банка рассматривает заявку.',
+                            approved: 'Проверьте и примите условия ниже.',
+                            counter_offer: 'Сравните предложенные условия с вашим запросом.',
+                            accepted: 'Готовим документы для подписания.',
+                            signing: 'Подпишите документы кодом ниже.',
+                            rejected: 'Банк не одобрил заявку. Причины указаны ниже.',
+                            issued: 'Выдача завершена.',
+                            closed: 'Заявка завершена.',
+                            cancelled_by_client: 'Заявка отменена.',
+                            expired: 'Срок действия заявки истёк.',
+                          }[card.status]
+                        }
+                      </p>
+                    )}
                     {!bank && card.status === 'draft' && (
                       <MotionDetails className="edit-panel">
                         <summary>Изменить данные заявки</summary>
@@ -628,7 +639,7 @@ export function Applications({
                     {recommendation.items.map((item, index) => (
                       <p key={`${item.product}-${index}`}>
                         {item.primary ? 'Рекомендация' : 'Альтернатива'}: {productNames[item.product]},{' '}
-                        {money(item.amount_kop)}, {item.term_months} мес., {item.rate_bp / 100}% годовых. Ориентир
+                        {money(item.amount_kop)}, {item.term_months} мес., {rate(item.rate_bp)} годовых. Ориентир
                         платежа: {money(item.monthly_payment_kop)}.
                       </p>
                     ))}
@@ -778,7 +789,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
         setMessage(
           response.status === 409
             ? 'Данные изменились. Обновите карточку и проверьте поля перед повторным сохранением.'
-            : (error?.title ?? 'Не удалось сохранить изменения.'),
+            : errorText(error, 'Не удалось сохранить изменения.'),
         );
     } catch {
       setMessage('Нет связи с сервером. Проверьте карточку перед повторным сохранением.');

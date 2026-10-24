@@ -5,6 +5,7 @@ type S = components['schemas'];
 const currency = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' });
 const rounded = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
 export const money = (kopecks: number, round = false) => (round ? rounded : currency).format(kopecks / 100);
+export const rate = (bp: number) => `${(bp / 100).toLocaleString('ru-RU')}%`;
 // в полях ввода рубли, в api копейки
 export const kop = (rubles: string) => Math.round(Number(rubles) * 100);
 
@@ -75,4 +76,5 @@ export const fieldNames: Record<string, string> = {
   liabilities_long_kop: 'Долгосрочные обязательства',
   liabilities_short_kop: 'Краткосрочные обязательства',
   balance_total_kop: 'Итог баланса',
+  monthly_in: 'Поступления по месяцам',
 };

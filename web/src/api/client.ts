@@ -29,6 +29,12 @@ export function settle<T>(request: Promise<T>, done: (result: T) => void, fail =
   };
 }
 
+// title в problem+json это текст http-статуса по-английски, клиенту показываем причины по полям
+export function errorText(error: { errors?: { message: string }[] } | undefined, fallback: string) {
+  const text = error?.errors?.map((e) => e.message).join('; ');
+  return text ? text[0].toUpperCase() + text.slice(1) + '.' : fallback;
+}
+
 // история нужна и банку, и клиенту в архиве; перечитываем при каждой новой версии заявки
 export function useHistory(id: string, version: number, revision = 0) {
   const [history, setHistory] = useState<components['schemas']['ApplicationEvent'][]>([]);

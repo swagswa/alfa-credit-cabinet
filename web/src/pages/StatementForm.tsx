@@ -3,7 +3,7 @@ import { CalendarInput } from '@alfalab/core-components/calendar-input';
 import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
 import { Button } from '../motion';
-import { api } from '../api/client';
+import { api, errorText } from '../api/client';
 import { validDate } from '../api/date';
 import { kop } from '../api/presentation';
 import type { components } from '../api/schema.gen';
@@ -91,7 +91,7 @@ export function StatementForm({
       if (data) {
         notify('Значения подтверждены.');
         refresh();
-      } else setError(error?.title ?? 'Не удалось подтвердить выписку.');
+      } else setError(errorText(error, 'Не удалось подтвердить выписку.'));
     } catch {
       setError('Нет связи с сервером. Попробуйте ещё раз.');
     } finally {
