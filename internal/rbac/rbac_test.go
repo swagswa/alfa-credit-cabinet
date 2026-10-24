@@ -17,7 +17,7 @@ func TestAllowed(t *testing.T) {
 		ok                 bool
 	}{
 		{rbac.Anonymous, "/api/health", "GET", true},
-		{rbac.Anonymous, "/api/me", "GET", false},
+		{rbac.Anonymous, "/api/me", "GET", true},
 		{"client", "/api/me", "GET", true},
 		{"client", "/api/me", "POST", false},
 		// вошедший не теряет того, что может аноним: иначе повторный вход

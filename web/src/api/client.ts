@@ -5,9 +5,11 @@ import type { components, paths } from './schema.gen';
 // cookie сессии HttpOnly, браузер шлёт её сам, поэтому credentials
 export const api = createClient<paths>({ baseUrl: '/api', credentials: 'include' });
 
+// /me без сессии отвечает 204, а не 401: так первый экран не пишет ошибку в консоль
 api.use({
   onResponse({ request, response }) {
-    if (response.status === 401 && !new URL(request.url).pathname.endsWith('/login')) {
+    const path = new URL(request.url).pathname;
+    if ((response.status === 401 && !path.endsWith('/login')) || (response.status === 204 && path.endsWith('/me'))) {
       window.dispatchEvent(new Event('session-expired'));
     }
   },

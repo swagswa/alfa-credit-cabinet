@@ -142,8 +142,12 @@ export function mockApi(): Plugin {
             return problem(400, 'Некорректный запрос');
           }
         }
+        if (pathname === '/api/me' && req.method === 'GET') {
+          if (actor) return json(200, actor);
+          res.statusCode = 204;
+          return res.end();
+        }
         if (pathname !== '/api/health' && !actor) return problem(401, 'Войдите в кабинет');
-        if (pathname === '/api/me' && req.method === 'GET') return json(200, actor);
         if (pathname === '/api/logout' && req.method === 'POST') {
           if (token) {
             sessions.delete(token);

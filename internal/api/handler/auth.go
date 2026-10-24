@@ -33,7 +33,7 @@ func (h *Handler) Logout(ctx context.Context, _ oapi.LogoutRequestObject) (oapi.
 func (h *Handler) Me(ctx context.Context, _ oapi.MeRequestObject) (oapi.MeResponseObject, error) {
 	s, ok := middleware.ActorFrom(ctx)
 	if !ok {
-		return nil, domain.ErrUnauthorized
+		return oapi.Me204Response{}, nil
 	}
 	me, err := h.auth.Me(ctx, s.UserID)
 	if err != nil {
