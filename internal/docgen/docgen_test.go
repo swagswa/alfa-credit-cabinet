@@ -182,3 +182,12 @@ func TestRub(t *testing.T) {
 		})
 	}
 }
+
+func TestPassport(t *testing.T) {
+	file, err := docgen.PassportPDF("Соколова Анна Викторовна", "0000100012")
+	require.NoError(t, err)
+	txt := pdfText(t, file)
+	for _, s := range []string{"Соколова", "Викторовна", "ЖЕН.", "00 00 100012", "ОБРАЗЕЦ"} {
+		require.Contains(t, txt, s)
+	}
+}
