@@ -27,7 +27,7 @@ services:
       - db:/var/lib/postgresql
       - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     healthcheck:
       # по TCP, а не по сокету: во время init-скриптов временный сервер слушает только сокет
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d credit"]
@@ -66,6 +66,7 @@ services:
         condition: service_healthy
 
   temporal:
+    restart: unless-stopped
     image: temporalio/server:1.32.1
     environment:
       <<: *temporal-db-env
@@ -77,7 +78,7 @@ services:
     volumes:
       - ./docker/temporal/dynamicconfig.yaml:/etc/temporal/dynamicconfig.yaml:ro
     ports:
-      - "7233:7233"
+      - "127.0.0.1:7233:7233"
     depends_on:
       temporal-setup:
         condition: service_completed_successfully
@@ -90,22 +91,33 @@ services:
     # сервер принимает соединения не сразу после старта контейнера, ждём его здесь
     command:
       - |
-        until temporal operator cluster health >/dev/null 2>&1; do sleep 1; done
+        n=0
+        until temporal operator cluster health >/dev/null 2>&1; do
+          n=$$((n + 1))
+          [ "$$n" -ge 60 ] && { echo "temporal не поднялся за 60 с" >&2; exit 1; }
+          sleep 1
+        done
         temporal operator namespace describe -n default >/dev/null 2>&1 \
           || temporal operator namespace create -n default --retention 72h
     depends_on:
       - temporal
 
   temporal-ui:
+    restart: unless-stopped
     image: temporalio/ui:2.56.0
     environment:
       TEMPORAL_ADDRESS: temporal:7233
     ports:
-      - "8233:8080"
+      - "127.0.0.1:8233:8080"
     depends_on:
       - temporal
 
   api:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
     build:
       context: .
       target: app
@@ -113,8 +125,8 @@ services:
     environment:
       <<: *backend-env
       HTTP_ADDR: :8080
-      # секрет для стенда; на внешнем сервере задаётся в .env
-      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      # демо-значение, чтобы стенд поднимался одной командой; вне демо задать свой в .env
+      JWT_SECRET: ${JWT_SECRET:-demo-only-jwt-secret-replace-outside-demo}
       AI_ENABLED: ${AI_ENABLED:-false}
       SEED_DEMO: ${SEED_DEMO:-true}
       REDIS_ADDR: redis:6379
@@ -127,7 +139,7 @@ services:
       BANK_URL: http://mocks:8081
       MOCKS_URL: http://mocks:8081
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     healthcheck:
       test: ["CMD", "/app/api", "-healthcheck", "http://localhost:8080/api/health"]
       interval: 5s
@@ -142,6 +154,11 @@ services:
         condition: service_completed_successfully
 
   worker:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
     build:
       context: .
       target: app
@@ -163,6 +180,11 @@ services:
         condition: service_healthy
 
   docs-worker:
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    restart: unless-stopped
     profiles: [ai]
     build:
       context: .
@@ -179,6 +201,7 @@ services:
         condition: service_completed_successfully
 
   mocks:
+    restart: unless-stopped
     build:
       context: .
       target: app
@@ -188,7 +211,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-}
       HTTP_ADDR: :8081
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     healthcheck:
       test: ["CMD", "/app/mocks", "-healthcheck", "http://localhost:8081/health"]
       interval: 5s
@@ -196,9 +219,15 @@ services:
       retries: 20
 
   web:
+    restart: unless-stopped
     build: ./web
     ports:
       - "${WEB_PORT:-8000}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     depends_on:
       api:
         condition: service_healthy
@@ -213,6 +242,11 @@ services:
       - ./api/openapi.yaml:/spec/openapi.yaml:ro
 
   ollama:
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+    restart: unless-stopped
     profiles: [ai]
     image: ollama/ollama:0.40.7
     volumes:
