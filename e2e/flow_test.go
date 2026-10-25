@@ -150,6 +150,19 @@ func TestReject(t *testing.T) {
 	require.NotNil(t, bank.Scoring)
 }
 
+// AC06: у автосервиса текущая просрочка 90+ в БКИ, отказ на проверках, до скоринга не дошло
+func TestOverdue(t *testing.T) {
+	t.Parallel()
+	c := as(t, "auto")
+	app := create(t, c, application("0000700010", 2*mln, 12, 25*mln/10))
+	upload(t, c, app.Id, oapi.DocumentKindPassport, "0000100012_financials_a.pdf")
+	submit(t, c, app.Id)
+
+	v := wait(t, c, app.Id, oapi.ApplicationStatusRejected)
+	require.Contains(t, codes(v), "SF_OVERDUE_90_ACTIVE")
+	require.Nil(t, card(t, as(t, "manager"), app.Id).Scoring)
+}
+
 // AC03: IT без выписки ждёт документы, после ответа уходит андеррайтеру, тот даёт
 // контрпредложение, клиент принимает
 func TestUnderwriter(t *testing.T) {
