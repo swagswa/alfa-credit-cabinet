@@ -39,7 +39,6 @@ export function BankActions({
   const [codes, setCodes] = useState<Code[]>(explained.filter((r) => r.code.startsWith('R_')).map((r) => r.code));
   const [pledge, setPledge] = useState('pledge_required' in base && !!base.pledge_required);
   const [guarantor, setGuarantor] = useState('guarantor_required' in base && !!base.guarantor_required);
-  const [msp, setMsp] = useState('msp_guarantee' in base && !!base.msp_guarantee);
   // клиент чаще всего их уже прислал, просить повторно по умолчанию не надо
   const [statement, setStatement] = useState(false);
   const [financials, setFinancials] = useState(false);
@@ -67,7 +66,7 @@ export function BankActions({
         rate_bp: Math.round(Number(rate) * 100),
         pledge_required: pledge,
         guarantor_required: guarantor,
-        msp_guarantee: msp,
+        msp_guarantee: false,
       };
       const result =
         action === 'decide'
@@ -210,12 +209,6 @@ export function BankActions({
                 disabled={busy}
               />
               <Checkbox
-                label="Поручительство Корпорации МСП"
-                checked={msp}
-                onChange={(_, p) => setMsp(p.checked)}
-                disabled={busy}
-              />
-              <Checkbox
                 label="Требуется залог"
                 checked={pledge}
                 onChange={(_, p) => setPledge(p.checked)}
@@ -270,7 +263,7 @@ export function BankActions({
                 disabled={busy}
               />
               <Typography.Text tag="p" view="primary-small">
-                В расчёте нет причин, которые можно показать клиенту: он увидит только условия решения.
+                В расчёте нет причин для клиента: он увидит стандартный текст по выбранной причине.
               </Typography.Text>
             </>
           )}
