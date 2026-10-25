@@ -173,6 +173,7 @@ func TestServer(t *testing.T) {
 		{name: "health при упавшей базе", dbErr: errors.New("down"), method: "GET", path: "/api/health", status: 503},
 		{name: "закрытая операция без сессии", method: "GET", path: "/api/products", status: 401},
 		{name: "битая сессия как её отсутствие", method: "GET", path: "/api/products", session: "junk", status: 401},
+		{name: "неизвестный путь без сессии", method: "GET", path: "/api/nope", status: 404},
 		{name: "кто я без сессии", method: "GET", path: "/api/me", status: 204},
 		{name: "текущий пользователь", method: "GET", path: "/api/me", session: client, status: 200},
 		{name: "health с сессией клиента", method: "GET", path: "/api/health", session: client, status: 200},
