@@ -60,6 +60,7 @@ export function DocumentDetails({
     };
   }, [id, revision, status]);
   const initial = document?.confirmed ?? document?.extracted;
+  const problems = Object.fromEntries((document?.validation_errors ?? []).map((e) => [e.field, e.message]));
   return (
     <div className="document-details">
       {document && (
@@ -85,12 +86,10 @@ export function DocumentDetails({
           )}
         </div>
       )}
-      {document?.error && <InlineNotice>{document.error}. Доступен ручной ввод.</InlineNotice>}
-      {document?.validation_errors?.map((e, i) => (
-        <InlineNotice key={i}>
-          {e.field}: {e.message}
-        </InlineNotice>
-      ))}
+      {document?.error && (
+        <InlineNotice>{document.error[0].toUpperCase() + document.error.slice(1)}. Доступен ручной ввод.</InlineNotice>
+      )}
+      {problems.inn && <InlineNotice>ИНН: {problems.inn}</InlineNotice>}
       {editable &&
         document &&
         document.status !== 'confirmed' &&
@@ -106,6 +105,7 @@ export function DocumentDetails({
                 documentId={id}
                 inn={inn}
                 initial={initial?.financials}
+                problems={problems}
                 refresh={() => {
                   setRevision((v) => v + 1);
                   refresh();
@@ -117,6 +117,7 @@ export function DocumentDetails({
                 documentId={id}
                 inn={inn}
                 initial={initial?.statement}
+                problems={problems}
                 refresh={() => {
                   setRevision((v) => v + 1);
                   refresh();
