@@ -153,7 +153,15 @@ type Terms struct {
 type Reason struct {
 	Code string `json:"code"`
 	Text string `json:"text,omitempty"`
+	Kind string `json:"kind,omitempty"`
 }
+
+// Kind причины для плана после отказа: плюс и минус скоринга, что исправить. У остальных пусто.
+const (
+	KindPlus  = "plus"
+	KindMinus = "minus"
+	KindFix   = "fix"
+)
 
 // Результат стадии. Outcome совпадает со статусом, в который идёт заявка;
 // у checks без запретов он пустой, дальше скоринг. Terms у approved и counter_offer,
@@ -283,4 +291,5 @@ type PolicyRules struct {
 	Texts map[string]string
 	// DocumentNames для подстановки {doc}: вид документа -> как его назвать клиенту
 	DocumentNames map[string]string
+	ReapplyMonths int // через сколько после отказа по классу E подавать снова
 }

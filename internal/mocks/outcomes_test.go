@@ -60,7 +60,7 @@ func TestOutcomes(t *testing.T) {
 		d := dec.Check(&f)
 		sc := dec.Score(&f)
 		if d.Outcome == "" {
-			d = dec.Policy(&app, &f, &d, &sc)
+			d = dec.Policy(&app, &f, &d, &sc, time.Now())
 		}
 		got[group[d.Outcome]]++
 		if co.Defaulted() {

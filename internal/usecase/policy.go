@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
@@ -18,6 +19,7 @@ func (u *decisionUseCase) Policy(
 	f *domain.Facts,
 	checks *domain.Decision,
 	s *domain.Score,
+	now time.Time,
 ) domain.Decision {
 	d := domain.Decision{
 		Stage:          domain.StagePolicy,
@@ -33,7 +35,9 @@ func (u *decisionUseCase) Policy(
 	}
 	g := u.policy.Products[app.Product].Grades[s.Grade]
 	if g.Action == domain.GradeReject {
-		return finish(domain.StatusRejected, u.reason("R_GRADE_E", nil))
+		reapply := now.AddDate(0, u.policy.ReapplyMonths, 0).Format("02.01.2006")
+		return finish(domain.StatusRejected, append(
+			[]domain.Reason{u.reason("R_GRADE_E", map[string]string{"reapply": reapply})}, u.fixes(f)...)...)
 	}
 
 	want := domain.Terms{Product: app.Product, AmountKop: app.AmountKop, TermMonths: app.TermMonths}
@@ -158,6 +162,22 @@ func (u *decisionUseCase) terms(want domain.Terms, grade string, f *domain.Facts
 		rs = append(rs, u.reason("R_RATE_PREMIUM", map[string]string{"rate": decimal(float64(t.RateBP) / percent)}))
 	}
 	return t, rs
+}
+
+// fixes: что клиент может исправить сам до повторной заявки. Балл и класс не раскрываем,
+// только недоимку и текущую просрочку
+func (u *decisionUseCase) fixes(f *domain.Facts) []domain.Reason {
+	var rs []domain.Reason
+	if f.TaxArrearsKop > 0 {
+		rs = append(rs, u.reason("R_FIX_TAX", map[string]string{"arrears": rubles(f.TaxArrearsKop)}))
+	}
+	if f.CurrentDPDMax > 0 {
+		rs = append(rs, u.reason("R_FIX_OVERDUE", nil))
+	}
+	for i := range rs {
+		rs[i].Kind = domain.KindFix
+	}
+	return rs
 }
 
 // decimal: 20,5 и 2, без хвостовых нулей

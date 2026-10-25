@@ -1497,3 +1497,17 @@ section .rejection-result {
     grid-column: 1;
   }
 }
+.reject-plan {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: left;
+}
+.reject-plan h3 {
+  margin: 16px 0 4px;
+}
+.reject-plan ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #625650;
+  line-height: 1.6;
+}

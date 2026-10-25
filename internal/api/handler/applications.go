@@ -459,7 +459,10 @@ func reasons(rs []domain.Reason, role domain.Role) []oapi.Reason {
 	out := []oapi.Reason{}
 	for _, r := range rs {
 		if r.Text != "" || role != domain.RoleClient {
-			out = append(out, oapi.Reason{Code: oapi.ReasonCode(r.Code), Text: r.Text})
+			out = append(
+				out,
+				oapi.Reason{Code: oapi.ReasonCode(r.Code), Text: r.Text, Kind: opt(oapi.ReasonKind(r.Kind))},
+			)
 		}
 	}
 	return out

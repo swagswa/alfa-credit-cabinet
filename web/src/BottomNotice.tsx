@@ -10,6 +10,9 @@ export function notify(message: string, tone: Notice['tone'] = 'success', close?
   window.dispatchEvent(new CustomEvent<Notice>('cabinet-notice', { detail: { id, message, tone, close } }));
   return id;
 }
+export function dismiss(id: string) {
+  window.dispatchEvent(new CustomEvent('cabinet-notice-dismiss', { detail: id }));
+}
 export function NoticeHost() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const reduced = useMotionDisabled();
@@ -87,9 +90,7 @@ export function BottomNotice({ message, onClose }: { message: string; onClose: (
   useEffect(() => {
     if (!message) return;
     const id = notify(message, 'error', () => close.current());
-    return () => {
-      window.dispatchEvent(new CustomEvent('cabinet-notice-dismiss', { detail: id }));
-    };
+    return () => dismiss(id);
   }, [message]);
   return null;
 }

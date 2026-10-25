@@ -5,6 +5,7 @@ import { Button, MotionDetails, motion, useMotionDisabled } from '../motion';
 import { OutcomePanel } from '../motion/OutcomePanel';
 import { BottomNotice, notify } from '../BottomNotice';
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { Input } from '@alfalab/core-components/input';
 import { Modal } from '@alfalab/core-components/modal';
 import { api, errorText } from '../api/client';
@@ -89,17 +90,41 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
       setBusy(false);
     }
   }
-  if (card.status === 'rejected')
+  if (card.status === 'rejected') {
+    const group = (kind?: components['schemas']['Reason']['kind']) =>
+      card.reasons.filter((reason) => reason.kind === kind).map((reason) => reason.text);
+    const plan = [
+      ['Что помешало', group('minus')],
+      ['В вашу пользу', group('plus')],
+      ['Что можно сделать', group('fix')],
+    ] as const;
     return (
       <OutcomePanel rejected>
         <h2 id="rejection-title">Банк не одобрил заявку</h2>
         {card.reasons.length ? (
-          card.reasons.map((reason, i) => <p key={`${reason.code}-${i}`}>{reason.text}</p>)
+          group(undefined).map((text) => <p key={text}>{text}</p>)
         ) : (
           <p>Банк пока не передал подробное объяснение.</p>
         )}
+        {plan.map(
+          ([title, texts]) =>
+            !!texts.length && (
+              <div key={title} className="reject-plan">
+                <h3>{title}</h3>
+                <ul>
+                  {texts.map((text) => (
+                    <li key={text}>{text}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+        )}
+        <Link className="primary-link" to="/client/new">
+          Подать новую заявку
+        </Link>
       </OutcomePanel>
     );
+  }
   if (['issued', 'closed'].includes(card.status))
     return (
       <OutcomePanel>

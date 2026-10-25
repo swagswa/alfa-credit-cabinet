@@ -126,7 +126,7 @@
   application: {product: working_capital, amount_rub: 5000000, term_months: 12}
   decision:
     outcome: rejected
-    codes: [R_GRADE_E]
+    codes: [R_GRADE_E, R_FIX_TAX]
     sc: [SC_REVENUE_DROP, SC_DSR_HIGH]
 
 - name: стройка 4b, текущая просрочка 95 дней
