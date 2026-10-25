@@ -3,11 +3,15 @@
   --surface: #ffffff;
   --surface-inset: #f7f8fa;
   --ink: #24262b;
-  --ink-secondary: #646b76;
+  --ink-secondary: #5a606b;
+  /* статусы и подписи core-components по умолчанию не дотягивают до 4.5:1 на сером поле */
+  --color-light-text-secondary: rgba(4, 4, 19, 0.62);
   --form-control-label-color: var(--ink-secondary);
   --form-control-hint-color: var(--ink-secondary);
   --line: #e3e6eb;
   --workspace-accent: #ef3124;
+  /* фирменный красный под белым текстом даёт 4:1, для текста берём темнее */
+  --workspace-accent-strong: #d0190a;
   --workspace-focus: #4265c7;
   --radius-control: 10px;
   --radius-panel: 18px;
