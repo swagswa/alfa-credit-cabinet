@@ -80,16 +80,11 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 			return p, fmt.Errorf("неизвестный продукт %q", code)
 		}
 		pp, err := py.policy()
+		if err == nil {
+			err = f.priced(pp)
+		}
 		if err != nil {
 			return p, fmt.Errorf("%s: %w", code, err)
-		}
-		// без них лимит и ставка тихо посчитались бы от нуля
-		for g, gt := range pp.Grades {
-			_, dsr := f.DSRMax[g]
-			_, rate := f.RatePremiumPP[g]
-			if gt.Action != domain.GradeReject && (!dsr || !rate) {
-				return p, fmt.Errorf("%s: для класса %s нужны dsr_max и rate_premium_pp", code, g)
-			}
 		}
 		p.Products[domain.ProductCode(code)] = pp
 	}
@@ -104,6 +99,18 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 		p.StopFactors = append(p.StopFactors, r)
 	}
 	return p, nil
+}
+
+// priced: без dsr_max и надбавки лимит и ставка класса тихо посчитались бы от нуля
+func (f *policyFile) priced(pp domain.ProductPolicy) error {
+	for g, gt := range pp.Grades {
+		_, dsr := f.DSRMax[g]
+		_, rate := f.RatePremiumPP[g]
+		if gt.Action != domain.GradeReject && (!dsr || !rate) {
+			return fmt.Errorf("для класса %s нужны dsr_max и rate_premium_pp", g)
+		}
+	}
+	return nil
 }
 
 func (py *productPolicyYAML) policy() (domain.ProductPolicy, error) {

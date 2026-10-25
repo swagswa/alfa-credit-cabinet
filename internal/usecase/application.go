@@ -127,16 +127,8 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		case !domain.CanTransition(app.Status, m.To, m.Actor.Role):
 			return fmt.Errorf("%w: из %s в %s ролью %s", domain.ErrIllegalTransition, app.Status, m.To, m.Actor.Role)
 		}
-		if m.Decision != nil {
-			if err := apps.SaveDecision(ctx, id, &m); err != nil {
-				return err
-			}
-		}
-		// до смены статуса: выручку принимаем только в need_info
-		if m.RevenueKop != nil {
-			if err := apps.SetRevenue(ctx, id, *m.RevenueKop); err != nil {
-				return err
-			}
+		if err := beforeMove(ctx, apps, id, &m); err != nil {
+			return err
 		}
 		if err := apps.Move(ctx, app, m); err != nil {
 			return err
@@ -146,6 +138,20 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		}
 		return u.notifier.Status(ctx, tx, id, m.To)
 	})
+}
+
+// beforeMove: что пишется вместе с переходом, пока статус ещё прежний
+func beforeMove(ctx context.Context, apps repo.ApplicationRepository, id uuid.UUID, m *domain.Move) error {
+	if m.Decision != nil {
+		if err := apps.SaveDecision(ctx, id, m); err != nil {
+			return err
+		}
+	}
+	// выручку репозиторий принимает только в need_info
+	if m.RevenueKop != nil {
+		return apps.SetRevenue(ctx, id, *m.RevenueKop)
+	}
+	return nil
 }
 
 // afterMove: что ещё меняется вместе с переходом, в той же транзакции
