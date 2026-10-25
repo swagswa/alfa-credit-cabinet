@@ -86,7 +86,14 @@ export function NotificationBell() {
         </svg>
         {unread > 0 && <Badge className="notification-count" view="count" content={unread} height={18} />}
       </Button>
-      <Popover open={open} anchorElement={anchor} position="top-start" offset={[0, 8]} zIndex={50}>
+      <Popover
+        preventOverflow={false}
+        open={open}
+        anchorElement={anchor}
+        position="top-start"
+        offset={[0, 8]}
+        zIndex={50}
+      >
         <div className="notification-list" role="dialog" aria-label="Уведомления">
           <div className="notification-head">
             <strong>Уведомления</strong>
