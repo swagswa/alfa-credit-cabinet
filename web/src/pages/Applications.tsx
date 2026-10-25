@@ -453,7 +453,7 @@ export function Applications({
   }
   const [title, description] = bank
     ? id
-      ? [card ? `Заявка № ${card.number}` : 'Заявка', card?.company.short_name ?? '']
+      ? ['Заявка клиента', card?.company.short_name ?? '']
       : ['Очередь банка', 'Заявки клиентов, проверки и решения']
     : createOnly
       ? ['Новая заявка', 'Заполните анкету и подберите финансирование']
