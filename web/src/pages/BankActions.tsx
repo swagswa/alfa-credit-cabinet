@@ -31,6 +31,7 @@ export function BankActions({
   const [rate, setRate] = useState(String('rate_bp' in base ? base.rate_bp / 100 : 19));
   const [product, setProduct] = useState(base.product);
   const [comment, setComment] = useState('');
+  const [infoComment, setInfoComment] = useState('');
   const [reason, setReason] = useState<Code>('R_MANUAL_RISK');
   // клиенту доходят только причины из расчёта, где тексты уже с числами заявки: код вне расчёта
   // он не увидит. «Смотрит специалист» после решения уже неправда, их не предлагаем
@@ -47,7 +48,8 @@ export function BankActions({
   async function act(action: 'decide' | 'request-info' | 'retry-checks', event?: FormEvent) {
     event?.preventDefault();
     if (busy) return;
-    if (action !== 'retry-checks' && comment.trim().length < 3) {
+    const note = (action === 'request-info' ? infoComment : comment).trim();
+    if (action !== 'retry-checks' && note.length < 3) {
       setError('Добавьте комментарий от 3 символов.');
       return;
     }
@@ -73,7 +75,7 @@ export function BankActions({
               params: { path: { id: card.id } },
               body: {
                 outcome,
-                comment: comment.trim(),
+                comment: note,
                 reason_codes: explained.length ? codes : [reason],
                 ...(outcome !== 'rejected' ? { terms } : {}),
               },
@@ -82,7 +84,7 @@ export function BankActions({
             ? await api.POST('/applications/{id}/request-info', {
                 params: { path: { id: card.id } },
                 body: {
-                  comment: comment.trim(),
+                  comment: note,
                   documents: [
                     ...(statement ? ['statement' as const] : []),
                     ...(financials ? ['financials' as const] : []),
@@ -91,7 +93,8 @@ export function BankActions({
               })
             : await api.POST('/applications/{id}/retry-checks', { params: { path: { id: card.id } } });
       if (result.data) {
-        setComment('');
+        if (action === 'request-info') setInfoComment('');
+        else setComment('');
         notify(notices[action]);
         refresh();
       } else {
@@ -140,8 +143,8 @@ export function BankActions({
             required
             minLength={3}
             maxLength={1000}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            value={infoComment}
+            onChange={(e) => setInfoComment(e.target.value)}
             disabled={busy}
           />
           <Button type="submit" loading={busy}>
