@@ -41,7 +41,7 @@ docker compose up -d --build --wait
 services:
   mocks:
     ports: !override
-      - "8091:8081"
+      - "127.0.0.1:8091:8081"
 ```
 
 Тогда и в командах ниже вместо `localhost:8081` подставляй свой порт.
