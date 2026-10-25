@@ -1,6 +1,8 @@
+import { AppLink as Link } from '../ui/AppLink';
+import { Typography } from '@alfalab/core-components/typography';
 import { Icon, PageHeading, SectionHeading, StatusBadge } from '../ui/Workspace';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+
 import { api, settle } from '../api/client';
 import {
   applicationGroups,
@@ -143,16 +145,16 @@ export function Dashboard() {
       <PageHeading title="Обзор" description="Заявки, решения банка и ваши следующие шаги" />
       <section className="welcome dashboard-promo" aria-labelledby="funding-promo-title">
         <div>
-          <h2 id="funding-promo-title">
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins id="funding-promo-title">
             Деньги на планы
             <br />
             вашей компании
-          </h2>
-          <p>
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-small">
             На закупки, оборудование и развитие бизнеса.
             <br />
             Подайте заявку и следите за решением в кабинете.
-          </p>
+          </Typography.Text>
           <Link className="promo-link" to="/client/new">
             Подать заявку <span aria-hidden="true">↗</span>
           </Link>
@@ -168,7 +170,9 @@ export function Dashboard() {
       </section>
       {error && (
         <div className="dashboard-error" role="alert">
-          <p>{error}</p>
+          <Typography.Text tag="p" view="primary-small">
+            {error}
+          </Typography.Text>
           <Button size={40} onClick={() => setRevision((value) => value + 1)}>
             Обновить обзор
           </Button>
@@ -186,14 +190,13 @@ export function Dashboard() {
           <div className="onboarding-symbol" aria-hidden="true">
             ↗
           </div>
-          <h2>Начните с первой заявки</h2>
-          <p>
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+            Начните с первой заявки
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-small">
             Расскажите о планах бизнеса. Подберите финансирование и пройдите весь путь до решения банка в одном
             кабинете.
-          </p>
-          <Link className="primary-link" to="/client/new">
-            Подобрать финансирование →
-          </Link>
+          </Typography.Text>
           <ol>
             <li>
               <b>01</b> Заполните анкету
@@ -210,7 +213,9 @@ export function Dashboard() {
       {!!snapshot?.attention.length && (
         <section className="dashboard-attention" aria-labelledby="attention-heading">
           <div className="dashboard-section-heading">
-            <h2 id="attention-heading">Требует внимания</h2>
+            <Typography.Title tag="h2" view="small" font="system" defaultMargins id="attention-heading">
+              Требует внимания
+            </Typography.Title>
             <span>Ваш следующий шаг</span>
           </div>
           <div className="attention-grid">
@@ -224,10 +229,14 @@ export function Dashboard() {
                     </span>
                     <span>Заявка № {item.number}</span>
                   </div>
-                  <h3>{action.title}</h3>
-                  <p>{action.text}</p>
+                  <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                    {action.title}
+                  </Typography.Title>
+                  <Typography.Text tag="p" view="primary-small">
+                    {action.text}
+                  </Typography.Text>
                   {item.due_at && (
-                    <p className="attention-deadline">
+                    <Typography.Text tag="p" view="primary-small" className="attention-deadline">
                       Ответить до{' '}
                       {new Date(item.due_at).toLocaleString('ru-RU', {
                         day: 'numeric',
@@ -235,7 +244,7 @@ export function Dashboard() {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                    </p>
+                    </Typography.Text>
                   )}
                   <Link to={`/client/applications/${item.id}`}>
                     {action.action}
@@ -272,12 +281,14 @@ export function Dashboard() {
                   <span>№ {item.number}</span>
                   <StatusBadge status={item.status} />
                 </div>
-                <p className="dashboard-company">{item.company.short_name}</p>
+                <Typography.Text tag="p" view="primary-small" className="dashboard-company">
+                  {item.company.short_name}
+                </Typography.Text>
                 <small>Запрошенная сумма</small>
                 <strong className="dashboard-amount">{money(item.amount_kop, true)}</strong>
-                <p className="dashboard-product">
+                <Typography.Text tag="p" view="primary-small" className="dashboard-product">
                   {products[item.product]} · {item.term_months} мес.
-                </p>
+                </Typography.Text>
                 <Link to={`/client/applications/${item.id}`}>
                   {nextStep(item.status)}
                   <span aria-hidden="true">→</span>

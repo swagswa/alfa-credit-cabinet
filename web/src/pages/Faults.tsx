@@ -1,5 +1,8 @@
+import { AppLink as Link } from '../ui/AppLink';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+
 import { api } from '../api/client';
 import { sources } from '../api/presentation';
 import type { components } from '../api/schema.gen';
@@ -70,7 +73,7 @@ export function Faults() {
         title="Пульт сбоев"
         description="Источники проверок на стенде это моки. Сбой действует на все новые запросы, пока его не снимут."
       />
-      {error && <p role="alert">{error}</p>}
+      {error && <InlineNotice>{error}</InlineNotice>}
       <ul className="faults">
         {faults.map((fault) => (
           <li key={fault.source}>
@@ -93,11 +96,11 @@ export function Faults() {
           </li>
         ))}
       </ul>
-      <p>
+      <Typography.Text tag="p" view="primary-small">
         Как показать: включите «Лежит» у реестра и подайте заявку под любой компанией. Проверка повторится пять раз,
         заявка уйдёт специалисту. Снимите сбой, менеджер в карточке нажмёт «Повторить проверки». «Моргает» роняет три
         запроса, проверка проходит с четвёртой попытки.
-      </p>
+      </Typography.Text>
       <section aria-labelledby="faults-log">
         <SectionHeading title={<span id="faults-log">Ход проверок</span>} />
         {checks.length ? (
@@ -113,7 +116,9 @@ export function Faults() {
             ))}
           </ol>
         ) : (
-          <p>Пока тихо. Запросы в источники появятся здесь, как только какая-нибудь заявка уйдёт на проверку.</p>
+          <Typography.Text tag="p" view="primary-small">
+            Пока тихо. Запросы в источники появятся здесь, как только какая-нибудь заявка уйдёт на проверку.
+          </Typography.Text>
         )}
       </section>
     </div>

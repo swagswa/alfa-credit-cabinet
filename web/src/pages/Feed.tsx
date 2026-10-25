@@ -1,8 +1,11 @@
+import { AppLink as Link } from '../ui/AppLink';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
 import { Icon } from '../ui/Workspace';
 import { useCabinetCache } from '../CabinetCache';
 import { motion, AnimatePresence, Button, ListItem } from '../motion';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+
 import { api } from '../api/client';
 import type { components } from '../api/schema.gen';
 export function Feed() {
@@ -52,8 +55,12 @@ export function Feed() {
         <section className="feed dashboard-feed" aria-labelledby="tips-heading">
           <div className="dashboard-section-heading">
             <div>
-              <h2 id="tips-heading">Подсказки</h2>
-              <p>Подобрали под профиль вашей компании</p>
+              <Typography.Title tag="h2" view="small" font="system" defaultMargins id="tips-heading">
+                Подсказки
+              </Typography.Title>
+              <Typography.Text tag="p" view="primary-small">
+                Подобрали под профиль вашей компании
+              </Typography.Text>
             </div>
           </div>
           <ul className="events-list">
@@ -63,8 +70,12 @@ export function Feed() {
                   ₽
                 </div>
                 <div className="event-content">
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
+                  <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                    {item.title}
+                  </Typography.Title>
+                  <Typography.Text tag="p" view="primary-small">
+                    {item.text}
+                  </Typography.Text>
                 </div>
               </li>
             ))}
@@ -74,8 +85,12 @@ export function Feed() {
       <section className="feed dashboard-feed" aria-busy={loading} aria-labelledby="events-heading">
         <div className="dashboard-section-heading">
           <div>
-            <h2 id="events-heading">События</h2>
-            <p>Последние изменения по вашим заявкам</p>
+            <Typography.Title tag="h2" view="small" font="system" defaultMargins id="events-heading">
+              События
+            </Typography.Title>
+            <Typography.Text tag="p" view="primary-small">
+              Последние изменения по вашим заявкам
+            </Typography.Text>
           </div>
           <Button
             className="events-refresh"
@@ -95,12 +110,18 @@ export function Feed() {
             </span>
           </Button>
         </div>
-        {loading && <p role="status">Загружаем события…</p>}
-        {error && <p role="alert">{error}</p>}
+        {loading && (
+          <Typography.Text tag="p" view="primary-small" role="status">
+            Загружаем события…
+          </Typography.Text>
+        )}
+        {error && <InlineNotice>{error}</InlineNotice>}
         {!loading && !error && !events.length && (
           <div className="events-empty">
             <span aria-hidden="true">○</span>
-            <p>Пока нет событий</p>
+            <Typography.Text tag="p" view="primary-small">
+              Пока нет событий
+            </Typography.Text>
             <small>Здесь появятся решения банка, запросы документов и обновления заявок.</small>
           </div>
         )}
@@ -120,8 +141,12 @@ export function Feed() {
                   </svg>
                 </div>
                 <div className="event-content">
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
+                  <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                    {item.title}
+                  </Typography.Title>
+                  <Typography.Text tag="p" view="primary-small">
+                    {item.text}
+                  </Typography.Text>
                   {item.application_id && (
                     <Link to={`/client/applications/${encodeURIComponent(item.application_id)}`}>
                       Открыть заявку <span aria-hidden="true">→</span>
