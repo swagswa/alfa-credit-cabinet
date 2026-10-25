@@ -7,6 +7,7 @@ import { api } from './api/client';
 import type { components } from './api/schema.gen';
 import { notify } from './BottomNotice';
 import { Button } from './motion';
+import { Icon } from './ui/Workspace';
 
 type Notification = components['schemas']['Notification'];
 
@@ -92,15 +93,7 @@ export function NotificationBell() {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16l-2-2ZM10 21h4"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <Icon name="bell" />
         {unread > 0 && <Badge className="notification-count" view="count" content={unread} height={18} />}
       </Button>
       <Popover

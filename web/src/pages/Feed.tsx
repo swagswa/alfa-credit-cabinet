@@ -130,15 +130,7 @@ export function Feed() {
             {visible.map((item) => (
               <ListItem layout={false} className="event-row" key={item.id}>
                 <div className="event-icon" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3V9Zm4 11h4"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <Icon name="bell" />
                 </div>
                 <div className="event-content">
                   <Typography.Title tag="h3" view="xsmall" font="system">

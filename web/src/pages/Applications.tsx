@@ -32,14 +32,20 @@ import { BankDetails } from './BankDetails';
 import { BankQueueOffer } from './BankQueueOffer';
 import { Cancel, Decision } from './Decision';
 import { Documents } from './Documents';
-import { useEffect, useState, useRef, type FormEvent } from 'react';
+import { useEffect, useState, useRef, type FormEvent, type SVGProps } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { RepeatApplication } from '../api/repeatApplication';
 import { Input } from '@alfalab/core-components/input';
+import { IconButton } from '@alfalab/core-components/icon-button';
+import { ArrowLeftSIcon } from '@alfalab/icons-glyph/ArrowLeftSIcon';
+import { ArrowRightSIcon } from '@alfalab/icons-glyph/ArrowRightSIcon';
 import { api, errorText, settle } from '../api/client';
 import type { components, operations } from '../api/schema.gen';
 
 type App = components['schemas']['ApplicationView'];
+// у глифа role=img без подписи, кнопка и так подписана
+const PrevIcon = (props: SVGProps<SVGSVGElement>) => <ArrowLeftSIcon {...props} aria-hidden="true" />;
+const NextIcon = (props: SVGProps<SVGSVGElement>) => <ArrowRightSIcon {...props} aria-hidden="true" />;
 type Sort = NonNullable<operations['listApplications']['parameters']['query']>['sort'];
 const sorts = [
   { key: '-created_at', content: 'Сначала новые' },
@@ -681,24 +687,22 @@ export function Applications({
                       Всего заявок: {total}. Страница {Math.floor(offset / 20) + 1}
                     </Typography.Text>
                     <nav className="application-pagination" aria-label="Страницы заявок">
-                      <button
-                        type="button"
+                      <IconButton
+                        icon={PrevIcon}
+                        size={40}
+                        view="secondary"
                         aria-label="Назад"
-                        title="Предыдущая страница"
                         disabled={offset === 0}
                         onClick={() => setOffset(Math.max(0, offset - 20))}
-                      >
-                        <Icon name="back" />
-                      </button>
-                      <button
-                        type="button"
+                      />
+                      <IconButton
+                        icon={NextIcon}
+                        size={40}
+                        view="secondary"
                         aria-label="Далее"
-                        title="Следующая страница"
                         disabled={offset + 20 >= total}
                         onClick={() => setOffset(offset + 20)}
-                      >
-                        <Icon name="next" />
-                      </button>
+                      />
                     </nav>
                   </>
                 )}
