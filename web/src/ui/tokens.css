@@ -4,7 +4,11 @@
   --surface-inset: #f7f8fa;
   --ink: #24262b;
   --ink-secondary: #646b76;
+  --form-control-label-color: var(--ink-secondary);
+  --form-control-hint-color: var(--ink-secondary);
   --line: #e3e6eb;
+  --workspace-accent: #ef3124;
+  --workspace-focus: #4265c7;
   --radius-control: 10px;
   --radius-panel: 18px;
   --radius-surface: 24px;

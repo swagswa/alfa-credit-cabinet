@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Badge } from '@alfalab/core-components/badge';
 import { Popover } from '@alfalab/core-components/popover';
@@ -20,6 +20,7 @@ export function NotificationBell() {
   const [list, setList] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<HTMLAnchorElement | HTMLButtonElement | null>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const load = useCallback(
     () =>
@@ -48,6 +49,22 @@ export function NotificationBell() {
       window.removeEventListener('open-notifications', show);
     };
   }, [load]);
+
+  // панель в портале: клик мимо неё и мимо колокольчика закрывает, как и Escape
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!panel.current?.contains(target) && !anchor?.contains(target)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open, anchor]);
 
   const unread = list.filter((n) => !n.read_at).length;
   async function pick(n: Notification) {
@@ -86,8 +103,15 @@ export function NotificationBell() {
         </svg>
         {unread > 0 && <Badge className="notification-count" view="count" content={unread} height={18} />}
       </Button>
-      <Popover open={open} anchorElement={anchor} position="top-start" offset={[0, 8]} zIndex={50}>
-        <div className="notification-list" role="dialog" aria-label="Уведомления">
+      <Popover
+        preventOverflow={false}
+        open={open}
+        anchorElement={anchor}
+        position="top-start"
+        offset={[0, 8]}
+        zIndex={50}
+      >
+        <div ref={panel} className="notification-list" role="dialog" aria-label="Уведомления">
           <div className="notification-head">
             <strong>Уведомления</strong>
             {unread > 0 && (

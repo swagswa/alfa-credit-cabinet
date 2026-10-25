@@ -1,10 +1,15 @@
+import { AppLink as Link } from '../ui/AppLink';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
+import { Disclosure } from '../ui/Disclosure';
+import { CheckProgress } from './CheckProgress';
+import { parseCheckEvent, updateCheckProgress, type CheckProgressState } from '../api/checkProgress';
 import {
   goals,
   kinds,
   kop,
   labels,
   money,
-  rate,
   options,
   products as productNames,
   representatives,
@@ -15,24 +20,19 @@ import { useCabinetCache } from '../CabinetCache';
 import { applicationGroups, isApplicationGroup, isCompleted } from '../api/dashboard';
 import { CompletedJourney } from './CompletedJourney';
 import { Value } from '../motion/Value';
-import {
-  motion,
-  AnimatePresence,
-  Button,
-  Checkbox,
-  ListItem,
-  MotionDetails,
-  Select,
-  StatusText,
-  useMotionDisabled,
-} from '../motion';
+import { motion, AnimatePresence, Button, Checkbox, ListItem, Select, StatusText, useMotionDisabled } from '../motion';
 import { BottomNotice, dismiss, notify } from '../BottomNotice';
 import { Progress } from './Progress';
+import { ApplicationDeadline } from '../ui/Deadline';
+import { MoneyField } from '../ui/MoneyField';
+import { ProductChoices } from '../ui/ProductChoices';
 import { BankDetails } from './BankDetails';
+import { BankQueueOffer } from './BankQueueOffer';
 import { Cancel, Decision } from './Decision';
 import { Documents } from './Documents';
 import { useEffect, useState, useRef, type FormEvent } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import type { RepeatApplication } from '../api/repeatApplication';
 import { Input } from '@alfalab/core-components/input';
 import { api, errorText, settle } from '../api/client';
 import type { components, operations } from '../api/schema.gen';
@@ -52,14 +52,36 @@ const sorts = [
 export function Applications({
   bank = false,
   createOnly = false,
+  userId,
   role,
 }: {
   bank?: boolean;
   createOnly?: boolean;
+  userId?: string;
   role?: components['schemas']['Role'];
 }) {
   const reduced = useMotionDisabled();
   const cache = useCabinetCache();
+  const location = useLocation();
+  const repeat = createOnly
+    ? (location.state as { repeatApplication?: RepeatApplication } | null)?.repeatApplication
+    : undefined;
+  const storageKey = createOnly && userId ? `credit:new:v1:${userId}` : '';
+  const [saved] = useState<Record<string, string | boolean>>(() => {
+    if (!storageKey) return {};
+    try {
+      const value: unknown = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}');
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+      if (('_source' in value ? value._source : '') !== (repeat ? location.key : '')) return {};
+      return Object.fromEntries(
+        Object.entries(value).filter(([, v]) => typeof v === 'string' || typeof v === 'boolean'),
+      );
+    } catch {
+      return {};
+    }
+  });
+  const text = (key: string, fallback: string) => (typeof saved[key] === 'string' ? (saved[key] as string) : fallback);
+  const draftCleared = useRef(false);
   const { id } = useParams();
   const navigate = useNavigate();
   const [search, setSearch] = useSearchParams();
@@ -74,6 +96,7 @@ export function Applications({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(!createOnly && (!!id || !cached));
   const [busy, setBusy] = useState(false);
+  const [checkProgress, setCheckProgress] = useState<CheckProgressState>({ applicationId: '', version: 0, items: {} });
   const [connectionFailed, setConnectionFailed] = useState(false);
   const [revision, setRevision] = useState(0);
   const [status, setStatus] = useState<components['schemas']['ApplicationStatus'] | undefined>();
@@ -82,24 +105,55 @@ export function Applications({
   const [product, setProduct] = useState<components['schemas']['ProductCode'] | undefined>();
   const [grade, setGrade] = useState<components['schemas']['Grade'] | undefined>();
   const [sort, setSort] = useState<Sort>('-created_at');
-  const [inn, setInn] = useState('');
-  const [amount, setAmount] = useState('');
-  const [term, setTerm] = useState('24');
+  const [inn, setInn] = useState(text('inn', repeat?.company.inn ?? ''));
+  const [amount, setAmount] = useState(text('amount', repeat ? String(repeat.amount_kop / 100) : ''));
+  const [term, setTerm] = useState(text('term', String(repeat?.term_months ?? 24)));
   const [consent, setConsent] = useState(false);
   const [personalConsent, setPersonalConsent] = useState(false);
-  const [proxy, setProxy] = useState(false);
+  const [proxy, setProxy] = useState(
+    typeof saved.proxy === 'boolean' ? saved.proxy : repeat?.representative_role === 'proxy',
+  );
   const [company, setCompany] = useState<components['schemas']['Company'] | null>(null);
   const [lookupBusy, setLookupBusy] = useState(false);
   const [own, setOwn] = useState<components['schemas']['CompanyRef'][]>([]);
   const [registryDown, setRegistryDown] = useState(false);
-  const [chosenProduct, setChosenProduct] = useState<components['schemas']['ProductCode']>('working_capital');
-  const [goal, setGoal] = useState<components['schemas']['Goal']>('purchase');
-  const [revenue, setRevenue] = useState('');
-  const [equipmentCost, setEquipmentCost] = useState('');
+  const [chosenProduct, setChosenProduct] = useState<components['schemas']['ProductCode']>(
+    text('chosenProduct', repeat?.product ?? 'working_capital') as components['schemas']['ProductCode'],
+  );
+  const [goal, setGoal] = useState<components['schemas']['Goal']>(
+    text('goal', repeat?.purpose ?? 'purchase') as components['schemas']['Goal'],
+  );
+  const [revenue, setRevenue] = useState(
+    text('revenue', repeat?.monthly_revenue_kop !== undefined ? String(repeat.monthly_revenue_kop / 100) : ''),
+  );
+  const [equipmentCost, setEquipmentCost] = useState(
+    text('equipmentCost', repeat?.equipment_cost_kop !== undefined ? String(repeat.equipment_cost_kop / 100) : ''),
+  );
   const [recommendation, setRecommendation] = useState<components['schemas']['Recommendation'] | null>(null);
   const [recommendBusy, setRecommendBusy] = useState(false);
   const [products, setProducts] = useState<components['schemas']['Product'][]>(cache.get('products') ?? []);
   const [catalogError, setCatalogError] = useState('');
+  useEffect(() => {
+    if (!storageKey || draftCleared.current) return;
+    try {
+      sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          _source: repeat ? location.key : '',
+          inn,
+          amount,
+          term,
+          proxy,
+          chosenProduct,
+          goal,
+          revenue,
+          equipmentCost,
+        }),
+      );
+    } catch {
+      /* Ограничение хранилища не должно блокировать анкету. */
+    }
+  }, [storageKey, repeat, location.key, inn, amount, term, proxy, chosenProduct, goal, revenue, equipmentCost]);
   const selectedProduct = products.find((item) => item.code === chosenProduct);
   // своя компания уже есть в кабинете: поиск в реестре только добавляет сведения и черновик не блокирует
   const known = own.find((item) => item.inn === inn);
@@ -161,6 +215,11 @@ export function Applications({
       if (version === lookupVersion.current) setLookupBusy(false);
     }
   }
+  function invalidateRecommendation() {
+    recommendationVersion.current++;
+    key.current = null;
+    setRecommendation(null);
+  }
   async function recommend() {
     const version = ++recommendationVersion.current;
     setRecommendBusy(true);
@@ -178,9 +237,17 @@ export function Applications({
       });
       if (version !== recommendationVersion.current) return;
       if (data) {
+        if (!data.items.length) {
+          setRecommendation(null);
+          setError('Для этих параметров нет подходящих продуктов. Измените сумму или срок.');
+          return;
+        }
         setRecommendation(data);
         // без этого в анкете оставался оборотный кредит, а поле стоимости оборудования не появлялось
-        setChosenProduct((data.items.find((item) => item.primary) ?? data.items[0]).product);
+        const primary = data.items.find((item) => item.primary) ?? data.items[0];
+        setChosenProduct(primary.product);
+        setAmount(String(primary.amount_kop / 100));
+        setTerm(String(primary.term_months));
         key.current = null;
       } else setError(errorText(error, 'Не удалось подобрать продукт.'));
     } catch {
@@ -262,6 +329,7 @@ export function Applications({
     void load();
     const events = new EventSource('/api/events');
     events.onopen = () => {
+      setCheckProgress({ applicationId: id ?? '', version: 0, items: {} });
       setConnectionFailed(false);
       if (!pending) void load();
       window.dispatchEvent(new Event('feed-refresh'));
@@ -270,7 +338,31 @@ export function Applications({
       setConnectionFailed(true);
       void api.GET('/me').catch(() => undefined);
     };
-    events.addEventListener('status', load);
+    const check = (message: MessageEvent<string>) => {
+      const event = parseCheckEvent(message.data);
+      if (!event || event.application_id !== id) return;
+      setCheckProgress((current) => updateCheckProgress(current, event));
+      // Результат сохранён в БД: обновляем также подробные ответы источников у банка.
+      if (event.check_status) void load();
+    };
+    const statusChanged = (message: MessageEvent<string>) => {
+      try {
+        const event = JSON.parse(message.data);
+        if (id && event.application_id !== id) return;
+        if (id && event.status === 'checking' && Number.isSafeInteger(event.version)) {
+          setCheckProgress((current) =>
+            current.applicationId !== id || event.version > current.version
+              ? { applicationId: id ?? '', version: event.version, items: {} }
+              : current,
+          );
+        }
+      } catch {
+        /* Повреждённое уведомление не должно блокировать обновление карточки. */
+      }
+      void load();
+    };
+    events.addEventListener('check', check);
+    events.addEventListener('status', statusChanged);
     const updateFeed = () => window.dispatchEvent(new Event('feed-refresh'));
     events.addEventListener('status', updateFeed);
     events.addEventListener('document', load);
@@ -319,6 +411,12 @@ export function Applications({
         return;
       }
       cache.rememberApplication(data, true);
+      draftCleared.current = true;
+      try {
+        if (storageKey) sessionStorage.removeItem(storageKey);
+      } catch {
+        /* storage unavailable */
+      }
       notify('Черновик создан.');
       key.current = null;
       setAmount('');
@@ -389,18 +487,22 @@ export function Applications({
                 ) : (
                   <>
                     <Progress card={card} />
-                    <h2>Заявка № {card.number}</h2>
-                    <p>
+                    <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+                      Заявка № {card.number}
+                    </Typography.Title>
+                    <ApplicationDeadline card={card} />
+                    <Typography.Text tag="p" view="primary-small">
                       {card.company.short_name}, ИНН {card.company.inn}
-                    </p>
-                    <p>
+                    </Typography.Text>
+                    <Typography.Text tag="p" view="primary-small">
                       <StatusText value={card.status}>{labels[card.status]}</StatusText>
-                    </p>
-                    <p>
+                    </Typography.Text>
+                    <Typography.Text tag="p" view="primary-small">
+                      {card.status === 'counter_offer' ? 'Запрошено: ' : ''}
                       {money(card.amount_kop)}, {card.term_months} мес.
-                    </p>
+                    </Typography.Text>
                     {!bank && (
-                      <p>
+                      <Typography.Text tag="p" view="primary-small">
                         {
                           {
                             draft: 'Проверьте сведения и отправьте заявку в банк.',
@@ -420,11 +522,10 @@ export function Applications({
                             expired: 'Срок действия заявки истёк.',
                           }[card.status]
                         }
-                      </p>
+                      </Typography.Text>
                     )}
                     {!bank && card.status === 'draft' && (
-                      <MotionDetails className="edit-panel">
-                        <summary>Изменить данные заявки</summary>
+                      <Disclosure className="edit-panel" label={<>Изменить данные заявки</>}>
                         <DraftEditor
                           key={card.id}
                           card={card}
@@ -433,16 +534,21 @@ export function Applications({
                             setCard(data);
                           }}
                         />
-                      </MotionDetails>
+                      </Disclosure>
                     )}
                     {!bank && card.allowed_next.includes('submitted') && (
                       <>
-                        {warning && <p role="note">{warning}</p>}
+                        {warning && (
+                          <Typography.Text tag="p" view="primary-small" role="note">
+                            {warning}
+                          </Typography.Text>
+                        )}
                         <Button view="primary" loading={busy} onClick={submit}>
                           Отправить в банк
                         </Button>
                       </>
                     )}
+                    <CheckProgress card={card} bank={bank} live={checkProgress} disconnected={connectionFailed} />
                     {!bank && <Decision key={card.id} card={card} refresh={() => setRevision((value) => value + 1)} />}
                     {bank && <BankDetails key={`bank-${card.id}`} card={card} role={role} />}
                     <Documents
@@ -536,9 +642,9 @@ export function Applications({
                 {!loading && (
                   <>
                     {!items.length && (
-                      <p>
+                      <Typography.Text tag="p" view="primary-small">
                         {status || product || grade || group ? 'По выбранным условиям заявок нет.' : 'Заявок пока нет.'}
-                      </p>
+                      </Typography.Text>
                     )}
                     <motion.ul layout={reduced ? false : 'position'} className="applications-list">
                       <AnimatePresence initial={false}>
@@ -548,23 +654,43 @@ export function Applications({
                               № {item.number}: {item.company.short_name}
                             </Link>
                             <StatusBadge status={item.status} />
-                            <strong className="application-amount">
-                              <Value text={money(item.amount_kop)} />
-                            </strong>
-                            <span>{item.term_months} мес.</span>
+                            {bank && item.status === 'counter_offer' ? (
+                              <BankQueueOffer key={item.id + item.updated_at} item={item} />
+                            ) : (
+                              <>
+                                <strong className="application-amount">
+                                  <Value text={money(item.amount_kop)} />
+                                </strong>
+                                <span>{item.term_months} мес.</span>{' '}
+                              </>
+                            )}
                           </ListItem>
                         ))}
                       </AnimatePresence>
                     </motion.ul>
-                    <p>
+                    <Typography.Text tag="p" view="primary-small">
                       Всего заявок: {total}. Страница {Math.floor(offset / 20) + 1}
-                    </p>
-                    <Button size={40} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>
-                      Назад
-                    </Button>
-                    <Button size={40} disabled={offset + 20 >= total} onClick={() => setOffset(offset + 20)}>
-                      Далее
-                    </Button>
+                    </Typography.Text>
+                    <nav className="application-pagination" aria-label="Страницы заявок">
+                      <button
+                        type="button"
+                        aria-label="Назад"
+                        title="Предыдущая страница"
+                        disabled={offset === 0}
+                        onClick={() => setOffset(Math.max(0, offset - 20))}
+                      >
+                        <Icon name="back" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Далее"
+                        title="Следующая страница"
+                        disabled={offset + 20 >= total}
+                        onClick={() => setOffset(offset + 20)}
+                      >
+                        <Icon name="next" />
+                      </button>
+                    </nav>
                   </>
                 )}
               </>
@@ -574,13 +700,26 @@ export function Applications({
                 className="application-form"
                 onSubmit={create}
                 onChange={() => {
-                  recommendationVersion.current++;
                   key.current = null;
-                  setRecommendation(null);
                 }}
               >
-                <h2>1. Компания</h2>
-                <p className="hint">Найдём сведения по ИНН. Затем укажите цель и параметры кредита.</p>
+                {!!Object.keys(saved).length && (
+                  <Typography.Text tag="p" view="primary-small" role="status" className="hint">
+                    Анкета восстановлена в этой вкладке. Подтвердите согласия перед сохранением.
+                  </Typography.Text>
+                )}
+                {repeat && (
+                  <Typography.Text tag="p" view="primary-small" className="repeat-caption">
+                    Данные перенесены из заявки № {repeat.number}. Проверьте их, предоставьте согласия и приложите
+                    документы заново.
+                  </Typography.Text>
+                )}
+                <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+                  1. Компания
+                </Typography.Title>
+                <Typography.Text tag="p" view="primary-small" className="hint">
+                  Найдём сведения по ИНН. Затем укажите цель и параметры кредита.
+                </Typography.Text>
                 <Input
                   block
                   label="ИНН компании"
@@ -617,11 +756,11 @@ export function Applications({
                     <span className="hint">Ваша компания в кабинете</span>
                     <br />
                     <strong>{known.short_name}</strong>
-                    <p>
+                    <Typography.Text tag="p" view="primary-small">
                       {registryDown
                         ? 'Реестр сейчас не отвечает, продолжим с данными из кабинета. Банк проверит компанию после подачи.'
                         : 'Можно продолжать. Сведения из реестра покажем по кнопке «Найти компанию».'}
-                    </p>
+                    </Typography.Text>
                   </div>
                 )}
                 {company && (
@@ -629,12 +768,20 @@ export function Applications({
                     <span className="hint">Компания найдена · Демо-данные</span>
                     <br />
                     <strong>{company.short_name}</strong>
-                    <p>{company.address}</p>
-                    <p>Основная деятельность: {company.okved_main.name}</p>
-                    <p>Данные реестра доступны только для чтения.</p>
+                    <Typography.Text tag="p" view="primary-small">
+                      {company.address}
+                    </Typography.Text>
+                    <Typography.Text tag="p" view="primary-small">
+                      Основная деятельность: {company.okved_main.name}
+                    </Typography.Text>
+                    <Typography.Text tag="p" view="primary-small">
+                      Данные реестра доступны только для чтения.
+                    </Typography.Text>
                   </div>
                 )}
-                <h2>2. Финансирование</h2>
+                <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+                  2. Финансирование
+                </Typography.Title>
                 <Select
                   block
                   label="На что нужны деньги"
@@ -643,21 +790,28 @@ export function Applications({
                   disabled={busy || recommendBusy}
                   onChange={({ selected }) => {
                     setGoal(selected!.key as components['schemas']['Goal']);
-                    key.current = null;
-                    setRecommendation(null);
+                    invalidateRecommendation();
                   }}
                 />
                 <FieldPair>
-                  <Input
-                    block
+                  <MoneyField
                     label="Сумма, ₽"
-                    type="number"
-                    min={1}
-                    step="0.01"
+                    hint={
+                      selectedProduct
+                        ? `От ${money(selectedProduct.amount_min_kop, true)} до ${money(selectedProduct.amount_max_kop, true)}`
+                        : 'Укажите сумму финансирования'
+                    }
+                    error={
+                      amount &&
+                      selectedProduct &&
+                      (kop(amount) < selectedProduct.amount_min_kop || kop(amount) > selectedProduct.amount_max_kop)
+                        ? 'Сумма вне диапазона выбранного продукта'
+                        : undefined
+                    }
                     value={amount}
-                    onChange={(event) => {
-                      key.current = null;
-                      setAmount(event.target.value);
+                    onChange={(value) => {
+                      invalidateRecommendation();
+                      setAmount(value);
                     }}
                     required
                     disabled={busy}
@@ -665,26 +819,30 @@ export function Applications({
                   <Input
                     block
                     label="Срок, месяцев"
+                    hint={
+                      selectedProduct
+                        ? `От ${selectedProduct.term_min_months} до ${selectedProduct.term_max_months} месяцев`
+                        : undefined
+                    }
                     type="number"
                     min={1}
                     max={60}
                     value={term}
                     onChange={(event) => {
-                      key.current = null;
+                      invalidateRecommendation();
                       setTerm(event.target.value);
                     }}
                     required
                     disabled={busy}
                   />
                 </FieldPair>
-                <Input
-                  block
+                <MoneyField
                   label="Среднемесячная выручка, ₽"
-                  type="number"
-                  min={1}
-                  step="0.01"
                   value={revenue}
-                  onChange={(event) => setRevenue(event.target.value)}
+                  onChange={(value) => {
+                    invalidateRecommendation();
+                    setRevenue(value);
+                  }}
                   disabled={busy}
                 />
                 <Button
@@ -696,18 +854,19 @@ export function Applications({
                   Подобрать продукт
                 </Button>
                 {recommendation && (
-                  <div>
-                    <p>Предварительный расчёт, окончательные условия определит банк.</p>
-                    {recommendation.items.map((item, index) => (
-                      <p key={`${item.product}-${index}`}>
-                        {item.primary ? 'Рекомендация' : 'Альтернатива'}: {productNames[item.product]},{' '}
-                        {money(item.amount_kop)}, {item.term_months} мес., {rate(item.rate_bp)} годовых. Ориентир
-                        платежа: {money(item.monthly_payment_kop)}.
-                      </p>
-                    ))}
-                  </div>
+                  <ProductChoices
+                    items={recommendation.items}
+                    selected={chosenProduct}
+                    disabled={busy || recommendBusy}
+                    onSelect={(item) => {
+                      key.current = null;
+                      setChosenProduct(item.product);
+                      setAmount(String(item.amount_kop / 100));
+                      setTerm(String(item.term_months));
+                    }}
+                  />
                 )}
-                {catalogError && <p role="alert">{catalogError}</p>}
+                {catalogError && <InlineNotice>{catalogError}</InlineNotice>}
                 <Select
                   block
                   label="Выбранный продукт"
@@ -717,58 +876,64 @@ export function Applications({
                   onChange={({ selected }) => {
                     key.current = null;
                     setChosenProduct(selected!.key as components['schemas']['ProductCode']);
+                    const item = recommendation?.items.find((item) => item.product === selected?.key);
+                    if (item) {
+                      setAmount(String(item.amount_kop / 100));
+                      setTerm(String(item.term_months));
+                    }
                   }}
                 />
                 {selectedProduct && (
                   <div className="product-terms">
-                    <h3>Условия продукта</h3>
-                    <p>
+                    <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                      Условия продукта
+                    </Typography.Title>
+                    <Typography.Text tag="p" view="primary-small">
                       {!recommendation
                         ? ''
                         : recommendation.items.some((item) => item.product === chosenProduct)
                           ? 'Подходит для выбранной цели. '
                           : 'Для этой цели банк рекомендует другой продукт, он указан выше. '}
                       Окончательные условия банк определит после рассмотрения заявки.
-                    </p>
-                    <p>
-                      Сумма кредита: от {money(selectedProduct.amount_min_kop)} до{' '}
-                      {money(selectedProduct.amount_max_kop)}. Срок: от {selectedProduct.term_min_months} до{' '}
+                    </Typography.Text>
+                    <Typography.Text tag="p" view="primary-small">
+                      Сумма кредита: от {money(selectedProduct.amount_min_kop, true)} до{' '}
+                      {money(selectedProduct.amount_max_kop, true)}. Срок: от {selectedProduct.term_min_months} до{' '}
                       {selectedProduct.term_max_months} месяцев.
-                    </p>
-                    <p>
+                    </Typography.Text>
+                    <Typography.Text tag="p" view="primary-small">
                       Ставка: от {selectedProduct.rate_min_bp / 100}% до {selectedProduct.rate_max_bp / 100}% годовых.
                       Возраст бизнеса: от {selectedProduct.min_business_age_months} мес.
-                    </p>
+                    </Typography.Text>
                     <ul>
                       {selectedProduct.requirements.map((requirement) => (
                         <li key={requirement}>{requirement}</li>
                       ))}
                     </ul>
-                    <p>
+                    <Typography.Text tag="p" view="primary-small">
                       {selectedProduct.repayment === 'auto_debit'
                         ? 'Задолженность погашается автоматически из поступлений на счёт.'
                         : 'Погашение равными ежемесячными платежами.'}
-                    </p>
+                    </Typography.Text>
                   </div>
                 )}
                 {chosenProduct === 'equipment' && (
-                  <Input
-                    block
+                  <MoneyField
                     label="Стоимость оборудования, ₽"
-                    type="number"
-                    min={1}
-                    step="0.01"
+                    hint="Кредит может покрыть до 90% стоимости оборудования"
                     required
                     value={equipmentCost}
-                    onChange={(event) => setEquipmentCost(event.target.value)}
+                    onChange={setEquipmentCost}
                     disabled={busy}
                   />
                 )}
-                <h2>3. Представитель и согласия</h2>
-                <p className="hint">
+                <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+                  3. Представитель и согласия
+                </Typography.Title>
+                <Typography.Text tag="p" view="primary-small" className="hint">
                   Если вы не руководитель компании и не сам ИП, выберите работу по доверенности. Файл можно приложить
                   после сохранения черновика, до отправки в банк.
-                </p>
+                </Typography.Text>
                 <Checkbox
                   label="Действую по доверенности"
                   checked={proxy}
@@ -848,7 +1013,8 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [details, setDetails] = useState(() => draftDetails(card));
-  const stale = snapshot.version !== card.version;
+  const [conflict, setConflict] = useState(false);
+  const stale = conflict || snapshot.version !== card.version;
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || stale) return;
@@ -868,7 +1034,9 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
           representative_role: details.representative_role,
           comment: details.comment,
           ...(details.monthly_revenue_kop ? { monthly_revenue_kop: kop(details.monthly_revenue_kop) } : {}),
-          ...(details.equipment_cost_kop ? { equipment_cost_kop: kop(details.equipment_cost_kop) } : {}),
+          ...(details.product === 'equipment' && details.equipment_cost_kop
+            ? { equipment_cost_kop: kop(details.equipment_cost_kop) }
+            : {}),
         },
       });
       if (data) {
@@ -876,33 +1044,47 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
         onSaved(data);
         setMessage('');
         notify('Изменения сохранены.');
-      } else
-        setMessage(
-          response.status === 409
-            ? 'Данные изменились. Обновите карточку и проверьте поля перед повторным сохранением.'
-            : errorText(error, 'Не удалось сохранить изменения.'),
-        );
+      } else {
+        if (response.status === 409) setConflict(true);
+        setMessage(response.status === 409 ? '' : errorText(error, 'Не удалось сохранить изменения.'));
+      }
     } catch {
       setMessage('Нет связи с сервером. Проверьте карточку перед повторным сохранением.');
     } finally {
       setBusy(false);
     }
   }
-  function reset() {
-    setSnapshot(card);
-    setAmount(String(card.amount_kop / 100));
-    setTerm(String(card.term_months));
-    setConsent(card.bki_consent);
-    setPersonalConsent(card.pd_consent);
-    setDetails(draftDetails(card));
-    setMessage('');
+  async function reset() {
+    setBusy(true);
+    try {
+      const { data } = await api.GET('/applications/{id}', { params: { path: { id: card.id } } });
+      if (!data) {
+        setMessage('Не удалось обновить данные. Ваш ввод сохранён.');
+        return;
+      }
+      setSnapshot(data);
+      onSaved(data);
+      setAmount(String(data.amount_kop / 100));
+      setTerm(String(data.term_months));
+      setConsent(data.bki_consent);
+      setPersonalConsent(data.pd_consent);
+      setDetails(draftDetails(data));
+      setConflict(false);
+      setMessage('');
+    } catch {
+      setMessage('Нет связи с сервером. Ваш ввод сохранён.');
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <form onSubmit={save}>
-      <h3>Изменить черновик</h3>
+      <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+        Изменить черновик
+      </Typography.Title>
       <Select
         block
-        label="Продукт черновика"
+        label="Выбранный продукт"
         selected={details.product}
         options={options(productNames)}
         disabled={busy}
@@ -910,7 +1092,7 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
       />
       <Select
         block
-        label="Цель черновика"
+        label="На что нужны деньги"
         selected={details.purpose}
         options={options(goals)}
         disabled={busy}
@@ -926,26 +1108,20 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
           setDetails({ ...details, representative_role: selected!.key as App['representative_role'] })
         }
       />
-      <Input
-        block
-        label="Выручка черновика за месяц, ₽"
-        type="number"
-        min={1}
-        step="0.01"
+      <MoneyField
+        label="Среднемесячная выручка, ₽"
         value={details.monthly_revenue_kop}
         disabled={busy}
-        onChange={(event) => setDetails({ ...details, monthly_revenue_kop: event.target.value })}
+        onChange={(value) => setDetails({ ...details, monthly_revenue_kop: value })}
       />
-      <Input
-        block
-        label="Стоимость оборудования в черновике, ₽"
-        type="number"
-        min={1}
-        step="0.01"
-        value={details.equipment_cost_kop}
-        disabled={busy}
-        onChange={(event) => setDetails({ ...details, equipment_cost_kop: event.target.value })}
-      />
+      {details.product === 'equipment' && (
+        <MoneyField
+          label="Стоимость оборудования, ₽"
+          value={details.equipment_cost_kop}
+          disabled={busy}
+          onChange={(value) => setDetails({ ...details, equipment_cost_kop: value })}
+        />
+      )}
       <Input
         block
         label="Комментарий к заявке"
@@ -955,21 +1131,11 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
         onChange={(event) => setDetails({ ...details, comment: event.target.value })}
       />
       {stale && (
-        <p role="alert">
-          Заявка изменилась. Ваш ввод сохранён в форме. Загрузите актуальные значения перед сохранением.
-        </p>
+        <InlineNotice>
+          Заявка изменилась. Ваш ввод сохранён в форме. «Обновить данные» заменит его актуальными значениями.
+        </InlineNotice>
       )}
-      <Input
-        block
-        label="Сумма, ₽"
-        type="number"
-        min={1}
-        step="0.01"
-        required
-        value={amount}
-        onChange={(event) => setAmount(event.target.value)}
-        disabled={busy}
-      />
+      <MoneyField label="Сумма, ₽" required value={amount} onChange={setAmount} disabled={busy} />
       <Input
         block
         label="Срок, месяцев"
@@ -993,13 +1159,17 @@ function DraftEditor({ card, onSaved }: { card: App; onSaved: (card: App) => voi
         onChange={(_, payload) => setConsent(payload.checked)}
         disabled={busy}
       />
-      {message && <p role="status">{message}</p>}
+      {message && (
+        <Typography.Text tag="p" view="primary-small" role="status">
+          {message}
+        </Typography.Text>
+      )}
       <Button type="submit" loading={busy} disabled={stale}>
         Сохранить изменения
       </Button>
       {stale && (
         <Button type="button" disabled={busy} onClick={reset}>
-          Заменить мой ввод актуальными данными
+          Обновить данные
         </Button>
       )}
     </form>

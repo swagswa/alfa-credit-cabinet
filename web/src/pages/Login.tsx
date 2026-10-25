@@ -1,3 +1,5 @@
+import { InlineNotice } from '../ui/InlineNotice';
+import { useSearchParams } from 'react-router';
 import { Button } from '../motion';
 import { useState, type FormEvent } from 'react';
 import { Typography } from '@alfalab/core-components/typography';
@@ -20,6 +22,7 @@ const personas = [
 const demoPassword = 'demo12345';
 
 export function Login({ onLogin }: { onLogin: (session: Session) => void }) {
+  const [search] = useSearchParams();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,14 +54,23 @@ export function Login({ onLogin }: { onLogin: (session: Session) => void }) {
   }
   return (
     <form className="login-form" onSubmit={submit}>
-      <p className="eyebrow">Альфа-Хак · Прототип</p>
+      <Typography.Text tag="p" view="primary-small" className="eyebrow">
+        Альфа-Хак · Прототип
+      </Typography.Text>
       <Typography.Title tag="h1">Вход в кредитный кабинет</Typography.Title>
-      <p className="hint">Выберите финансирование для бизнеса и следите за заявкой в одном кабинете.</p>
+      {search.get('expired') === '1' && (
+        <Typography.Text tag="p" view="primary-small" role="status">
+          Сессия завершена. Войдите снова, чтобы продолжить с открытой страницы.
+        </Typography.Text>
+      )}
+      <Typography.Text tag="p" view="primary-small" className="hint">
+        Выберите финансирование для бизнеса и следите за заявкой в одном кабинете.
+      </Typography.Text>
       <section className="demo-guide" aria-label="Демо-учётки">
-        <p>
+        <Typography.Text tag="p" view="primary-small">
           Демо-учётки, пароль у всех {demoPassword}. Страницы у компаний одинаковые, отличаются данные и результат
           рассмотрения.
-        </p>
+        </Typography.Text>
         <div className="personas">
           {personas.map(([user, name, outcome]) => (
             <button key={user} type="button" disabled={busy} onClick={() => void enter(user, demoPassword)}>
@@ -91,7 +103,7 @@ export function Login({ onLogin }: { onLogin: (session: Session) => void }) {
         required
         disabled={busy}
       />
-      {error && <p role="alert">{error}</p>}
+      {error && <InlineNotice>{error}</InlineNotice>}
       <Button type="submit" view="primary" loading={busy} disabled={!login.trim() || !password}>
         Войти
       </Button>

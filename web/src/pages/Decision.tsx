@@ -1,13 +1,21 @@
+import { openNotifications } from '../Notifications';
+import { CodeInput } from '@alfalab/core-components/code-input';
+import { Table } from '@alfalab/core-components/table';
+import { AppLink as Link } from '../ui/AppLink';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
+import { Disclosure } from '../ui/Disclosure';
 import { money, rate, products } from '../api/presentation';
 import { isCompleted } from '../api/dashboard';
+import { repeatApplication } from '../api/repeatApplication';
+import { CounterOfferComparison } from './CounterOfferComparison';
 import { Value } from '../motion/Value';
-import { Button, MotionDetails, motion, useMotionDisabled } from '../motion';
+import { Button, motion, useMotionDisabled } from '../motion';
 import { OutcomePanel } from '../motion/OutcomePanel';
 import { BottomNotice, notify } from '../BottomNotice';
-import { openNotifications } from '../Notifications';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
-import { Input } from '@alfalab/core-components/input';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+
+import { Deadline } from '../ui/Deadline';
 import { Modal } from '@alfalab/core-components/modal';
 import { api, errorText } from '../api/client';
 import type { components } from '../api/schema.gen';
@@ -16,6 +24,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
   const reduced = useMotionDisabled();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const codeInput = useRef<React.ComponentRef<typeof CodeInput>>(null);
   const [code, setCode] = useState('');
   const [issued, setIssued] = useState<components['schemas']['SigningCode'] | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -63,7 +72,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
   }
   async function sign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || codeExpired) return;
+    if (busy || codeExpired || code.length !== 6) return;
     setBusy(true);
     setError('');
     try {
@@ -84,6 +93,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
               : null,
           );
           setCode('');
+          codeInput.current?.reset();
         }
       }
     } catch {
@@ -91,6 +101,43 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
     } finally {
       setBusy(false);
     }
+  }
+  if (card.status === 'need_info') return null;
+  if (card.status === 'expired' || card.status === 'cancelled_by_client') {
+    const expired = card.status === 'expired';
+    return (
+      <section className="archive-panel terminal-result">
+        <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+          {expired ? (card.offer ? 'Срок предложения истёк' : 'Срок ответа истёк') : 'Заявка отменена'}
+        </Typography.Title>
+        <Typography.Text tag="p" view="primary-small">
+          {expired
+            ? 'Работа по этой заявке завершена. Чтобы снова обратиться за финансированием, создайте новую заявку.'
+            : 'Вы отменили эту заявку. Она сохранена только для просмотра.'}
+        </Typography.Text>
+        <Typography.Text tag="p" view="primary-small">
+          <strong>{card.company.short_name}</strong> · {money(card.amount_kop)} · {card.term_months} мес.
+        </Typography.Text>
+        {expired && card.offer && (
+          <div className="expired-offer">
+            <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+              Предложение больше не действует
+            </Typography.Title>
+            <Typography.Text tag="p" view="primary-small">
+              {products[card.offer.product]} · {money(card.offer.amount_kop)} · {card.offer.term_months} мес.
+            </Typography.Text>
+            <Typography.Text tag="p" view="primary-small">
+              {rate(card.offer.rate_bp)} годовых · {money(card.offer.monthly_payment_kop)} в месяц
+            </Typography.Text>
+          </div>
+        )}
+        {expired && (
+          <Link className="primary-link" to="/client/new" state={repeatApplication(card)}>
+            Подать заново
+          </Link>
+        )}
+      </section>
+    );
   }
   if (card.status === 'rejected') {
     const group = (kind?: components['schemas']['Reason']['kind']) =>
@@ -102,17 +149,27 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
     ] as const;
     return (
       <OutcomePanel rejected>
-        <h2 id="rejection-title">Банк не одобрил заявку</h2>
+        <Typography.Title tag="h2" view="small" font="system" defaultMargins id="rejection-title">
+          Банк не одобрил заявку
+        </Typography.Title>
         {card.reasons.length ? (
-          group(undefined).map((text) => <p key={text}>{text}</p>)
+          group(undefined).map((text) => (
+            <Typography.Text tag="p" view="primary-small" key={text}>
+              {text}
+            </Typography.Text>
+          ))
         ) : (
-          <p>Банк пока не передал подробное объяснение.</p>
+          <Typography.Text tag="p" view="primary-small">
+            Банк пока не передал подробное объяснение.
+          </Typography.Text>
         )}
         {plan.map(
           ([title, texts]) =>
             !!texts.length && (
               <div key={title} className="reject-plan">
-                <h3>{title}</h3>
+                <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                  {title}
+                </Typography.Title>
                 <ul>
                   {texts.map((text) => (
                     <li key={text}>{text}</li>
@@ -130,102 +187,162 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
   if (['issued', 'closed'].includes(card.status))
     return (
       <OutcomePanel>
-        <h2 id="success-title">Всё готово. Деньги на счёте!</h2>
-        <p>Заявка одобрена, документы подписаны.</p>
+        <Typography.Title tag="h2" view="small" font="system" defaultMargins id="success-title">
+          Всё готово. Деньги на счёте!
+        </Typography.Title>
+        <Typography.Text tag="p" view="primary-small">
+          Заявка одобрена, документы подписаны.
+        </Typography.Text>
         <strong className="success-amount">{money(card.offer?.amount_kop ?? card.amount_kop)}</strong>
-        <p>
+        <Typography.Text tag="p" view="primary-small">
           {products[card.offer?.product ?? card.product]} · {card.offer?.term_months ?? card.term_months} мес.
-        </p>
-        <p className="hint">Деньги на счёте. Выдача смоделирована, реального перевода нет.</p>
+        </Typography.Text>
+        <Typography.Text tag="p" view="primary-small" className="hint">
+          Деньги на счёте. Выдача смоделирована, реального перевода нет.
+        </Typography.Text>
       </OutcomePanel>
     );
   return (
     <motion.section layout={reduced ? false : 'position'} className="decision-panel">
-      {!!card.reasons.length && (
+      {card.status === 'counter_offer' ? (
         <>
-          <h2>
-            {card.status === 'need_info'
-              ? 'Что нужно уточнить'
-              : card.status === 'manual_review'
-                ? 'Что учитывает специалист'
-                : 'Почему принято такое решение'}
-          </h2>
-          {card.reasons.map((reason, index) => (
-            <p key={`${reason.code}-${index}`}>{reason.text}</p>
-          ))}
+          {!!card.reasons.filter((reason) => reason.kind !== 'plus').length && (
+            <section className="counter-reasons">
+              <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                Почему банк предложил другие условия
+              </Typography.Title>
+              {card.reasons
+                .filter((reason) => reason.kind !== 'plus')
+                .map((reason, index) => (
+                  <Typography.Text tag="p" view="primary-small" key={`${reason.code}-${index}`}>
+                    {reason.text}
+                  </Typography.Text>
+                ))}
+            </section>
+          )}
+          {!!card.reasons.filter((reason) => reason.kind === 'plus').length && (
+            <section className="counter-positives">
+              <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                Что учтено в вашу пользу
+              </Typography.Title>
+              {card.reasons
+                .filter((reason) => reason.kind === 'plus')
+                .map((reason, index) => (
+                  <Typography.Text tag="p" view="primary-small" key={`${reason.code}-${index}`}>
+                    {reason.text}
+                  </Typography.Text>
+                ))}
+            </section>
+          )}
+        </>
+      ) : (
+        <>
+          {!!card.reasons.length && (
+            <>
+              <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+                {card.status === 'manual_review' ? 'Что учитывает специалист' : 'Почему принято такое решение'}
+              </Typography.Title>
+              {card.reasons.map((reason, index) => (
+                <Typography.Text tag="p" view="primary-small" key={`${reason.code}-${index}`}>
+                  {reason.text}
+                </Typography.Text>
+              ))}
+            </>
+          )}
         </>
       )}
       {card.offer && (
         <>
-          <h2>{card.status === 'counter_offer' ? 'Предлагаем другие условия' : 'Условия финансирования'}</h2>
-          <div className="offer-highlights">
-            <div>
-              <small>Банк предлагает</small>
-              <strong>
-                <Value text={money(card.offer.amount_kop)} />
-              </strong>
-            </div>
-            <div>
-              <small>Ставка в год</small>
-              <strong>{rate(card.offer.rate_bp)}</strong>
-            </div>
-            <div>
-              <small>Срок</small>
-              <strong>{card.offer.term_months} мес.</strong>
-            </div>
-            <div>
-              <small>Ежемесячный платёж</small>
-              <strong>
-                <Value text={money(card.offer.monthly_payment_kop)} />
-              </strong>
-            </div>
-          </div>
-          <MotionDetails className="offer-comparison">
-            <summary>Сравнить с моей заявкой</summary>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Параметр</th>
-                    <th>Запрошено</th>
-                    <th>Предложено</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th>Продукт</th>
-                    <td>{products[card.product]}</td>
-                    <td>{products[card.offer.product]}</td>
-                  </tr>
-                  <tr>
-                    <th>Сумма</th>
-                    <td>{money(card.amount_kop)}</td>
-                    <td>{money(card.offer.amount_kop)}</td>
-                  </tr>
-                  <tr>
-                    <th>Срок</th>
-                    <td>{card.term_months} мес.</td>
-                    <td>{card.offer.term_months} мес.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </MotionDetails>
-          <p>
-            {rate(card.offer.rate_bp)} годовых. Платёж: {money(card.offer.monthly_payment_kop)}.
-          </p>
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+            {card.status === 'counter_offer' ? 'Предлагаем другие условия' : 'Условия финансирования'}
+          </Typography.Title>
+          {card.status === 'counter_offer' ? (
+            <CounterOfferComparison key={card.id} card={card} />
+          ) : (
+            <>
+              <div className="offer-highlights">
+                <div>
+                  <small>Банк предлагает</small>
+                  <strong>
+                    <Value text={money(card.offer.amount_kop)} />
+                  </strong>
+                </div>
+                <div>
+                  <small>Ставка в год</small>
+                  <strong>{rate(card.offer.rate_bp)}</strong>
+                </div>
+                <div>
+                  <small>Срок</small>
+                  <strong>{card.offer.term_months} мес.</strong>
+                </div>
+                <div>
+                  <small>Ежемесячный платёж</small>
+                  <strong>
+                    <Value text={money(card.offer.monthly_payment_kop)} />
+                  </strong>
+                </div>
+              </div>
+              <Disclosure className="offer-comparison" label={<>Сравнить с моей заявкой</>}>
+                <div className="table-scroll">
+                  <Table>
+                    <Table.THead>
+                      <Table.THeadCell>Параметр</Table.THeadCell>
+                      <Table.THeadCell>Запрошено</Table.THeadCell>
+                      <Table.THeadCell>Предложено</Table.THeadCell>
+                    </Table.THead>
+                    <Table.TBody>
+                      <Table.TRow>
+                        <Table.TCell>Продукт</Table.TCell>
+                        <Table.TCell>{products[card.product]}</Table.TCell>
+                        <Table.TCell>{products[card.offer.product]}</Table.TCell>
+                      </Table.TRow>
+                      <Table.TRow>
+                        <Table.TCell>Сумма</Table.TCell>
+                        <Table.TCell>{money(card.amount_kop)}</Table.TCell>
+                        <Table.TCell>{money(card.offer.amount_kop)}</Table.TCell>
+                      </Table.TRow>
+                      <Table.TRow>
+                        <Table.TCell>Срок</Table.TCell>
+                        <Table.TCell>{card.term_months} мес.</Table.TCell>
+                        <Table.TCell>{card.offer.term_months} мес.</Table.TCell>
+                      </Table.TRow>
+                    </Table.TBody>
+                  </Table>
+                </div>
+              </Disclosure>
+            </>
+          )}
+          {card.status !== 'counter_offer' && (
+            <Typography.Text tag="p" view="primary-small">
+              {rate(card.offer.rate_bp)} годовых. Платёж: {money(card.offer.monthly_payment_kop)}.
+            </Typography.Text>
+          )}
           {card.allowed_next.includes('accepted') && (
-            <p>Предложение действительно до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.</p>
+            <Typography.Text tag="p" view="primary-small">
+              Предложение действительно до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.
+            </Typography.Text>
           )}
           {card.offer.guarantor_required && (
-            <p>Нужно поручительство собственника: он отвечает по обязательствам компании.</p>
+            <Typography.Text tag="p" view="primary-small">
+              Нужно поручительство собственника: он отвечает по обязательствам компании.
+            </Typography.Text>
           )}
-          {card.offer.pledge_required && <p>Покупаемое оборудование потребуется передать в залог.</p>}
-          {card.offer.msp_guarantee && <p>Поручительство Корпорации МСП.</p>}
+          {card.offer.pledge_required && (
+            <Typography.Text tag="p" view="primary-small">
+              Покупаемое оборудование потребуется передать в залог.
+            </Typography.Text>
+          )}
+          {card.offer.msp_guarantee && (
+            <Typography.Text tag="p" view="primary-small">
+              Поручительство Корпорации МСП.
+            </Typography.Text>
+          )}
         </>
       )}
       {error && <BottomNotice message={error} onClose={() => setError('')} />}
-      {offerExpired && <p role="alert">Срок предложения истёк. Обновите карточку, чтобы узнать актуальный статус.</p>}
+      {offerExpired && (
+        <InlineNotice>Срок предложения истёк. Обновите карточку, чтобы узнать актуальный статус.</InlineNotice>
+      )}
       {card.allowed_next.includes('accepted') && !offerExpired && (
         <Button view="primary" loading={busy} onClick={() => action('accept')}>
           Принять условия
@@ -233,37 +350,43 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
       )}
       {card.status === 'signing' && card.allowed_next.includes('issued') && (
         <>
-          <h2>Подписание</h2>
-          {card.due_at && <p>Подписать нужно до {new Date(card.due_at).toLocaleTimeString('ru-RU')}.</p>}
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+            Подписание
+          </Typography.Title>
+          {card.due_at && (
+            <Typography.Text tag="p" view="primary-small">
+              Подписать нужно до {new Date(card.due_at).toLocaleTimeString('ru-RU')}.
+            </Typography.Text>
+          )}
           {contract && (
-            <p>
+            <Typography.Text tag="p" view="primary-small">
               <a href={`/api/documents/${encodeURIComponent(contract.id)}/file`} target="_blank" rel="noreferrer">
                 Прочитать договор и график платежей
               </a>
-            </p>
+            </Typography.Text>
           )}
-          <p>Код подписания придёт в уведомления кабинета, как push в приложении банка. SMS в прототипе нет.</p>
+          <Typography.Text tag="p" view="primary-small">
+            Код подписания придёт в уведомления кабинета. SMS в прототипе нет.
+          </Typography.Text>
           <Button loading={busy} onClick={() => action('signing-code')}>
             {issued ? 'Получить новый код' : 'Получить код'}
           </Button>
-          {codeExpired && <p role="alert">Срок кода истёк. Получите новый код.</p>}
+          {codeExpired && <InlineNotice>Срок кода истёк. Получите новый код.</InlineNotice>}
           {issued && !codeExpired && (
             <form onSubmit={sign}>
-              <p>
-                Код пришёл в уведомления. Действует до {new Date(issued.expires_at).toLocaleTimeString('ru-RU')}.
-                Попыток: {issued.attempts_left}.
-              </p>
-              <Input
-                block
-                label="Код подписания"
-                value={code}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                hint="6 цифр из уведомления"
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
-                disabled={busy}
+              <Typography.Text tag="p" view="primary-small">
+                Код пришёл в уведомления. Попыток: {issued.attempts_left}.
+              </Typography.Text>
+              <Deadline
+                key={issued.expires_at}
+                at={issued.expires_at}
+                label="Срок действия кода"
+                expired="Срок кода истёк. Получите новый код."
               />
+              <Typography.Text tag="p" view="primary-small">
+                Код подписания · 6 цифр
+              </Typography.Text>
+              <CodeInput key={issued?.expires_at} ref={codeInput} fields={6} onChange={setCode} disabled={busy} />
               <Button type="submit" view="primary" loading={busy} disabled={code.length !== 6}>
                 Подписать
               </Button>
@@ -272,10 +395,10 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         </>
       )}
       {['issued', 'closed'].includes(card.status) && (
-        <p>Деньги на счёте. Выдача смоделирована, реального перевода нет.</p>
+        <Typography.Text tag="p" view="primary-small">
+          Деньги на счёте. Выдача смоделирована, реального перевода нет.
+        </Typography.Text>
       )}
-      {card.status === 'expired' && <p>Срок ответа истёк. Можно создать новую заявку.</p>}
-      {card.status === 'cancelled_by_client' && <p>Вы отменили заявку. Можно подать новую.</p>}
     </motion.section>
   );
 }
@@ -319,9 +442,15 @@ export function Cancel({ card, refresh }: { card: App; refresh: () => void }) {
       <Modal open={open} onClose={() => !busy && setOpen(false)} size={500}>
         <Modal.Header hasCloser title={`Отменить заявку № ${card.number}?`} />
         <Modal.Content>
-          <p>Вернуть её будет нельзя. Чтобы получить финансирование, придётся подать новую заявку.</p>
-          {card.offer && <p>Условия, которые предложил банк, перестанут действовать.</p>}
-          {error && <p role="alert">{error}</p>}
+          <Typography.Text tag="p" view="primary-small">
+            Вернуть её будет нельзя. Чтобы получить финансирование, придётся подать новую заявку.
+          </Typography.Text>
+          {card.offer && (
+            <Typography.Text tag="p" view="primary-small">
+              Условия, которые предложил банк, перестанут действовать.
+            </Typography.Text>
+          )}
+          {error && <InlineNotice>{error}</InlineNotice>}
         </Modal.Content>
         <Modal.Footer>
           <Modal.Controls

@@ -1,4 +1,6 @@
-import { motion, useMotionDisabled } from '../motion';
+import { Typography } from '@alfalab/core-components/typography';
+import { Button } from '../motion';
+import { SteppedProgressBar } from '@alfalab/core-components/stepped-progress-bar';
 import type { components } from '../api/schema.gen';
 
 type Status = components['schemas']['ApplicationStatus'];
@@ -26,56 +28,49 @@ export function Progress({
   selected?: number;
   onSelect?: (step: number) => void;
 }) {
-  const reduced = useMotionDisabled();
   const stage = stages.findIndex((statuses) => statuses.includes(card.status));
   const index = stage < 0 ? stages.length : stage;
   const active = selected ?? index;
   return (
     <nav aria-label="Этапы заявки">
-      <ol className={`progress${onSelect ? ' progress-browsable' : ''}`}>
-        {steps.map((step, i) => {
-          const content = (
-            <>
-              <span aria-hidden="true">
-                {i === active && (
-                  <motion.i
-                    className="step-selection"
-                    layoutId="application-stage"
-                    transition={reduced ? { duration: 0 } : undefined}
-                  />
-                )}
-                <b>{i + 1}</b>
-              </span>
-              {step}
-            </>
-          );
-          return (
-            <li
-              key={step}
-              aria-current={!onSelect && i === active ? 'step' : undefined}
-              className={
-                i < index && !['rejected', 'expired', 'cancelled_by_client'].includes(card.status) ? 'complete' : ''
-              }
-            >
-              {onSelect ? (
-                <button
-                  type="button"
-                  aria-label={`${i + 1}. ${step}`}
-                  aria-current={i === active ? 'step' : undefined}
-                  aria-controls="journey-view"
-                  onClick={() => onSelect(i)}
-                >
-                  {content}
-                </button>
-              ) : (
-                content
-              )}
-            </li>
-          );
-        })}
+      <SteppedProgressBar
+        maxStep={steps.length}
+        step={active + 1}
+        className="journey-progress-bar"
+        view={steps.map((_, i) =>
+          i === active
+            ? 'accent'
+            : i < index && !['rejected', 'expired', 'cancelled_by_client'].includes(card.status)
+              ? 'positive'
+              : 'secondary',
+        )}
+      />
+      <ol className="journey-step-labels">
+        {steps.map((step, i) => (
+          <li key={step}>
+            {onSelect ? (
+              <Button
+                view="text"
+                size={40}
+                aria-label={`${i + 1}. ${step}`}
+                aria-current={i === active ? 'step' : undefined}
+                aria-controls="journey-view"
+                onClick={() => onSelect(i)}
+              >
+                {i + 1}. {step}
+              </Button>
+            ) : (
+              <Typography.Text tag="span" view="secondary-small" aria-current={i === active ? 'step' : undefined}>
+                {i + 1}. {step}
+              </Typography.Text>
+            )}
+          </li>
+        ))}
       </ol>
       {!onSelect && (
-        <p className="hint">{hints[card.status] ?? 'Текущий этап выделен. Следующее действие показано в карточке.'}</p>
+        <Typography.Text tag="p" view="primary-small" className="hint">
+          {hints[card.status] ?? 'Текущий этап выделен. Следующее действие показано в карточке.'}
+        </Typography.Text>
       )}
     </nav>
   );

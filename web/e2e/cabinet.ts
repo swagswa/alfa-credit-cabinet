@@ -53,7 +53,7 @@ export async function apply(page: Page, draft: Draft) {
   await page.getByLabel('Срок, месяцев').fill(draft.term);
   await page.getByLabel('Среднемесячная выручка, ₽').fill(draft.revenue);
   await page.getByRole('button', { name: 'Подобрать продукт' }).click();
-  await expect(page.getByText(`Рекомендация: ${draft.product}`)).toBeVisible();
+  await expect(page.getByRole('radio', { name: `Рекомендация: ${draft.product}`, exact: true })).toBeVisible();
   await choose(page, 'Выбранный продукт', draft.product);
   if (draft.equipmentCost) await page.getByLabel('Стоимость оборудования, ₽').fill(draft.equipmentCost);
   await page.getByText('Согласен на обработку персональных данных').click();
@@ -67,11 +67,19 @@ export async function apply(page: Page, draft: Draft) {
 
 export async function upload(page: Page, kinds: string[]) {
   for (const kind of kinds) {
-    // банк запросил один документ: селекта нет, вид уже выбран
-    if (!(await page.locator('#document-upload h3').filter({ hasText: kind }).count()))
+    const task = page.getByRole('group', { name: kind, exact: true });
+    const additional = page.getByRole('button', { name: 'Загрузить дополнительный документ', exact: true });
+    // count не ждёт: после сохранения черновика карточка документов дорисовывается не сразу
+    await expect(task.or(additional).first()).toBeVisible();
+    if (await task.count()) {
+      await task.locator('input[type=file]').setInputFiles(scan);
+      await task.getByRole('button', { name: `Загрузить: ${kind}`, exact: true }).click();
+    } else {
+      if ((await additional.getAttribute('aria-expanded')) === 'false') await additional.click();
       await choose(page, 'Вид документа', kind);
-    await page.locator('#document-upload input[type=file]').setInputFiles(scan);
-    await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
+      await page.locator('#document-upload input[type=file]').setInputFiles(scan);
+      await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
+    }
     await expect(page.getByRole('listitem').filter({ hasText: `scan.png: ${kind}` })).toBeVisible();
   }
 }
@@ -80,12 +88,14 @@ export async function upload(page: Page, kinds: string[]) {
 export async function acceptAndSign(page: Page) {
   await page.getByRole('button', { name: 'Принять условия' }).click();
   await page.getByRole('button', { name: 'Получить код' }).click();
+  // в колокольчике лежат коды прошлых прогонов, берём код своей заявки
+  const number = (await page.getByRole('heading', { name: /^Заявка № \d+$/ }).textContent())!.replace(/\D/g, '');
   const sent = await page
     .getByRole('dialog', { name: 'Уведомления' })
-    .getByText(/^Код \d{6} /)
+    .getByText(new RegExp(`^Код \\d{6} .*заявке №${number}\\.`))
     .first()
     .textContent();
-  await page.getByLabel('Код подписания').fill(sent!.match(/\d{6}/)![0]);
+  await page.getByLabel('Код 1 из 6', { exact: true }).pressSequentially(sent!.match(/\d{6}/)![0]);
   await page.getByRole('button', { name: 'Подписать' }).click();
   await expect(page.getByRole('heading', { name: 'Всё готово. Деньги на счёте!' })).toBeVisible();
 }

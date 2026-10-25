@@ -202,6 +202,11 @@ export function mockApi(): Plugin {
                 repayment: string;
                 min_business_age_months: number;
                 requirements: string[];
+                documents: {
+                  kind: components['schemas']['DocumentKind'];
+                  when?: 'no_turnover' | 'amount_over';
+                  amount_over_rub?: number;
+                }[];
               }
             >,
           ).map(([code, rule]) => ({
@@ -217,6 +222,11 @@ export function mockApi(): Plugin {
             repayment: rule.repayment,
             min_business_age_months: rule.min_business_age_months,
             requirements: rule.requirements,
+            documents: rule.documents.map(({ kind, when, amount_over_rub }) => ({
+              kind,
+              ...(when ? { when } : {}),
+              ...(amount_over_rub !== undefined ? { amount_over_kop: amount_over_rub * 100 } : {}),
+            })),
           }));
           return json(200, products);
         }

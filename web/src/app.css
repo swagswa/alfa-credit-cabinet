@@ -46,15 +46,6 @@ form {
 form > * {
   min-width: 0;
 }
-h1,
-h2,
-h3 {
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-h2 {
-  margin: 24px 0 16px;
-}
 article {
   margin-top: 24px;
 }
@@ -72,17 +63,11 @@ a {
   text-underline-offset: 3px;
 }
 a:focus-visible,
-button:focus-visible,
-summary:focus-visible {
+button:focus-visible {
   outline: 3px solid #145bce;
   outline-offset: 4px;
 }
-[role='alert'] {
-  padding: 12px 16px;
-  background: #fff1f0;
-  color: #a11916;
-  border-radius: 12px;
-}
+
 .application-toolbar {
   display: flex;
   align-items: center;
@@ -114,41 +99,12 @@ summary:focus-visible {
 .heading-back:hover {
   background: #f2f3f5;
 }
-.progress.progress-browsable li {
-  padding: 0;
-}
-.progress-browsable li > button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  width: 100%;
-  min-height: 64px;
-  padding: 12px 8px;
-  cursor: pointer;
-}
-.progress-browsable li > button span {
-  flex-shrink: 0;
-  margin: 0;
-}
-.progress-browsable li:has(button[aria-current]) {
-  border-bottom: 3px solid #ef3124;
-  color: #242528;
-}
-.progress-browsable button[aria-current] {
-  border-bottom: 0;
-}
 .journey-view {
   min-height: 260px;
 }
 .archive-caption {
   font-size: 13px;
-  color: #71747c;
+  color: var(--ink-secondary);
   margin: 0 0 20px;
 }
 section .archive-panel {
@@ -169,7 +125,7 @@ section .archive-panel {
 }
 .archive-fields dt {
   font-size: 13px;
-  color: #71747c;
+  color: var(--ink-secondary);
   margin-bottom: 6px;
 }
 .archive-fields dd {
@@ -184,24 +140,20 @@ section .archive-panel {
 }
 .archive-timeline time {
   font-size: 13px;
-  color: #71747c;
+  color: var(--ink-secondary);
 }
 .archive-documents li {
   display: grid;
   gap: 6px;
 }
 .archive-documents small {
-  color: #71747c;
+  color: var(--ink-secondary);
 }
 .archive-signature {
   color: #157347;
 }
 .saved-document-values {
   margin: 12px 0;
-}
-.saved-document-values summary {
-  cursor: pointer;
-  font-weight: 550;
 }
 .saved-document-values dl {
   margin-top: 20px;
@@ -246,7 +198,7 @@ section .archive-panel {
 }
 .dashboard-section-heading > span,
 .dashboard-section-heading p {
-  color: #71747c;
+  color: var(--ink-secondary);
   font-size: 13px;
 }
 .dashboard-section-heading p {
@@ -353,7 +305,7 @@ section.dashboard-attention {
   padding: 18px 20px;
 }
 .stats-metrics > div > span {
-  color: #71747c;
+  color: var(--ink-secondary);
   font-size: 13px;
 }
 .stats-statuses {
@@ -399,7 +351,7 @@ section.dashboard-attention {
 }
 .dashboard-metrics a > span:first-child {
   grid-column: 1 / -1;
-  color: #71747c;
+  color: var(--ink-secondary);
   font-size: 13px;
 }
 .dashboard-metrics strong {
@@ -706,9 +658,6 @@ section.dashboard-attention {
   .archive-fields {
     grid-template-columns: 1fr;
   }
-  .progress-browsable li > button {
-    min-height: 60px;
-  }
 }
 .initial-loading {
   min-height: 180px;
@@ -732,35 +681,6 @@ pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-th,
-td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #e7e9ed;
-  vertical-align: top;
-}
-.progress {
-  display: flex;
-  gap: 12px;
-  padding: 0;
-  list-style: none;
-  margin: 24px 0;
-}
-.progress li {
-  flex: 1;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f3f4f6;
-  font-size: 14px;
-}
-.progress span {
-  display: block;
-  font-weight: 700;
-}
 .skip-link {
   position: absolute;
   top: -100px;
@@ -783,19 +703,7 @@ td {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
-  .progress {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .progress li {
-    flex: 1 1 110px;
-  }
-  th,
-  td {
-    padding: 8px;
-  }
 }
-
 section > button + button {
   margin-left: 8px;
   margin-top: 8px;
@@ -803,7 +711,6 @@ section > button + button {
 section > button {
   margin-top: 8px;
 }
-
 .extracted {
   background: #fff7d6;
   padding: 8px;
@@ -815,7 +722,6 @@ section > button {
 .document-details {
   margin: 24px 0;
 }
-
 .feed {
   margin-top: 24px;
 }
@@ -845,7 +751,7 @@ section > button {
   margin-bottom: 24px;
 }
 .sidebar > small {
-  color: #70737b;
+  color: var(--ink-secondary);
 }
 .welcome {
   display: flex;
@@ -913,10 +819,6 @@ section > button {
   padding: 16px;
   font-size: 14px;
 }
-.demo-guide summary {
-  cursor: pointer;
-  font-weight: 650;
-}
 @media (max-width: 900px) {
   .sidebar {
     position: static;
@@ -949,7 +851,6 @@ section > button {
     font-size: 14px;
   }
 }
-
 .cabinet-title {
   font-weight: 750;
   line-height: 1.25;
@@ -972,7 +873,6 @@ section > button {
   background: #f5f6f8;
   font-size: 14px;
 }
-
 .application-card {
   display: grid !important;
   margin: 12px 0;
@@ -986,60 +886,14 @@ section > button {
   border-radius: 16px;
   margin: 24px 0;
 }
-.edit-panel summary {
-  cursor: pointer;
-  font-weight: 650;
-}
 .edit-panel form {
   margin-top: 20px;
-}
-
-.progress {
-  gap: 0;
-  border-bottom: 1px solid #e3e5e9;
-}
-.progress li {
-  background: transparent;
-  border-radius: 0;
-  padding: 12px 8px;
-  border: 0;
-  color: #747882;
-}
-.progress span {
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #eef0f3;
-  margin-right: 8px;
-  margin-bottom: 8px;
-}
-.progress [aria-current] {
-  background: transparent;
-  color: #242528;
-  border-bottom: 3px solid #ef3124;
-}
-.progress [aria-current] span {
-  background: #ef3124;
-  color: white;
-}
-.progress .complete {
-  border-bottom: 2px solid #95bba3;
 }
 @media (max-width: 600px) {
   .application-card {
     grid-template-columns: 1fr;
   }
-  .progress {
-    gap: 8px;
-  }
-  .progress li {
-    flex: 1 1 120px;
-  }
 }
-
 .back-link {
   display: inline-flex;
   align-items: center;
@@ -1084,7 +938,7 @@ section > button {
 }
 .offer-highlights small {
   display: block;
-  color: #70737b;
+  color: var(--ink-secondary);
   margin-bottom: 8px;
 }
 .offer-highlights strong {
@@ -1092,10 +946,6 @@ section > button {
 }
 .offer-comparison {
   width: 100%;
-}
-.offer-comparison summary {
-  cursor: pointer;
-  padding: 12px 0;
 }
 .document-checklist {
   margin: 20px 0;
@@ -1133,7 +983,6 @@ section > button {
     font-size: 30px;
   }
 }
-
 /* банковский итог и экран клиента используют одни классы, у панели клиента отступы свои */
 .rejection-result {
   padding: 32px !important;
@@ -1182,7 +1031,6 @@ section .success-result {
   border-radius: 50%;
   background: radial-gradient(circle, #d3efdf 0%, #e4f4eb 32%, #eff8f2 68%);
 }
-
 section .rejection-result {
   background: #fff7f6;
   border-color: #ffdedb;
@@ -1225,7 +1073,6 @@ section .rejection-result {
   border-radius: 50%;
   background: radial-gradient(circle, #ffe5e2 0%, #fff0ee 32%, #fff7f6 68%);
 }
-
 .result-icon {
   display: grid;
   place-items: center;
@@ -1271,7 +1118,6 @@ section .rejection-result {
     scroll-behavior: auto;
   }
 }
-
 .sidebar nav a {
   position: relative;
   isolation: isolate;
@@ -1290,29 +1136,6 @@ section .rejection-result {
 .nav-caption {
   position: relative;
 }
-.progress span {
-  position: relative;
-  isolation: isolate;
-}
-.progress span b {
-  font-weight: inherit;
-}
-.progress [aria-current] span {
-  background: #eef0f3;
-}
-.step-selection {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: 50%;
-  background: #ef3124;
-}
-.disclosure-content {
-  overflow: hidden;
-}
-.disclosure-content[inert] {
-  pointer-events: none;
-}
 .status-transition {
   display: inline-grid;
   vertical-align: bottom;
@@ -1325,18 +1148,6 @@ section .rejection-result {
 }
 .motion-value {
   font-variant-numeric: tabular-nums;
-}
-.motion-value > span {
-  white-space: pre;
-}
-.value-cell {
-  display: inline-grid;
-  overflow: clip;
-  vertical-align: bottom;
-}
-.value-cell > span {
-  display: inline-block;
-  grid-area: 1 / 1;
 }
 .motion-popover[data-popper-placement^='bottom'] [class*='popover__inner'] {
   transform-origin: top center;
@@ -1371,49 +1182,7 @@ section .rejection-result {
   gap: 10px;
   pointer-events: none;
 }
-.bottom-notice {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 18px;
-  border: 1px solid #ffffff24;
-  border-radius: 18px;
-  background: #282a2e;
-  color: white;
-  box-shadow: 0 12px 36px #11182724;
-  pointer-events: auto;
-  font-size: 14px;
-}
-.bottom-notice > span:nth-child(2) {
-  flex: 1;
-}
-.notice-mark {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #ffffff16;
-}
-.notice-success .notice-mark {
-  color: #9de4bd;
-}
-.notice-error .notice-mark {
-  color: #ffccb8;
-}
-.bottom-notice button {
-  background: transparent;
-  color: inherit;
-  border: 0;
-  min-width: 44px;
-  min-height: 44px;
-  font-size: 24px;
-  padding: 0;
-  cursor: pointer;
-}
-#main-content :is(a, button, summary, input, select):focus-visible,
-.bottom-notice button:focus-visible {
+#main-content :is(a, button, input, select):focus-visible {
   outline: 2px solid #4d6dde;
   outline-offset: 4px;
 }
@@ -1464,7 +1233,6 @@ section .rejection-result {
 .personas small {
   color: #5c5f66;
 }
-
 .faults {
   list-style: none;
   padding: 0;
@@ -1489,7 +1257,7 @@ section .rejection-result {
 }
 .faults small {
   grid-column: 2;
-  color: #71747c;
+  color: var(--ink-secondary);
 }
 .faults-log {
   list-style: none;
@@ -1505,7 +1273,7 @@ section .rejection-result {
   gap: 4px 12px;
 }
 .faults-log time {
-  color: #71747c;
+  color: var(--ink-secondary);
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 600px) {

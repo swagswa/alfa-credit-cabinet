@@ -61,9 +61,9 @@ test.describe('it', () => {
     await bank.getByRole('button', { name: 'Сохранить решение' }).click();
 
     await expect(page.getByRole('heading', { name: 'Предлагаем другие условия' })).toBeVisible();
-    await expect(page.getByLabel('7 000 000,00 ₽')).toBeVisible();
+    await expect(page.getByRole('row', { name: 'Сумма 8 000 000,00 ₽ 7 000 000,00 ₽' })).toBeVisible();
     // причины андеррайтер оставил из расчёта, клиент видит их текстом
-    await expect(page.getByRole('heading', { name: 'Почему принято такое решение' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Почему банк предложил другие условия' })).toBeVisible();
     await expect(page.getByText(/^Ставка \d/)).toBeVisible();
     await acceptAndSign(page);
   });

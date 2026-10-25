@@ -1,3 +1,6 @@
+import { Table } from '@alfalab/core-components/table';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
 import { useEffect, useState } from 'react';
 import { Button } from '../motion';
 import { api } from '../api/client';
@@ -32,7 +35,7 @@ export function DocumentDetails({
 }) {
   const [document, setDocument] = useState<Doc>();
   const [error, setError] = useState('');
-  const [useExtracted, setUseExtracted] = useState(false);
+  const [manual, setManual] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     let active = true;
@@ -44,7 +47,7 @@ export function DocumentDetails({
         if (data) {
           setDocument(data);
           setError('');
-          if (data.status === 'recognizing') timer = setTimeout(load, 2000);
+          if (['recognizing', 'uploaded'].includes(data.status)) timer = setTimeout(load, 2000);
         } else setError('Не удалось загрузить данные документа.');
       } catch {
         if (active) setError('Нет связи с сервером документов.');
@@ -56,75 +59,87 @@ export function DocumentDetails({
       clearTimeout(timer);
     };
   }, [id, revision, status]);
-  const initial = useExtracted ? document?.extracted : undefined;
+  const initial = document?.confirmed ?? document?.extracted;
   return (
     <div className="document-details">
-      {error && <p role="alert">{error}</p>}
+      {document && (
+        <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+          {document.file_name}
+        </Typography.Title>
+      )}
+      {error && <InlineNotice>{error}</InlineNotice>}
       {error && (
         <Button size={40} onClick={() => setRevision((v) => v + 1)}>
           Повторить загрузку данных
         </Button>
       )}
-      {document?.status === 'recognizing' && (
-        <p role="status">Распознаём документ. Вы можете заполнить значения вручную, не дожидаясь результата.</p>
-      )}
-      {document?.error && <p role="alert">{document.error}. Доступен ручной ввод.</p>}
-      {document?.validation_errors?.map((e, i) => (
-        <p role="alert" key={i}>
-          {e.field}: {e.message}
-        </p>
-      ))}
-      {editable && document?.extracted && document.status !== 'confirmed' && (
-        <>
-          <p>Распознанные данные доступны. Загрузка значений заменит текущий ввод формы.</p>
-          <Button size={40} onClick={() => setUseExtracted(true)} disabled={useExtracted}>
-            Заполнить из документа
-          </Button>
-        </>
-      )}
-      {editable && document?.status !== 'confirmed' && (
-        <div className={useExtracted ? 'extracted-fields' : ''} key={useExtracted ? 'extracted' : 'manual'}>
-          {document?.kind === 'financials' && (
-            <FinancialsForm
-              documentId={id}
-              inn={inn}
-              initial={initial?.financials}
-              refresh={() => {
-                setRevision((v) => v + 1);
-                refresh();
-              }}
-            />
-          )}
-          {document?.kind === 'statement' && (
-            <StatementForm
-              documentId={id}
-              inn={inn}
-              initial={initial?.statement}
-              refresh={() => {
-                setRevision((v) => v + 1);
-                refresh();
-              }}
-            />
+      {document && ['recognizing', 'uploaded'].includes(document.status) && (
+        <div>
+          <Typography.Text tag="p" view="primary-small" role="status">
+            Распознаём документ - обычно это занимает около минуты.
+          </Typography.Text>
+          {editable && !manual && (
+            <Button size={40} onClick={() => setManual(true)}>
+              Заполнить вручную
+            </Button>
           )}
         </div>
       )}
+      {document?.error && <InlineNotice>{document.error}. Доступен ручной ввод.</InlineNotice>}
+      {document?.validation_errors?.map((e, i) => (
+        <InlineNotice key={i}>
+          {e.field}: {e.message}
+        </InlineNotice>
+      ))}
+      {editable &&
+        document &&
+        document.status !== 'confirmed' &&
+        (manual || !['recognizing', 'uploaded'].includes(document.status)) && (
+          <div className={initial && !manual ? 'extracted-fields' : ''} key={id}>
+            {initial && !manual && (
+              <Typography.Text tag="p" view="primary-small">
+                Данные из файла подставлены в поля. Проверьте их перед подтверждением.
+              </Typography.Text>
+            )}
+            {document?.kind === 'financials' && (
+              <FinancialsForm
+                documentId={id}
+                inn={inn}
+                initial={initial?.financials}
+                refresh={() => {
+                  setRevision((v) => v + 1);
+                  refresh();
+                }}
+              />
+            )}
+            {document?.kind === 'statement' && (
+              <StatementForm
+                documentId={id}
+                inn={inn}
+                initial={initial?.statement}
+                refresh={() => {
+                  setRevision((v) => v + 1);
+                  refresh();
+                }}
+              />
+            )}
+          </div>
+        )}
       {bank && document && (
         <>
-          <p>
+          <Typography.Text tag="p" view="primary-small">
             Модель: {document.model ?? 'Ручной ввод'}. Подтверждено:{' '}
             {document.confirmed_at ? new Date(document.confirmed_at).toLocaleString('ru-RU') : 'Нет'}.
-          </p>
+          </Typography.Text>
           <div className="table-scroll">
-            <table>
+            <Table>
               <caption>Данные модели и клиента</caption>
-              <thead>
-                <tr>
-                  <th>Поле</th>
-                  <th>Модель</th>
-                  <th>Клиент</th>
-                </tr>
-              </thead>
-              <tbody>
+              <Table.THead>
+                <Table.THeadCell>Поле</Table.THeadCell>
+                <Table.THeadCell>Модель</Table.THeadCell>
+                <Table.THeadCell>Клиент</Table.THeadCell>
+              </Table.THead>
+              <Table.TBody>
                 {Object.entries(
                   document.confirmed?.statement ??
                     document.confirmed?.financials ??
@@ -134,18 +149,18 @@ export function DocumentDetails({
                 ).map(([key, value]) => {
                   const raw = document.extracted?.statement ?? document.extracted?.financials;
                   return (
-                    <tr key={key} className={document.edited_fields?.includes(key) ? 'extracted' : ''}>
-                      <th>
+                    <Table.TRow key={key} className={document.edited_fields?.includes(key) ? 'extracted' : ''}>
+                      <Table.TCell>
                         {fieldNames[key] ?? key}
                         {document.edited_fields?.includes(key) ? ' (изменено)' : ''}
-                      </th>
-                      <td>{show(key, raw?.[key as keyof typeof raw])}</td>
-                      <td>{show(key, value)}</td>
-                    </tr>
+                      </Table.TCell>
+                      <Table.TCell>{show(key, raw?.[key as keyof typeof raw])}</Table.TCell>
+                      <Table.TCell>{show(key, value)}</Table.TCell>
+                    </Table.TRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </Table.TBody>
+            </Table>
           </div>
         </>
       )}

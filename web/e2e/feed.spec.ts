@@ -18,3 +18,22 @@ for (const [user, own, other] of [
     });
   });
 }
+
+test.describe(() => {
+  test.use({ storageState: state('coffee') });
+  test('панель уведомлений закрывается кликом мимо и по Escape', async ({ page }) => {
+    await page.goto('/client');
+    const bell = page.getByRole('button', { name: /^Уведомления/ });
+    const panel = page.getByRole('dialog', { name: 'Уведомления' });
+    await bell.click();
+    await expect(panel).toBeVisible();
+    await panel.getByText('Уведомления', { exact: true }).click();
+    await expect(panel).toBeVisible();
+    await page.getByRole('heading', { name: 'Обзор', level: 1 }).click();
+    await expect(panel).toBeHidden();
+    await bell.click();
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+  });
+});

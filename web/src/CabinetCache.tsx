@@ -9,6 +9,14 @@ import {
 
 class CabinetCache {
   private values = new Map<string, unknown>();
+  private requests = new Map<string, Promise<unknown>>();
+  request<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const pending = this.requests.get(key);
+    if (pending) return pending as Promise<T>;
+    const request = load().finally(() => this.requests.delete(key));
+    this.requests.set(key, request);
+    return request;
+  }
   get<T>(key: string): T | undefined {
     return this.values.get(key) as T | undefined;
   }

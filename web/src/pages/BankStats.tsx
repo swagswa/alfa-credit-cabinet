@@ -1,3 +1,5 @@
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { money } from '../api/presentation';
@@ -47,15 +49,16 @@ export function BankStats() {
   }, [days]);
   const top = Math.max(1, ...(stats?.by_status.map((item) => item.count) ?? []));
   return (
-    <div className="dashboard">
-      <PageHeading title="Сводка" description="Заявки, поданные за выбранный период">
+    <div className="dashboard bank-stats">
+      <PageHeading title="Сводка" description="Заявки, поданные за выбранный период" />
+      <div className="stats-periods" role="group" aria-label="Период сводки">
         {periods.map((value) => (
-          <Button key={value} size={40} view={value === days ? 'primary' : 'secondary'} onClick={() => setDays(value)}>
+          <Button key={value} size={40} aria-pressed={value === days} view="secondary" onClick={() => setDays(value)}>
             {value} дн.
           </Button>
         ))}
-      </PageHeading>
-      {error && <p role="alert">{error}</p>}
+      </div>
+      {error && <InlineNotice>{error}</InlineNotice>}
       {!stats && !error && (
         <div className="dashboard-loading" role="status">
           <span />
@@ -87,7 +90,7 @@ export function BankStats() {
             </div>
             <div>
               <span>Выдано</span>
-              <strong>{money(stats.issued_kop, true)}</strong>
+              <strong>{money(stats.issued_kop, true).replace(/\u00a0/g, ' ')}</strong>
             </div>
           </div>
           <section aria-labelledby="stats-status">
@@ -104,7 +107,9 @@ export function BankStats() {
                 ))}
               </ul>
             ) : (
-              <p>За период заявок не было.</p>
+              <Typography.Text tag="p" view="primary-small">
+                За период заявок не было.
+              </Typography.Text>
             )}
           </section>
         </>
