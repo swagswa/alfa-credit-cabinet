@@ -1,7 +1,9 @@
 package mocks_test
 
 import (
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/alfaid"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 	"github.com/swagswa/alfa-credit-cabinet/internal/mocks"
@@ -52,4 +55,24 @@ func TestClientsReadMocks(t *testing.T) {
 
 	_, err = reg.Company(t.Context(), "0000500010")
 	require.ErrorIs(t, err, domain.ErrUnavailable)
+}
+
+func TestAlfaIDClientReadsMock(t *testing.T) {
+	srv := httptest.NewServer(mocks.New())
+	defer srv.Close()
+	// редирект с кодом кабинету не нужен, код берём из Location
+	hc := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := hc.PostForm(srv.URL+"/alfa-id/authorize", url.Values{"redirect_uri": {"/cb"}, "login": {"coffee"}})
+	require.NoError(t, err)
+	resp.Body.Close()
+	back, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+
+	c := alfaid.New(srv.URL, time.Second)
+	p, err := c.Profile(t.Context(), back.Query().Get("code"))
+	require.NoError(t, err)
+	require.Equal(t, domain.AlfaProfile{Login: "coffee", Phone: "+79161000001", Email: "sokolova.av@alfa-id.demo"}, p)
+
+	_, err = c.Profile(t.Context(), back.Query().Get("code"))
+	require.ErrorIs(t, err, domain.ErrUnauthorized)
 }

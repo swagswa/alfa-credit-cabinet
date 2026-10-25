@@ -8,6 +8,9 @@ SELECT id, login, full_name, role, phone, email
 FROM users
 WHERE id = $1;
 
+-- name: SetUserContacts :exec
+UPDATE users SET phone = $2, email = $3 WHERE id = $1;
+
 -- name: MembershipsByUser :many
 SELECT c.id, c.inn, c.short_name, c.kind, c.simulated, m.representative_role
 FROM company_members m

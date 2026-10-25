@@ -22,6 +22,11 @@ type User struct {
 	Email    string
 }
 
+// AlfaProfile отдаёт Альфа ID после согласия клиента. Логин тот же, что в кабинете.
+type AlfaProfile struct {
+	Login, Phone, Email string
+}
+
 // RepresentativeRole говорит, на каком основании клиент действует за компанию.
 type RepresentativeRole string
 

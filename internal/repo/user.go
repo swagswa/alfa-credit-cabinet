@@ -16,6 +16,7 @@ type UserRepository interface {
 	// Credentials отдаёт пользователя и bcrypt-хеш пароля по логину.
 	Credentials(ctx context.Context, login string) (domain.User, []byte, error)
 	ByID(ctx context.Context, id uuid.UUID) (domain.User, error)
+	SetContacts(ctx context.Context, id uuid.UUID, phone, email string) error
 	Memberships(ctx context.Context, userID uuid.UUID) ([]domain.Membership, error)
 	// Companies отдаёт компании пользователя с реквизитами, без данных банка.
 	Companies(ctx context.Context, userID uuid.UUID) ([]domain.ProfileCompany, error)
@@ -49,6 +50,13 @@ func (r *userRepo) ByID(ctx context.Context, id uuid.UUID) (domain.User, error) 
 		ID: row.ID, Login: row.Login, FullName: row.FullName, Role: domain.Role(row.Role),
 		Phone: row.Phone, Email: row.Email,
 	}, nil
+}
+
+func (r *userRepo) SetContacts(ctx context.Context, id uuid.UUID, phone, email string) error {
+	if err := r.q.SetUserContacts(ctx, db.SetUserContactsParams{ID: id, Phone: phone, Email: email}); err != nil {
+		return fmt.Errorf("user contacts %s: %w", id, err)
+	}
+	return nil
 }
 
 func (r *userRepo) Memberships(ctx context.Context, userID uuid.UUID) ([]domain.Membership, error) {

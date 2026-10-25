@@ -74,6 +74,58 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
 
+  /auth/alfa-id/start:
+    get:
+      tags: [auth]
+      operationId: alfaIDStart
+      summary: Вход через Альфа ID, переход на страницу согласия
+      description: |
+        Authorization code: кабинет кладёт state в Redis на 5 минут и в cookie браузера,
+        уводит на страницу согласия. На стенде Альфа ID это симулятор в mocks.
+      security: []
+      responses:
+        '302':
+          description: На страницу согласия
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /alfa-id/authorize?client_id=credit-cabinet&redirect_uri=%2Fapi%2Fauth%2Falfa-id%2Fcallback&state=K7Q3
+            Set-Cookie:
+              schema:
+                type: string
+                example: alfa_id_state=K7Q3; Path=/api/auth/alfa-id; Max-Age=300; HttpOnly; SameSite=Lax
+
+  /auth/alfa-id/callback:
+    get:
+      tags: [auth]
+      operationId: alfaIDCallback
+      summary: Возврат из Альфа ID
+      description: |
+        Сверяет state с cookie и Redis, меняет код на профиль, обновляет телефон и почту
+        из Альфа ID и заводит сессию, как обычный вход. Ошибки тоже редиректом:
+        `/login?error=alfa_id_denied` (клиент отказался), `alfa_id_unknown` (нет такого клиента
+        в кабинете), `alfa_id_expired` (протухший или уже потраченный код и state),
+        `too_many_attempts` (общий с паролем лимит попыток).
+      security: []
+      parameters:
+        - {name: code, in: query, schema: {type: string}}
+        - {name: state, in: query, schema: {type: string}}
+        - {name: error, in: query, schema: {type: string}}
+        - {name: alfa_id_state, in: cookie, schema: {type: string}}
+      responses:
+        '302':
+          description: В кабинет клиента или на вход с причиной
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /client
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=eyJhbGciOiJIUzI1NiJ9...; Path=/; HttpOnly; SameSite=Lax
+
   /logout:
     post:
       tags: [auth]

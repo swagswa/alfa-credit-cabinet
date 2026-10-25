@@ -138,6 +138,7 @@ services:
       EGRUL_URL: http://mocks:8081
       BANK_URL: http://mocks:8081
       MOCKS_URL: http://mocks:8081
+      ALFA_ID_URL: http://mocks:8081
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
