@@ -1,0 +1,56 @@
+# Автосервис: выручка ровная, налоги в порядке, но кредит в другом банке висит
+# с просрочкой 95 дней. Отказ на проверках, до скоринга не доходит.
+egrul:
+  inn: "0000700010"
+  ogrn: "1000000700010"
+  kpp: "000101001"
+  kind: UL
+  full_name: Общество с ограниченной ответственностью «Мотор-Сервис»
+  short_name: ООО «Мотор-Сервис»
+  status: active
+  registered_at: "2021-05-18"
+  address: {region_code: "54", text: "г. Новосибирск, ул. Станционная, д. 18"}
+  okved_main: {code: "45.20", name: Техническое обслуживание и ремонт автотранспортных средств}
+  okved_extra: [{code: "45.32", name: Торговля розничная автомобильными деталями, узлами и принадлежностями}]
+  director: {fio: Белов Константин Артурович, inn: "000070000170", position: Генеральный директор, since: "2021-05-18"}
+  founders: [{name: Белов Константин Артурович, inn: "000070000170", share_pct: 100, is_foreign: false}]
+  capital_rub: 10000
+  unreliable: []
+fns:
+  msp_category: small
+  tax_regime: USN
+  avg_headcount: 18
+  taxes_paid_last_year: 1700000
+  arrears: {tax: 0, penalty: 0, fine: 0, as_of: "2026-10-01"}
+  mass_address: false
+  mass_director: false
+  disqualified_director: false
+  account_blocks: []
+  tax_offenses_count: 0
+bki:
+  summary:
+    accounts_total: 3
+    accounts_open: 2
+    accounts_overdue_30: 1
+    debt_total: 2600000
+    overdue_total: 330000
+    monthly_payments_total: 160000
+    inquiries_30d: 1
+    inquiries_90d: 2
+    inquiries_365d: 3
+    applications_refused_365d: 1
+    bankruptcy_5y: false
+  loans:
+    - {lender_type: bank, kind: loan, role: borrower, opened_at: "2024-02-01", closed_at: null, amount: 3000000,
+       balance: 2100000, monthly_payment: 110000, overdue_amount: 330000, current_dpd: 95, worst_dpd_24m: "90+", status: active}
+    - {lender_type: leasing, kind: leasing, role: borrower, opened_at: "2025-03-10", closed_at: null, amount: 900000,
+       balance: 500000, monthly_payment: 50000, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: active}
+    - {lender_type: bank, kind: overdraft, role: borrower, opened_at: "2022-01-20", closed_at: "2023-01-20", amount: 300000,
+       balance: 0, monthly_payment: 0, overdue_amount: 0, current_dpd: 0, worst_dpd_24m: "0", status: closed}
+  owner: {pkr: 640, worst_dpd_12m: 0, current_dpd: 0}
+internal:
+  is_client: true
+  account_opened_at: "2022-03-01"
+  products: [account, acquiring]
+  past_loans: []
+  aml_high_risk: false

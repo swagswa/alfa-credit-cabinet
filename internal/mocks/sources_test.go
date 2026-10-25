@@ -83,6 +83,9 @@ func TestSources(t *testing.T) {
 		{"просрочка стройки", "POST", "/bki/report", `{"inn":"0000400016",` + consent + `}`, 200, map[string]any{
 			"summary.monthly_payments_total": 1400000.0, "summary.inquiries_90d": 9.0,
 		}},
+		{"просрочка автосервиса", "POST", "/bki/report", `{"inn":"0000700010",` + consent + `}`, 200, map[string]any{
+			"loans.0.current_dpd": 95.0, "owner.current_dpd": 0.0,
+		}},
 		{"бки без согласия", "POST", "/bki/report", `{"inn":"0000100012"}`, 403, nil},
 		{"согласие без даты", "POST", "/bki/report", `{"inn":"0000100012",` + consentID + `}`, 403, nil},
 		{"согласие истекло", "POST", "/bki/report", `{"inn":"0000100012",` + consentAgo(7) + `}`, 403, nil},
@@ -113,7 +116,7 @@ func TestSources(t *testing.T) {
 // Демо плюс тысяча ИНН из генератора, каждый третий ИП.
 func TestSourcesMatchSynth(t *testing.T) {
 	e := mocks.New()
-	inns := []string{"0000100012", "000020001010", "0000300011", "0000400016", "0000500010"}
+	inns := []string{"0000100012", "000020001010", "0000300011", "0000400016", "0000500010", "0000700010"}
 	rng := synth.RNG("inns")
 	for i := range 1000 {
 		base := fmt.Sprintf("%09d", rng.IntN(1e9))

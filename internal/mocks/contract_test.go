@@ -26,6 +26,7 @@ func TestClientsReadMocks(t *testing.T) {
 		"000020001010": "ИП Лебедев С. Н.",
 		"0000300011":   "ООО «Кодовая база»",
 		"0000400016":   "ООО «Стройснаб»",
+		"0000700010":   "ООО «Мотор-Сервис»",
 	} {
 		t.Run(inn, func(t *testing.T) {
 			c, err := reg.Company(t.Context(), inn)

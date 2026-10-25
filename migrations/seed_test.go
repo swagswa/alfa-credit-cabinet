@@ -24,9 +24,9 @@ func TestSeedDemo(t *testing.T) {
 		require.NoError(t, pool.QueryRow(t.Context(), sql).Scan(&n))
 		return n
 	}
-	require.Equal(t, 8, count("SELECT count(*) FROM users"))
-	require.Equal(t, 5, count("SELECT count(*) FROM companies"))
-	require.Equal(t, 5, count("SELECT count(*) FROM company_members"))
+	require.Equal(t, 9, count("SELECT count(*) FROM users"))
+	require.Equal(t, 6, count("SELECT count(*) FROM companies"))
+	require.Equal(t, 6, count("SELECT count(*) FROM company_members"))
 	require.Equal(t, 1, count("SELECT count(*) FROM users WHERE role = 'underwriter'"))
 
 	// у каждого клиента ровно одна компания, у сотрудников ни одной
