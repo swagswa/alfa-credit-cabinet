@@ -72,7 +72,9 @@ func New(d Deps) *Handler {
 }
 
 func (h *Handler) Health(ctx context.Context, _ oapi.HealthRequestObject) (oapi.HealthResponseObject, error) {
-	res := oapi.Health{Status: oapi.HealthStatusOk, Checks: map[string]oapi.HealthChecks{}}
+	res := oapi.Health{
+		Status: oapi.HealthStatusOk, Checks: map[string]oapi.HealthChecks{}, Ai: opt(h.products.NeedEnabled()),
+	}
 	for name, err := range h.health.Check(ctx) {
 		res.Checks[name] = oapi.HealthChecksOk
 		if err != nil {

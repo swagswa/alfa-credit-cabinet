@@ -1,4 +1,5 @@
 import { AppLink as Link } from '../ui/AppLink';
+import { NeedFromText } from './NeedFromText';
 import { Typography } from '@alfalab/core-components/typography';
 import { InlineNotice } from '../ui/InlineNotice';
 import { Disclosure } from '../ui/Disclosure';
@@ -785,6 +786,15 @@ export function Applications({
                 <Typography.Title tag="h2" view="small" font="system" defaultMargins>
                   2. Финансирование
                 </Typography.Title>
+                <NeedFromText
+                  disabled={busy || recommendBusy}
+                  onNeed={(need) => {
+                    setGoal(need.goal);
+                    if (need.amount_kop) setAmount(String(need.amount_kop / 100));
+                    if (need.term_months) setTerm(String(need.term_months));
+                    invalidateRecommendation();
+                  }}
+                />
                 <Select
                   block
                   label="На что нужны деньги"

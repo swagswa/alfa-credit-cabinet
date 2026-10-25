@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -33,14 +34,52 @@ type ProductUseCase interface {
 	List() []domain.Product
 	// Recommend: первым рекомендованный продукт, вторым альтернатива, если она есть.
 	Recommend(q RecommendQuery) ([]Offer, error)
+	// Need: цель, сумма и срок из слов клиента. Продукт по ним выбирает Recommend, не модель.
+	// Сумма и срок вне рамок всех продуктов отбрасываются. Без ИИ ErrUnavailable.
+	Need(ctx context.Context, text string) (domain.Need, error)
+	NeedEnabled() bool
+}
+
+// NeedReader модель, которая достаёт цель, сумму и срок из текста.
+type NeedReader interface {
+	Need(ctx context.Context, text string) (domain.Need, error)
 }
 
 type productUseCase struct {
 	catalog domain.Catalog
+	reader  NeedReader
 }
 
-func NewProduct(c domain.Catalog) ProductUseCase {
-	return &productUseCase{catalog: c}
+// NewProduct: reader nil, если стенд без профиля ai
+func NewProduct(c domain.Catalog, reader NeedReader) ProductUseCase {
+	return &productUseCase{catalog: c, reader: reader}
+}
+
+func (u *productUseCase) NeedEnabled() bool { return u.reader != nil }
+
+func (u *productUseCase) Need(ctx context.Context, text string) (domain.Need, error) {
+	if u.reader == nil {
+		return domain.Need{}, fmt.Errorf("%w: подбор по тексту выключен", domain.ErrUnavailable)
+	}
+	n, err := u.reader.Need(ctx, text)
+	if err != nil {
+		return domain.Need{}, err
+	}
+	// рамки всех продуктов разом: какой продукт подойдёт, решит Recommend
+	amountMin, amountMax, termMin, termMax := int64(math.MaxInt64), int64(0), math.MaxInt, 0
+	for i := range u.catalog.Products {
+		p := &u.catalog.Products[i]
+		amountMin, amountMax = min(amountMin, p.AmountMinKop), max(amountMax, p.AmountMaxKop)
+		termMin, termMax = min(termMin, p.TermMinMonths), max(termMax, p.TermMaxMonths)
+	}
+	n.AmountKop = n.AmountKop / u.catalog.AmountStepKop * u.catalog.AmountStepKop
+	if n.AmountKop < amountMin || n.AmountKop > amountMax {
+		n.AmountKop = 0
+	}
+	if n.TermMonths < termMin || n.TermMonths > termMax {
+		n.TermMonths = 0
+	}
+	return n, nil
 }
 
 func (u *productUseCase) List() []domain.Product {

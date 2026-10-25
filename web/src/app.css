@@ -1307,3 +1307,9 @@ section .rejection-result {
 .offer-variant-result p {
   margin: 0 0 4px;
 }
+.need-from-text {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-bottom: 16px;
+}

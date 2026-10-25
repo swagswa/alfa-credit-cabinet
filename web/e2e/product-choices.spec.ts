@@ -20,7 +20,7 @@ const items = [
   },
 ];
 
-async function form(page: Page, recommendations = items) {
+async function form(page: Page, recommendations = items, ai = false) {
   const writes: Record<string, unknown>[] = [];
   const queries: URL[] = [];
   page.on('pageerror', (error) => {
@@ -30,6 +30,11 @@ async function form(page: Page, recommendations = items) {
     const url = new URL(route.request().url());
     if (!url.pathname.startsWith('/api/')) return route.continue();
     if (url.pathname === '/api/notifications') return route.fulfill({ json: [] });
+    if (url.pathname === '/api/health') return route.fulfill({ json: { status: 'ok', checks: {}, ai } });
+    if (url.pathname === '/api/products/need') {
+      writes.push(route.request().postDataJSON());
+      return route.fulfill({ json: { goal: 'equipment', amount_kop: 200000000, term_months: 24 } });
+    }
     if (route.request().method() === 'POST') {
       writes.push(route.request().postDataJSON());
       return route.fulfill({ status: 422, json: { detail: 'Тестовая ошибка сохранения' } });
@@ -142,4 +147,20 @@ test('пустой подбор не ломает форму', async ({ page }) 
     page.getByText('Для этих параметров нет подходящих продуктов. Измените сумму или срок.', { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('radio')).toHaveCount(0);
+});
+
+test('без ИИ поля «своими словами» нет, с ИИ оно заполняет цель, сумму и срок', async ({ page }) => {
+  await form(page);
+  await expect(page.getByLabel('Опишите своими словами', { exact: true })).toHaveCount(0);
+
+  const { writes } = await form(page, items, true);
+  await page.getByLabel('Опишите своими словами', { exact: true }).fill('Нужно 2 млн на кофемашину, отдам за пару лет');
+  await page.getByRole('button', { name: 'Заполнить', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Заполнили цель, сумму и срок' })).toBeVisible();
+  expect(writes[0]).toEqual({ text: 'Нужно 2 млн на кофемашину, отдам за пару лет' });
+  await expect(page.getByLabel('Сумма, ₽', { exact: true })).toHaveValue(/^2\s000\s000$/);
+  await expect(page.getByLabel('Срок, месяцев', { exact: true })).toHaveValue('24');
+  await expect(page.getByText('Оборудование и транспорт', { exact: true }).first()).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });

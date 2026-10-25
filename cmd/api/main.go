@@ -12,9 +12,11 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/server"
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
 	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
+	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/alfaid"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/faults"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/ollama"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
@@ -69,12 +71,7 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
-	// свои условия под встречным api считает той же политикой, что и воркер
-	scoring, err := rules.Scoring(filepath.Join(cfg.RulesDir, "scoring.yaml"))
-	if err != nil {
-		lg.Zap.Fatal("rules", zap.Error(err))
-	}
-	policy, err := rules.Policy(filepath.Join(cfg.RulesDir, "policy.yaml"))
+	decisions, err := newDecisions(cfg.RulesDir, catalog)
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
@@ -83,11 +80,15 @@ func main() {
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), notifier, companies, tc, catalog)
 	events := repo.NewEvent(lg.Zap, db)
-	issue := usecase.NewIssue(db, apps, usecase.NewDecision(catalog, scoring, policy), repo.NewApplication(dbq.New(db)),
+	issue := usecase.NewIssue(db, apps, decisions, repo.NewApplication(dbq.New(db)),
 		repo.NewDocument(db), repo.NewSigning(db), notifier, catalog, cfg.SigningCodeTTL)
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
-	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
+	reader, err := needReader(&cfg)
+	if err != nil {
+		lg.Zap.Fatal("ollama", zap.Error(err))
+	}
+	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog, reader), companies, apps,
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
 		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)),
 		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)),
@@ -147,4 +148,25 @@ func newServer(
 		RBAC:       enf,
 		CORSOrigin: cfg.CORSOrigin,
 	})
+}
+
+// needReader: без профиля ai подбора по тексту нет, фронт узнаёт об этом из health
+func needReader(cfg *config.API) (usecase.NeedReader, error) {
+	if !cfg.AIEnabled {
+		return nil, nil
+	}
+	return ollama.New(cfg.OllamaURL, cfg.OllamaModel, cfg.NeedTimeout)
+}
+
+// newDecisions: свои условия под встречным api считает той же политикой, что и воркер
+func newDecisions(dir string, catalog domain.Catalog) (usecase.DecisionUseCase, error) {
+	scoring, err := rules.Scoring(filepath.Join(dir, "scoring.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	policy, err := rules.Policy(filepath.Join(dir, "policy.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	return usecase.NewDecision(catalog, scoring, policy), nil
 }

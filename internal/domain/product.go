@@ -33,6 +33,13 @@ const (
 
 var Goals = []Goal{GoalCashGap, GoalPurchase, GoalRenovation, GoalEquipment, GoalOther}
 
+// Need цель, сумма и срок из слов клиента. Нули: этого в тексте не нашли.
+type Need struct {
+	Goal       Goal
+	AmountKop  int64
+	TermMonths int
+}
+
 type Product struct {
 	Code                 ProductCode
 	Name                 string

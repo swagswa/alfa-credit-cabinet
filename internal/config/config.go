@@ -107,6 +107,9 @@ type API struct {
 	// CORSOrigin нужен только dev-серверу Vite, в compose фронт ходит через nginx
 	CORSOrigin string `env:"CORS_ORIGIN"`
 	AIEnabled  bool   `env:"AI_ENABLED"  envDefault:"false"`
+	// с ИИ api сам спрашивает модель про цель и сумму из слов клиента, клиент ждёт ответа на экране
+	Ollama
+	NeedTimeout time.Duration `env:"NEED_TIMEOUT" envDefault:"20s"`
 	// SigningCodeTTL сколько живёт код подписи, на проде как у SMS-кода
 	SigningCodeTTL time.Duration `env:"SIGNING_CODE_TTL" envDefault:"5m"`
 	// SeedDemo заводит тестовые учётки и демо-компании, на стенде для жюри включён
@@ -145,12 +148,16 @@ type DocsWorker struct {
 // Recognition нужен docs-worker и make eval-docs. Каталог языков tesseract
 // берёт сам из TESSDATA_PREFIX, если он не в стандартном месте.
 type Recognition struct {
+	Ollama
 	AIEnabled     bool          `env:"AI_ENABLED"     envDefault:"false"`
 	Tesseract     string        `env:"TESSERACT_PATH" envDefault:"tesseract"`
 	OCRTimeout    time.Duration `env:"OCR_TIMEOUT"    envDefault:"30s"`
-	OllamaURL     string        `env:"OLLAMA_URL"     envDefault:"http://localhost:11434"`
-	OllamaModel   string        `env:"OLLAMA_MODEL"   envDefault:"qwen3:4b-instruct-2507-q4_K_M"`
 	OllamaTimeout time.Duration `env:"OLLAMA_TIMEOUT" envDefault:"240s"`
+}
+
+type Ollama struct {
+	OllamaURL   string `env:"OLLAMA_URL"   envDefault:"http://localhost:11434"`
+	OllamaModel string `env:"OLLAMA_MODEL" envDefault:"qwen3:4b-instruct-2507-q4_K_M"`
 }
 
 type Mocks struct {

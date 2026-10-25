@@ -1,4 +1,4 @@
-.PHONY: generate lint test check up up-ai up-obs down web-gen docgen eval-docs e2e
+.PHONY: generate lint test check up up-ai up-obs down web-gen docgen eval-docs eval-needs e2e
 
 # сервер из openapi, код запросов из sql
 generate:
@@ -43,6 +43,10 @@ docgen:
 # Один файл: EVAL_GLOB=0000300011_statement_c.png make eval-docs
 eval-docs:
 	go test -tags eval -run TestDocsEval -count=1 -timeout 60m -v ./internal/usecase
+
+# точность подбора по тексту на testdata/needs.yaml, таблицу из вывода руками в docs/ai-eval.md
+eval-needs:
+	go test -tags eval -run TestNeedsEval -count=1 -timeout 10m -v ./internal/usecase
 
 # сценарии приёмки через api на поднятом стенде (make up). Лимит входов мешает
 # повторным прогонам: LOGIN_ATTEMPTS=100 make up. -short пропускает ожидание expired

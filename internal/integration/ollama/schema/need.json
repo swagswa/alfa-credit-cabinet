@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "goal": {"type": "string", "enum": ["cash_gap", "purchase", "renovation", "equipment", "other"]},
+    "amount": {"type": "string"},
+    "term_months": {"type": "integer"}
+  },
+  "required": ["goal", "amount", "term_months"]
+}
