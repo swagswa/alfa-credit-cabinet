@@ -42,11 +42,14 @@
 
 ## Фронт
 
+Для автоматических проверок доступности: axe-core 4.10.2 (MPL-2.0), devDependency, в браузерную сборку приложения не входит.
+
 | Компонент | Версия | Лицензия |
 |---|---|---|
 | react, react-dom | 19.3.1 | MIT |
 | react-router | 7.18.4 | MIT |
 | Motion for React (`motion`) | 14.6.0 | MIT |
+| @alfalab/icons-glyph | 2.293.3 | MIT |
 | @alfalab/core-components | 50.37.0 | MIT |
 | openapi-fetch | 0.17.0 | MIT |
 
