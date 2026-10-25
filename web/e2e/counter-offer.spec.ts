@@ -198,7 +198,7 @@ test('очередь при ошибке карточки не называет 
 });
 
 test('свои условия под встречным: банк пересчитывает, принять можно только то, что одобрит сам', async ({ page }) => {
-  const { writes } = await open(page, { variants: true });
+  const { writes } = await open(page, { variants: true, card: { offer: { ...offer, adjustable: true } } });
   const result = page.locator('.offer-variant-result');
   await expect(result).toContainText('Это предложение банка');
   const amount = page.getByLabel('Сумма, ₽');

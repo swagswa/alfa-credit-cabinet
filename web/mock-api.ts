@@ -949,6 +949,7 @@ export function mockApi(): Plugin {
                   guarantor_required: false,
                   msp_guarantee: false,
                   pledge_required: entry.owner === 'logistics',
+                  adjustable: entry.owner === 'logistics',
                 };
                 entry.app.reasons = [
                   {

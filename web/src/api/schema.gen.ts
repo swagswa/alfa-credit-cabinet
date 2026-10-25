@@ -1410,6 +1410,12 @@ export interface components {
              * @example 2026-10-21T10:25:00Z
              */
             expires_at: string;
+            /**
+             * @description Встречное посчитала политика, клиент может подобрать сумму и срок через variant
+             * @default false
+             * @example true
+             */
+            adjustable: boolean;
         };
         InfoRequestCreate: {
             /**

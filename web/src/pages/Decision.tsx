@@ -263,7 +263,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
           {card.status === 'counter_offer' ? (
             <>
               <CounterOfferComparison key={card.id} card={card} />
-              {card.allowed_next.includes('accepted') && !offerExpired && (
+              {card.offer.adjustable && card.allowed_next.includes('accepted') && !offerExpired && (
                 <OfferVariants key={`${card.id}-${card.version}`} card={card} onChoice={setChoice} />
               )}
             </>

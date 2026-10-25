@@ -127,8 +127,8 @@ func (u *issueUseCase) Variant(
 	if err != nil {
 		return domain.Decision{}, err
 	}
-	if app.Status != domain.StatusCounterOffer {
-		return domain.Decision{}, fmt.Errorf("%w: свои условия подбираются только во встречном предложении",
+	if !app.Adjustable() {
+		return domain.Decision{}, fmt.Errorf("%w: свои условия подбираются только во встречном предложении банка",
 			domain.ErrIllegalTransition)
 	}
 	d := app.Draft

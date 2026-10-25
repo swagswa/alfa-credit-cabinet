@@ -2127,6 +2127,11 @@ components:
               format: date-time
               description: До какого момента можно принять
               example: '2026-10-21T10:25:00Z'
+            adjustable:
+              type: boolean
+              description: Встречное посчитала политика, клиент может подобрать сумму и срок через variant
+              default: false
+              example: true
 
     InfoRequestCreate:
       type: object

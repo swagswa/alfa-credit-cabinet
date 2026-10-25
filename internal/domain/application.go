@@ -70,6 +70,11 @@ type Application struct {
 	InfoRequest *InfoRequest
 }
 
+// Adjustable: встречное посчитала политика, клиент может подобрать сумму и срок сам.
+func (a *Application) Adjustable() bool {
+	return a.Status == StatusCounterOffer && a.Decision != nil && a.Decision.Stage == StagePolicy
+}
+
 // InfoRequest что банк ждёт от клиента. Reasons как показали клиенту.
 type InfoRequest struct {
 	Documents []DocKind

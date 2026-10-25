@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -415,8 +414,8 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		g := oapi.Grade(app.Grade)
 		v.Grade = &g
 	}
-	if d := app.Decision; d != nil {
-		decisionView(&v, d, app.DueAt, role)
+	if app.Decision != nil {
+		decisionView(&v, app, role)
 	}
 	// без срока запрос не отдаём: в контракте он обязательный, а need_info без срока не бывает
 	if r := app.InfoRequest; r != nil && app.DueAt != nil {
@@ -450,13 +449,15 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 
 // decisionView: клиент видит условия и причины с текстом, банк ещё коды без текста,
 // балл с разбивкой и рекомендацию политики
-func decisionView(v *oapi.ApplicationView, d *domain.Decision, due *time.Time, role domain.Role) {
+func decisionView(v *oapi.ApplicationView, app *domain.Application, role domain.Role) {
+	d, due := app.Decision, app.DueAt
 	bank := role != domain.RoleClient
 	v.Reasons = reasons(d.Reasons, role)
 	if t := d.Terms; t != nil {
 		o := oapi.Offer{
 			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
 			MonthlyPaymentKop: t.PaymentKop, GuarantorRequired: &t.Guarantor, PledgeRequired: &t.Pledge,
+			Adjustable: opt(app.Adjustable()),
 		}
 		if due != nil {
 			o.ExpiresAt = *due

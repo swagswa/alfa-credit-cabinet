@@ -137,6 +137,7 @@ func TestCounterOffer(t *testing.T) {
 	require.Subset(t, codes(v), []string{"R_TERM_EXTENDED", "R_AMOUNT_DSR"})
 
 	// своё под встречным: больше встречного банк не даст, меньше одобрит сам
+	require.True(t, *v.Offer.Adjustable, "встречное посчитала политика")
 	variant := func(amount int64, term int) oapi.OfferVariant {
 		res, err := c.OfferVariantWithResponse(t.Context(), app.Id,
 			&oapi.OfferVariantParams{AmountKop: amount, TermMonths: term})

@@ -188,6 +188,14 @@ func TestVariantRejects(t *testing.T) {
 		var fields domain.FieldErrors
 		require.ErrorAs(t, err, &fields, name)
 	}
+
+	// встречное от специалиста политикой не пересчитываем: она одобрила бы больше, чем он дал
+	byHand := e.app(domain.StatusManualReview)
+	d.Stage, d.Score = domain.StageUnderwriter, nil
+	m := domain.Move{To: domain.StatusCounterOffer, Actor: e.user("underwriter"), Comment: "даю меньше", Decision: d}
+	require.NoError(t, e.uc.Transition(ctx, byHand, m))
+	_, err = uc.Variant(ctx, e.client, byHand, usecase.Choice{AmountKop: 80_000_000, TermMonths: 12})
+	require.ErrorIs(t, err, domain.ErrIllegalTransition)
 }
 
 func TestPrepareContractAndPayout(t *testing.T) {
