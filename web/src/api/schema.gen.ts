@@ -62,6 +62,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Профиль клиента
+         * @description Только для клиента, всё только для чтения: контакты, как их знает банк, реквизиты компаний,
+         *     счёт и обороты из данных банка, выданные кредиты. Данные банка запрашиваются при каждом открытии;
+         *     источник недоступен, у компании `bank_unavailable: true`, остальное отдаётся как обычно.
+         */
+        get: operations["getProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products": {
         parameters: {
             query?: never;
@@ -807,6 +829,104 @@ export interface components {
              * @example false
              */
             simulated: boolean;
+        };
+        Profile: {
+            user: components["schemas"]["ProfileUser"];
+            companies: components["schemas"]["ProfileCompany"][];
+        };
+        ProfileUser: components["schemas"]["User"] & {
+            /**
+             * @description Пусто, если банк телефона не знает
+             * @example +79000000001
+             */
+            phone: string;
+            /** @example coffee@demo.alfa-hack.local */
+            email: string;
+        };
+        ProfileCompany: {
+            company: components["schemas"]["CompanyRef"];
+            representative_role: components["schemas"]["RepresentativeRole"];
+            /** @example 1000000100012 */
+            ogrn: string;
+            /**
+             * @description Нет у ИП
+             * @example 000101001
+             */
+            kpp?: string;
+            /** @example Общество с ограниченной ответственностью «Тёплое зерно» */
+            full_name: string;
+            okved_main: components["schemas"]["Okved"];
+            /** @example г. Москва, ул. Садовая, д. 12 */
+            address: string;
+            /**
+             * Format: date
+             * @example 2023-06-15
+             */
+            registered_at: string;
+            bank?: components["schemas"]["BankAccount"];
+            /**
+             * @description Данные банка не загрузились. Нет `bank` и false значит, что компания не клиент банка
+             * @example false
+             */
+            bank_unavailable: boolean;
+            loans: components["schemas"]["Loan"][];
+        };
+        BankAccount: {
+            /**
+             * @description Расчётный счёт, на который выдаётся кредит, последние четыре цифры
+             * @example •• 0012
+             */
+            account_mask: string;
+            /**
+             * Format: date
+             * @example 2024-10-15
+             */
+            client_since: string;
+            /**
+             * Format: int64
+             * @description Поступления на счета в банке за 12 месяцев
+             * @example 3600000000
+             */
+            turnover_12m_kop: number;
+            /**
+             * @description Коды продуктов банка
+             * @example [
+             *       "account",
+             *       "acquiring"
+             *     ]
+             */
+            products: ("account" | "acquiring" | "salary")[];
+        };
+        Loan: {
+            /** Format: uuid */
+            application_id: string;
+            /**
+             * Format: int64
+             * @example 1024
+             */
+            number: number;
+            status: components["schemas"]["ApplicationStatus"];
+            /** Format: date-time */
+            issued_at: string;
+            /**
+             * Format: int64
+             * @example 250000000
+             */
+            amount_kop: number;
+            /** @example 24 */
+            term_months: number;
+            /** @example 1900 */
+            rate_bp: number;
+            /**
+             * Format: int64
+             * @example 12602000
+             */
+            monthly_payment_kop: number;
+            /**
+             * Format: uuid
+             * @description Договор, `GET /documents/{id}/file`
+             */
+            contract_id?: string;
         };
         Company: {
             inn: components["schemas"]["INN"];
@@ -1739,6 +1859,28 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    getProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Профиль */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
     listProducts: {
