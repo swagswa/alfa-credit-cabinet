@@ -94,3 +94,36 @@ export const sources: Record<components['schemas']['CheckSource'], string> = {
   bki: 'Бюро кредитных историй',
   internal: 'Внутренние данные банка',
 };
+
+// у мягких стоп-факторов текста для клиента нет, банку объясняем сами
+export const bankReasons: Partial<Record<components['schemas']['ReasonCode'], string>> = {
+  SF_UNRELIABLE: 'В ЕГРЮЛ есть отметки о недостоверных сведениях',
+  SF_MASS_ADDRESS: 'Адрес массовой регистрации',
+  SF_MASS_DIRECTOR: 'Руководитель числится во многих компаниях',
+  SF_FOREIGN_SHARE: 'Доля иностранных участников больше 25%',
+  SF_OWNER_OVERDUE: 'У собственника за год была просрочка больше 30 дней',
+  SF_AML_FLAG: 'Высокий риск по проверке на отмывание денег',
+  SF_SOURCE_UNAVAILABLE: 'Источник не ответил и после повторных попыток, данных для решения не хватает',
+};
+
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+const bankHistory = [
+  'счёта нет или он младше 3 мес.',
+  'счёт 3-11 мес.',
+  'счёт больше года',
+  'счёт больше года, кредит погашен',
+];
+// значения входов скоринга в единицах rules/scoring.yaml
+const factorUnits: Record<string, (v: number) => string> = {
+  F1: (v) => `${v} мес.`,
+  F2: (v) => `${v >= 1 ? '+' : ''}${pct(v - 1)} к прошлому полугодию`,
+  F3: (v) => `разброс по месяцам ${pct(v)}`,
+  F4: (v) => `${pct(v)} выручки`,
+  F5: (v) => (v ? `от ${v} дн.` : 'не было'),
+  F6: (v) => `${v} шт.`,
+  F7: (v) => (v ? money(v * 100, true) : 'нет'),
+  F8: (v) => bankHistory[v] ?? String(v),
+  F9: (v) => `ОКВЭД ${v}`,
+};
+export const factorValue = (code: string, v: number) =>
+  factorUnits[code]?.(v) ?? v.toLocaleString('ru-RU', { maximumFractionDigits: 2 });

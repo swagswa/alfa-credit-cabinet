@@ -108,7 +108,9 @@ test.describe('реестр не отвечает', () => {
     await expect(page.getByText('SF_SOURCE_UNAVAILABLE')).toHaveCount(0);
 
     const bank = await asBank(browser, 'manager', page);
-    await expect(bank.getByText('Причины: SF_SOURCE_UNAVAILABLE')).toBeVisible();
+    // в журнале и у проверки текст, сырой ответ системы только мелкой строкой
+    await expect(bank.getByText('Причины: Источник не ответил и после повторных попыток')).toBeVisible();
+    await expect(bank.getByText('Причины: SF_SOURCE_UNAVAILABLE')).toHaveCount(0);
     await expect(bank.getByText('Результат: Источник недоступен')).toBeVisible();
     await expect(bank.getByRole('button', { name: 'Повторить проверки' })).toBeEnabled();
   });
