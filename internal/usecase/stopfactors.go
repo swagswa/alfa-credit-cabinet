@@ -1,7 +1,9 @@
 package usecase
 
 import (
+	"math"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -16,7 +18,12 @@ func (u *decisionUseCase) Check(f *domain.Facts) domain.Decision {
 		docs = append(docs, u.policy.DocumentNames[k])
 		d.Documents = append(d.Documents, domain.DocKind(k))
 	}
-	args := map[string]string{"doc": strings.Join(docs, ", ")}
+	args := map[string]string{
+		"doc":         strings.Join(docs, ", "),
+		"diff":        strconv.Itoa(int(math.Round(f.DocRevenueMismatch * percent))),
+		"doc_revenue": rubles(f.DocRevenueKop),
+		"fns_revenue": rubles(f.FNSRevenueKop),
+	}
 
 	for _, r := range u.policy.StopFactors {
 		v, _ := f.Input(r.Input)
