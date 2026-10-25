@@ -16,6 +16,8 @@ erDiagram
     applications ||--o{ info_requests : ""
     applications ||--o| signing_codes : ""
     applications ||--o| payouts : ""
+    users ||--o{ notifications : ""
+    applications |o--o{ notifications : ""
     users |o--o{ application_events : "actor"
     users |o--o{ decisions : "decided_by"
     users |o--o{ info_requests : "requested_by"
@@ -26,6 +28,8 @@ erDiagram
         text password_hash
         text full_name
         text role "client manager underwriter admin"
+        text phone
+        text email
         timestamptz created_at
     }
     companies {
@@ -37,6 +41,7 @@ erDiagram
         text short_name
         text full_name
         text okved
+        text okved_name
         text address
         date registered_at
         boolean simulated
@@ -179,13 +184,23 @@ erDiagram
         text account
         timestamptz created_at
     }
+    notifications {
+        bigint id PK
+        uuid user_id FK
+        uuid application_id FK "может не быть"
+        text kind
+        text title
+        text body
+        timestamptz created_at
+        timestamptz read_at
+    }
 ```
 
 ## Таблицы
 
-**users.** Тестовые учётки из сида, пароль в bcrypt. Роль одна на пользователя, права роли в `internal/rbac/policy.csv`.
+**users.** Тестовые учётки из сида, пароль в bcrypt. Роль одна на пользователя, права роли в `internal/rbac/policy.csv`. Телефон и почта такие, как их знает банк, клиенту в профиле только для чтения; у сотрудников пустые строки.
 
-**companies.** Компания по ИНН с данными ЕГРЮЛ/ЕГРИП на момент первой заявки. Демо-компании вместе с представителями заранее заводит сид (`migrations/seed/demo.sql`, при `SEED_DEMO=true`). Тип и длина ИНН согласованы в CHECK: 10 цифр у `UL`, 12 у `IP`, КПП только у юрлица. `simulated` ставится компаниям из генератора симулятора, в кабинете у них плашка «данные сгенерированы».
+**companies.** Компания по ИНН с данными ЕГРЮЛ/ЕГРИП на момент первой заявки. Демо-компании вместе с представителями заранее заводит сид (`migrations/seed/demo.sql`, при `SEED_DEMO=true`). Тип и длина ИНН согласованы в CHECK: 10 цифр у `UL`, 12 у `IP`, КПП только у юрлица. `simulated` ставится компаниям из генератора симулятора, в кабинете у них плашка «данные сгенерированы». `okved_name`: расшифровка основного ОКВЭД из той же выписки, для профиля.
 
 **company_members.** Кто может действовать от имени компании и в какой роли. По этой таблице SQL проверяет владение: клиент видит заявки только своих компаний. Строка появляется при создании первой заявки по ИНН. Полномочия (руководитель из ЕГРЮЛ, доверенность у `proxy`) подача пока не сверяет, доверенность идёт в заявку обычным документом.
 
@@ -207,4 +222,6 @@ erDiagram
 
 **signing_codes.** Код подписи, один на заявку, новый перезаписывает старый. Храним sha256 кода, попытки (3) и срок. Три неверных ввода сжигают код, клиент запрашивает новый. Верный код строку удаляет, второй раз им не подписать.
 
-**payouts.** Смоделированная выдача: строка вместо проводки, ключ по заявке, повтор шага выдачи ничего не меняет.
+**payouts.** Смоделированная выдача: строка вместо проводки, ключ по заявке, повтор шага выдачи ничего не меняет. Профиль клиента считает кредитом заявку, у которой есть строка здесь.
+
+**notifications.** Лента уведомлений клиента в кабинете. Пока таблица только заведена, писать в неё будут переходы заявки в той же транзакции.
