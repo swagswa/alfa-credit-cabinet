@@ -30,8 +30,8 @@ FROM companies c
 WHERE c.inn = @inn;
 
 -- name: AddCompany :one
-INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, address, registered_at, simulated)
-VALUES (@inn, @kind, @ogrn, sqlc.narg(kpp), @short_name, @full_name, @okved, @address, @registered_at, @simulated)
+INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, okved_name, address, registered_at, simulated)
+VALUES (@inn, @kind, @ogrn, sqlc.narg(kpp), @short_name, @full_name, @okved, @okved_name, @address, @registered_at, @simulated)
 RETURNING id;
 
 -- name: SetMember :exec

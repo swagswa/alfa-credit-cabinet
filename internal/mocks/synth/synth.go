@@ -67,6 +67,15 @@ func (c Company) Defaulted() bool { return mix.pd.chance(RNG(c.INN+Version+"/def
 
 func (c Company) IsIP() bool { return len(c.INN) == 12 }
 
+// Account: расчётный счёт в банке, тот же в выписке и в данных банка.
+func (c Company) Account() string {
+	prefix := "40702810" // счёт юрлица
+	if c.IsIP() {
+		prefix = "40802810"
+	}
+	return prefix + "0000" + c.INN[len(c.INN)-8:]
+}
+
 // profile задаёт то, что видно в скоринге: средняя выручка в месяц (руб),
 // тренд последних 6 мес к предыдущим 6 и коэффициент вариации оборотов.
 type profile struct {

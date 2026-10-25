@@ -119,6 +119,7 @@ type Company struct {
 	RegisteredAt pgtype.Date
 	Simulated    bool
 	CreatedAt    time.Time
+	OkvedName    string
 }
 
 type CompanyMember struct {
@@ -186,6 +187,17 @@ type InfoRequest struct {
 	ClosedAt      pgtype.Timestamptz
 }
 
+type Notification struct {
+	ID            int64
+	UserID        uuid.UUID
+	ApplicationID pgtype.UUID
+	Kind          string
+	Title         string
+	Body          string
+	CreatedAt     time.Time
+	ReadAt        pgtype.Timestamptz
+}
+
 type Payout struct {
 	ApplicationID uuid.UUID
 	AmountKop     int64
@@ -208,4 +220,6 @@ type User struct {
 	FullName     string
 	Role         string
 	CreatedAt    time.Time
+	Phone        string
+	Email        string
 }

@@ -266,6 +266,7 @@ func (r *applicationRepo) AddCompany(ctx context.Context, c domain.Company) (uui
 		ShortName:    c.ShortName,
 		FullName:     c.FullName,
 		Okved:        c.Okved.Code,
+		OkvedName:    c.Okved.Name,
 		Address:      c.Address,
 		RegisteredAt: pgtype.Date{Time: c.RegisteredAt, Valid: true},
 		Simulated:    c.Simulated,

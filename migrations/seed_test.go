@@ -32,4 +32,7 @@ func TestSeedDemo(t *testing.T) {
 	// у каждого клиента ровно одна компания, у сотрудников ни одной
 	require.Equal(t, 0, count(`SELECT count(*) FROM users u
 		WHERE (u.role = 'client') <> EXISTS (SELECT 1 FROM company_members m WHERE m.user_id = u.id)`))
+	// профиль показывает контакты клиента и расшифровку ОКВЭД
+	require.Equal(t, 0, count("SELECT count(*) FROM users WHERE role = 'client' AND (phone = '' OR email = '')"))
+	require.Equal(t, 0, count("SELECT count(*) FROM companies WHERE okved_name = ''"))
 }

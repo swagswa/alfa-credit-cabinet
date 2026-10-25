@@ -20,6 +20,8 @@ security:
 tags:
   - name: auth
     description: Вход по тестовым учёткам
+  - name: profile
+    description: Профиль клиента
   - name: products
     description: Продукты и подбор по цели
   - name: companies
@@ -103,6 +105,27 @@ paths:
                 $ref: '#/components/schemas/Me'
         '204':
           description: Входа нет
+
+  /profile:
+    get:
+      tags: [profile]
+      operationId: getProfile
+      summary: Профиль клиента
+      description: |
+        Только для клиента, всё только для чтения: контакты, как их знает банк, реквизиты компаний,
+        счёт и обороты из данных банка, выданные кредиты. Данные банка запрашиваются при каждом открытии;
+        источник недоступен, у компании `bank_unavailable: true`, остальное отдаётся как обычно.
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
 
   /products:
     get:
@@ -1314,6 +1337,130 @@ components:
           type: boolean
           description: Компания из генератора симулятора, плашка «данные сгенерированы»
           example: false
+
+    Profile:
+      type: object
+      required: [user, companies]
+      properties:
+        user:
+          $ref: '#/components/schemas/ProfileUser'
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfileCompany'
+
+    ProfileUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [phone, email]
+          properties:
+            phone:
+              type: string
+              description: Пусто, если банк телефона не знает
+              example: '+79000000001'
+            email:
+              type: string
+              example: coffee@demo.alfa-hack.local
+
+    ProfileCompany:
+      type: object
+      required: [company, representative_role, ogrn, full_name, okved_main, address, registered_at,
+                 bank_unavailable, loans]
+      properties:
+        company:
+          $ref: '#/components/schemas/CompanyRef'
+        representative_role:
+          $ref: '#/components/schemas/RepresentativeRole'
+        ogrn:
+          type: string
+          example: '1000000100012'
+        kpp:
+          type: string
+          description: Нет у ИП
+          example: '000101001'
+        full_name:
+          type: string
+          example: Общество с ограниченной ответственностью «Тёплое зерно»
+        okved_main:
+          $ref: '#/components/schemas/Okved'
+        address:
+          type: string
+          example: г. Москва, ул. Садовая, д. 12
+        registered_at:
+          type: string
+          format: date
+          example: '2023-06-15'
+        bank:
+          $ref: '#/components/schemas/BankAccount'
+        bank_unavailable:
+          type: boolean
+          description: Данные банка не загрузились. Нет `bank` и false значит, что компания не клиент банка
+          example: false
+        loans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Loan'
+
+    BankAccount:
+      type: object
+      required: [account_mask, client_since, turnover_12m_kop, products]
+      properties:
+        account_mask:
+          type: string
+          description: Расчётный счёт, на который выдаётся кредит, последние четыре цифры
+          example: •• 0012
+        client_since:
+          type: string
+          format: date
+          example: '2024-10-15'
+        turnover_12m_kop:
+          type: integer
+          format: int64
+          description: Поступления на счета в банке за 12 месяцев
+          example: 3600000000
+        products:
+          type: array
+          description: Коды продуктов банка
+          items:
+            type: string
+            enum: [account, acquiring, salary]
+          example: [account, acquiring]
+
+    Loan:
+      type: object
+      required: [application_id, number, status, issued_at, amount_kop, term_months, rate_bp, monthly_payment_kop]
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          format: int64
+          example: 1024
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        issued_at:
+          type: string
+          format: date-time
+        amount_kop:
+          type: integer
+          format: int64
+          example: 250000000
+        term_months:
+          type: integer
+          example: 24
+        rate_bp:
+          type: integer
+          example: 1900
+        monthly_payment_kop:
+          type: integer
+          format: int64
+          example: 12602000
+        contract_id:
+          type: string
+          format: uuid
+          description: Договор, `GET /documents/{id}/file`
 
     Company:
       type: object

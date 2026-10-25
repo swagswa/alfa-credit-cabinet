@@ -57,6 +57,12 @@ func (f *fakeUsers) Memberships(context.Context, uuid.UUID) ([]domain.Membership
 	return nil, nil
 }
 
+func (f *fakeUsers) Companies(context.Context, uuid.UUID) ([]domain.ProfileCompany, error) {
+	return nil, nil
+}
+
+func (f *fakeUsers) Loans(context.Context, uuid.UUID) ([]domain.Loan, error) { return nil, nil }
+
 type fakeSessions struct {
 	mu    sync.Mutex
 	saved map[string]domain.Session

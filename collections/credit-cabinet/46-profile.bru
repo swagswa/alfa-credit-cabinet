@@ -1,0 +1,34 @@
+meta {
+  name: 46 Профиль клиента
+  type: http
+  seq: 46
+}
+
+get {
+  url: {{baseUrl}}/profile
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.user.phone: isString
+  res.body.companies.length: eq 1
+}
+
+tests {
+  test("выданный кредит в профиле", function () {
+    const c = res.body.companies[0];
+    expect(c.loans.some((l) => l.application_id === bru.getVar("northId"))).to.equal(true);
+    expect(c.bank_unavailable || /^•• \d{4}$/.test(c.bank.account_mask)).to.equal(true);
+  });
+}
+
+docs {
+  Только клиент, сотруднику банка 403. Счёт и обороты спрашиваются у банка при каждом открытии:
+  если источник лежит (пульт сбоев), у компании bank_unavailable, остальное на месте.
+}
