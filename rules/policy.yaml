@@ -40,7 +40,8 @@ reapply_months: 3
 # сумма лимита округляется вниз
 limit_round_rub: 10000
 
-# операторы только gt|lt|eq|ne; если сработало несколько, reject сильнее need_info, need_info сильнее manual_review
+# операторы только gt|lt|eq|ne; если сработало несколько, reject сильнее need_info, need_info сильнее manual_review.
+# SF_NOT_FOUND и SF_SOURCE_UNAVAILABLE тут нет: их ставит процесс по ответам источников, до расчёта
 stop_factors:
   - {code: SF_STATUS_INACTIVE, input: egrul_status, ne: active, outcome: reject}
   - {code: SF_BANKRUPTCY, input: bankruptcy, eq: true, outcome: reject} # процедура сейчас или банкротство за 5 лет
@@ -52,7 +53,6 @@ stop_factors:
   - {code: SF_TAX_BLOCK_DECL, input: tax_block_declaration, eq: true, outcome: need_info}
   - {code: SF_REVENUE_MISMATCH, input: revenue_mismatch, gt: 0.3, outcome: need_info}
   - {code: SF_DOCS_MISSING, input: missing_documents, gt: 0, outcome: need_info}
-  - {code: SF_NOT_FOUND, input: egrul_found, eq: false, outcome: need_info}
   - {code: SF_UNRELIABLE, input: unreliable_records, gt: 0, outcome: manual_review}
   - {code: SF_MASS_ADDRESS, input: mass_address, eq: true, outcome: manual_review}
   - {code: SF_MASS_DIRECTOR, input: mass_director, eq: true, outcome: manual_review}
@@ -60,7 +60,6 @@ stop_factors:
   - {code: SF_OWNER_OVERDUE, input: owner_worst_dpd_12m, gt: 29, outcome: manual_review}
   - {code: SF_AML_FLAG, input: aml_high_risk, eq: true, outcome: manual_review}
   - {code: SF_DOC_MISMATCH, input: doc_revenue_mismatch, gt: 0.2, outcome: manual_review}
-  - {code: SF_SOURCE_UNAVAILABLE, input: sources_unavailable, gt: 0, outcome: manual_review}
 
 # как назвать вид документа клиенту, для {doc} в SF_DOCS_MISSING
 document_names:
@@ -100,5 +99,4 @@ reasons:
   SF_TAX_BLOCK_DECL: Налоговая приостановила операции из-за несданной декларации. Загрузите квитанцию о сдаче
   SF_REVENUE_MISMATCH: Выручка в анкете отличается от данных налоговой. Загрузите выписку по счёту или поясните разницу
   SF_DOCS_MISSING: 'Не хватает документа: {doc}'
-  SF_NOT_FOUND: Не нашли компанию с таким ИНН в ЕГРЮЛ. Проверьте ИНН
   SF_DOC_MISMATCH: 'Цифры в документе расходятся с данными налоговой на {diff}%: выручка за год по документу {doc_revenue} ₽, у налоговой {fns_revenue} ₽. Заявку посмотрит специалист'

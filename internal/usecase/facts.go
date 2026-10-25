@@ -92,7 +92,7 @@ const (
 )
 
 // Facts раскладывает последние ответы источников по фактам. Источник без ответа
-// оставляет свои факты нулевыми, недоступные считаем для SF_SOURCE_UNAVAILABLE.
+// оставляет свои факты нулевыми.
 func (u *decisionUseCase) Facts(
 	app *domain.Application,
 	checks []domain.CheckResult,
@@ -109,16 +109,13 @@ func (u *decisionUseCase) Facts(
 		domain.SourceEGRUL: &eg, domain.SourceFNS: &fns, domain.SourceBKI: &bki, domain.SourceInternal: &bank,
 	}
 	for _, c := range checks {
-		switch c.Status {
-		case domain.CheckUnavailable:
-			f.SourcesUnavailable++
-		case domain.CheckOK:
-			if err := json.Unmarshal(c.Payload, replies[c.Source]); err != nil {
-				return f, fmt.Errorf("ответ %s: %w", c.Source, err)
-			}
-			f.EGRULFound = f.EGRULFound || c.Source == domain.SourceEGRUL
-		case domain.CheckNotFound:
+		if c.Status != domain.CheckOK {
+			continue
 		}
+		if err := json.Unmarshal(c.Payload, replies[c.Source]); err != nil {
+			return f, fmt.Errorf("ответ %s: %w", c.Source, err)
+		}
+		f.EGRULFound = f.EGRULFound || c.Source == domain.SourceEGRUL
 	}
 
 	if err := eg.apply(&f, now); err != nil {

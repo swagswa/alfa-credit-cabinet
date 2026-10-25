@@ -27,7 +27,7 @@ func TestPolicy(t *testing.T) {
 	require.Equal(t, domain.GradeReject, wc.Grades["E"].Action)
 	require.InDelta(t, 0.4, p.Products[domain.Overdraft].Grades["B"].TurnoverShare, 1e-9)
 
-	require.Len(t, p.StopFactors, 19)
+	require.Len(t, p.StopFactors, 17)
 	require.Equal(t, domain.StopRule{
 		Code:    "SF_STATUS_INACTIVE",
 		Input:   "egrul_status",

@@ -123,7 +123,6 @@ func TestFactsDemo(t *testing.T) {
 			require.Equal(t, w.dpd, f.WorstDPD24m)
 			require.Equal(t, w.inquiries, f.Inquiries90d)
 			require.Equal(t, w.missing, f.MissingDocuments)
-			require.Zero(t, f.SourcesUnavailable)
 			require.Less(t, f.DocRevenueMismatch, 0.01)
 			if w.factors == nil {
 				return
@@ -147,7 +146,6 @@ func TestFactsWithoutSources(t *testing.T) {
 	f, err := d.Facts(app, checks, time.Now())
 	require.NoError(t, err)
 	require.False(t, f.EGRULFound)
-	require.Equal(t, 2, f.SourcesUnavailable)
 	// сверить не с чем, остаётся заявленная выручка
 	require.Equal(t, int64(500_000_00), f.MonthlyRevenueKop)
 	require.Equal(t, []string{"passport", "statement", "power_of_attorney"}, f.MissingDocuments)
