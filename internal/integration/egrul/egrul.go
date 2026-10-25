@@ -7,27 +7,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 )
 
+// Client ходит тем же запросом, что и проверки заявки, только разбирает ответ.
 type Client struct {
-	base    string
-	http    *http.Client
-	timeout time.Duration
+	src *source.Client
 }
 
 func New(baseURL string, timeout time.Duration) *Client {
-	return &Client{
-		base:    baseURL,
-		http:    &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)},
-		timeout: timeout,
-	}
+	return &Client{src: source.New(source.URLs{EGRUL: baseURL}, timeout)}
 }
 
 type response struct {
@@ -58,32 +50,15 @@ type response struct {
 	GeneratorVersion string `json:"generator_version"`
 }
 
-// Company отдаёт выписку. 404 источника это domain.ErrNotFound, таймаут и 5xx это domain.ErrUnavailable.
+// Company отдаёт выписку. Ошибки как у source.Fetch: 404 это domain.ErrNotFound,
+// таймаут и 5xx это domain.ErrUnavailable.
 func (c *Client) Company(ctx context.Context, inn string) (domain.Company, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/egrul/"+url.PathEscape(inn), http.NoBody)
+	body, err := c.src.Fetch(ctx, domain.SourceEGRUL, inn, domain.BKIConsent{})
 	if err != nil {
-		return domain.Company{}, fmt.Errorf("egrul: %w", err)
+		return domain.Company{}, err
 	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return domain.Company{}, fmt.Errorf("egrul %s: %w: %w", inn, domain.ErrUnavailable, err)
-	}
-	defer resp.Body.Close()
-
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
-		return domain.Company{}, fmt.Errorf("egrul %s: %w", inn, domain.ErrNotFound)
-	case resp.StatusCode >= http.StatusInternalServerError:
-		return domain.Company{}, fmt.Errorf("egrul %s: %d: %w", inn, resp.StatusCode, domain.ErrUnavailable)
-	case resp.StatusCode != http.StatusOK:
-		return domain.Company{}, fmt.Errorf("egrul %s: unexpected status %d", inn, resp.StatusCode)
-	}
-
 	var r response
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	if err := json.Unmarshal(body, &r); err != nil {
 		return domain.Company{}, fmt.Errorf("egrul %s: decode: %w", inn, err)
 	}
 	return r.company()
