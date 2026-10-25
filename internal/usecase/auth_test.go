@@ -15,8 +15,10 @@ import (
 )
 
 type fakeUsers struct {
-	user domain.User
-	hash []byte
+	user      domain.User
+	hash      []byte
+	companies []domain.ProfileCompany
+	loans     []domain.Loan
 }
 
 func (f *fakeUsers) Credentials(_ context.Context, login string) (domain.User, []byte, error) {
@@ -31,6 +33,12 @@ func (f *fakeUsers) ByID(context.Context, uuid.UUID) (domain.User, error) { retu
 func (f *fakeUsers) Memberships(context.Context, uuid.UUID) ([]domain.Membership, error) {
 	return []domain.Membership{{INN: "0000100012", Role: "director"}}, nil
 }
+
+func (f *fakeUsers) Companies(context.Context, uuid.UUID) ([]domain.ProfileCompany, error) {
+	return f.companies, nil
+}
+
+func (f *fakeUsers) Loans(context.Context, uuid.UUID) ([]domain.Loan, error) { return f.loans, nil }
 
 type fakeSessions struct {
 	saved map[string]domain.Session

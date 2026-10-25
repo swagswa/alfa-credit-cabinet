@@ -61,10 +61,13 @@ type bankReply struct {
 	IsClient bool   `json:"is_client"`
 	Opened   string `json:"account_opened_at"`
 	Turnover []struct {
-		Credit int64
+		Credit int64 `json:"credit"`
 	} `json:"turnover_12m"`
 	PastLoans   []pastLoan `json:"past_loans"`
 	AMLHighRisk bool       `json:"aml_high_risk"`
+	// решению не нужны, их показывает профиль
+	Account  string   `json:"account"`
+	Products []string `json:"products"`
 }
 
 type pastLoan struct {

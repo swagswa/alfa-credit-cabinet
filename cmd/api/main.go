@@ -14,6 +14,7 @@ import (
 	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/faults"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rules"
@@ -72,7 +73,8 @@ func main() {
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
-		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)))
+		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)),
+		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -98,6 +100,7 @@ func newServer(
 	issue usecase.IssueUseCase,
 	stats usecase.StatsUseCase,
 	faultPanel usecase.FaultUseCase,
+	profile usecase.ProfileUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -117,6 +120,7 @@ func newServer(
 			Issue:        issue,
 			Stats:        stats,
 			Faults:       faultPanel,
+			Profile:      profile,
 			SessionTTL:   cfg.TTL,
 			CookieSecure: cfg.CookieSecure,
 		}),
