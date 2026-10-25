@@ -14,8 +14,9 @@ test:
 
 # то же, что проверяет CI
 check: generate lint test
+	cd web && npm run gen:api
 	git diff --exit-code
-	cd web && npm run lint && npm run build
+	cd web && npm run format:check && npm run lint && npm run build
 
 up:
 	docker compose up -d --build --wait
