@@ -1,12 +1,4 @@
-import {
-  Children,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ComponentProps,
-  type ReactNode,
-} from 'react';
+import { useEffect, useRef, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react';
 import {
   motion,
   MotionConfig,
@@ -77,6 +69,7 @@ export function Checkbox(props: ComponentProps<typeof KitCheckbox>) {
   return (
     <KitCheckbox
       {...props}
+      className={`physical-checkbox ${props.className ?? ''}`}
       ref={scope}
       boxClassName={`physical-check-box ${props.boxClassName ?? ''}`}
       labelProps={{
@@ -131,40 +124,6 @@ export function RouteSurface({ children }: { children: ReactNode }) {
         {children}
       </div>
     </LayoutGroup>
-  );
-}
-export function MotionDetails({ children, ...props }: ComponentProps<'details'>) {
-  const reduced = useMotionDisabled();
-  const [expanded, setExpanded] = useState(!!props.open);
-  const [visible, setVisible] = useState(!!props.open);
-  const [summary, ...content] = Children.toArray(children);
-  return (
-    <details
-      {...props}
-      open={visible}
-      onClick={(event) => {
-        const target = event.target as Element;
-        if (target.closest('summary')?.parentElement !== event.currentTarget) return;
-        event.preventDefault();
-        if (!expanded) setVisible(true);
-        setExpanded(!expanded);
-      }}
-    >
-      {summary}
-      <motion.div
-        className="disclosure-content"
-        inert={!expanded}
-        aria-hidden={!expanded}
-        initial={false}
-        animate={{ height: expanded ? 'auto' : 0, opacity: expanded ? 1 : 0 }}
-        transition={reduced ? { duration: 0 } : { height: springs.panel, opacity: { duration: timing.response } }}
-        onAnimationComplete={() => {
-          if (!expanded) setVisible(false);
-        }}
-      >
-        {content}
-      </motion.div>
-    </details>
   );
 }
 export function StatusText({ value, children }: { value: string; children: ReactNode }) {
