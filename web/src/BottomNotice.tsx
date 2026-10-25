@@ -1,8 +1,14 @@
+import { IconButton } from '@alfalab/core-components/icon-button';
+import { StatusBadge } from '@alfalab/core-components/status-badge';
+import { CrossMIcon } from '@alfalab/icons-glyph/CrossMIcon';
+import type { SVGProps } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionDisabled } from './motion';
 import { springs, timing } from './motion/tokens';
-import { Icon } from './ui/Workspace';
+import { ToastPlate } from '@alfalab/core-components/toast-plate';
+
+const NoticeCloseIcon = (props: SVGProps<SVGSVGElement>) => <CrossMIcon {...props} aria-hidden="true" />;
 
 type Notice = { id: string; message: string; tone: 'error' | 'success'; close?: () => void };
 export function notify(message: string, tone: Notice['tone'] = 'success', close?: () => void) {
@@ -16,8 +22,9 @@ export function dismiss(id: string) {
 export function NoticeHost() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const reduced = useMotionDisabled();
+  const timerRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   useEffect(() => {
-    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const timers = timerRef.current;
     const receive = (event: Event) => {
       const notice = (event as CustomEvent<Notice>).detail;
       setNotices((previous) => [...previous.filter((item) => item.message !== notice.message), notice].slice(-3));
@@ -48,7 +55,7 @@ export function NoticeHost() {
     };
   }, []);
   return createPortal(
-    <div className="notice-stack" aria-label="Уведомления">
+    <div className="notice-stack" role="region" aria-label="Уведомления">
       <AnimatePresence initial={false}>
         {notices.map((notice) => (
           <motion.div
@@ -61,20 +68,28 @@ export function NoticeHost() {
             exit={{ opacity: 0, y: 8, transition: { duration: reduced ? 0 : timing.exit } }}
             transition={reduced ? { duration: 0 } : springs.panel}
           >
-            <span className="notice-mark" aria-hidden="true">
-              {notice.tone === 'success' ? <Icon name="check" /> : '!'}
-            </span>
-            <span>{notice.message}</span>
-            <button
-              type="button"
-              aria-label="Закрыть уведомление"
-              onClick={() => {
-                setNotices((previous) => previous.filter((item) => item.id !== notice.id));
-                notice.close?.();
-              }}
-            >
-              ×
-            </button>
+            <ToastPlate
+              block
+              leftAddons={
+                <span aria-hidden="true">
+                  <StatusBadge view={notice.tone === 'error' ? 'negative-alert' : 'positive-checkmark'} />
+                </span>
+              }
+              title={notice.message}
+              actionButton={
+                <IconButton
+                  icon={NoticeCloseIcon}
+                  view="secondary"
+                  aria-label="Закрыть уведомление"
+                  onClick={() => {
+                    clearTimeout(timerRef.current.get(notice.id));
+                    timerRef.current.delete(notice.id);
+                    setNotices((previous) => previous.filter((item) => item.id !== notice.id));
+                    notice.close?.();
+                  }}
+                />
+              }
+            />
           </motion.div>
         ))}
       </AnimatePresence>

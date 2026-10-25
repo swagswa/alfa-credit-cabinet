@@ -1,30 +1,37 @@
+import { ArrowLeftSIcon } from '@alfalab/icons-glyph/ArrowLeftSIcon';
+import { HouseHomeMIcon } from '@alfalab/icons-glyph/HouseHomeMIcon';
+import { DocumentLinesLineSIcon } from '@alfalab/icons-glyph/DocumentLinesLineSIcon';
+import { PlusSIcon } from '@alfalab/icons-glyph/PlusSIcon';
+import { ArrowsCwCircleSIcon } from '@alfalab/icons-glyph/ArrowsCwCircleSIcon';
+import { CheckmarkSIcon } from '@alfalab/icons-glyph/CheckmarkSIcon';
+import { ArrowRightSIcon } from '@alfalab/icons-glyph/ArrowRightSIcon';
+import { UserRoundedSIcon } from '@alfalab/icons-glyph/UserRoundedSIcon';
+import { LogOutMIcon } from '@alfalab/icons-glyph/LogOutMIcon';
+import { Status } from '@alfalab/core-components/status';
+import { AppLink as Link } from './AppLink';
+import { Typography } from '@alfalab/core-components/typography';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
+
 import { labels } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 import { motion, useMotionDisabled } from '../motion';
 import { springs } from '../motion/tokens';
 
-export function Icon({
-  name,
-}: {
-  name: 'back' | 'overview' | 'applications' | 'new' | 'refresh' | 'check' | 'profile';
-}) {
-  const paths = {
-    back: 'm14 6-6 6 6 6M8 12h12',
-    overview: 'm3.5 10 7-6a2.3 2.3 0 0 1 3 0l7 6M5.5 9v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V9M9.5 20v-5a2.5 2.5 0 0 1 5 0v5',
-    applications:
-      'M8 4h9a3 3 0 0 1 3 3v9M7 8h7a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3Zm1 5h5m-5 4h3',
-    new: 'M12 5v14M5 12h14',
-    refresh: 'M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5',
-    check: 'm5 12.5 4.5 4.5L19 7',
-    profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0',
-  };
-  return (
-    <svg className="workspace-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d={paths[name]} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+const icons = {
+  back: ArrowLeftSIcon,
+  overview: HouseHomeMIcon,
+  applications: DocumentLinesLineSIcon,
+  new: PlusSIcon,
+  refresh: ArrowsCwCircleSIcon,
+  check: CheckmarkSIcon,
+  next: ArrowRightSIcon,
+  user: UserRoundedSIcon,
+  profile: UserRoundedSIcon,
+  logout: LogOutMIcon,
+};
+export function Icon({ name }: { name: keyof typeof icons }) {
+  const Glyph = icons[name];
+  return <Glyph className="workspace-icon" width={20} height={20} aria-hidden="true" focusable="false" />;
 }
 export function PageHeading({
   title,
@@ -52,30 +59,58 @@ export function PageHeading({
             </motion.span>
           </Link>
         )}
-        <motion.h1
+        <motion.div
           initial={false}
           layout={reduced ? false : 'position'}
           layoutId={!reduced && typeof title === 'string' ? `page-title:${title}` : undefined}
           transition={reduced ? { duration: 0 } : springs.layout}
         >
-          {title}
-        </motion.h1>
+          <Typography.Title tag="h1" view="medium" font="system">
+            {title}
+          </Typography.Title>
+        </motion.div>
       </div>
       <div className="workspace-heading-actions">{children}</div>
-      {description && <p>{description}</p>}
+      {description && (
+        <Typography.Text tag="p" view="primary-small">
+          {description}
+        </Typography.Text>
+      )}
     </div>
   );
 }
 export function SectionHeading({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return (
     <div className="dashboard-section-heading">
-      <h2>{title}</h2>
+      <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+        {title}
+      </Typography.Title>
       {children}
     </div>
   );
 }
 export function StatusBadge({ status }: { status: components['schemas']['ApplicationStatus'] }) {
-  return <span className={`status-badge status-${status}`}>{labels[status]}</span>;
+  const color = ['approved', 'issued', 'closed'].includes(status)
+    ? 'green'
+    : status === 'rejected'
+      ? 'red'
+      : ['need_info', 'signing', 'accepted', 'expired'].includes(status)
+        ? 'orange'
+        : status === 'draft' || status === 'cancelled_by_client'
+          ? 'grey'
+          : 'blue';
+  return (
+    <Status
+      className={`application-status status-${status}`}
+      view="muted-alt"
+      color={color}
+      shape="rounded"
+      size={24}
+      uppercase={false}
+    >
+      {labels[status]}
+    </Status>
+  );
 }
 export function FieldPair({ children }: { children: ReactNode }) {
   return <div className="field-pair">{children}</div>;
