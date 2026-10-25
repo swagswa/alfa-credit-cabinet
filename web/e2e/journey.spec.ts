@@ -31,7 +31,7 @@ test.describe('кофейня', () => {
   test('без паспорта: банк просит документ, клиент догружает и получает одобрение', async ({ page }) => {
     await apply(page, { ...coffee, documents: [] });
     await expect(page.getByText('Не хватает документа: паспорт руководителя')).toBeVisible();
-    await expect(page.getByRole('list', { name: 'Запрошенные документы' })).toContainText('Паспорт');
+    await expect(page.getByRole('group', { name: 'Паспорт', exact: true })).toBeVisible();
     await upload(page, ['Паспорт']);
     await page.getByRole('button', { name: 'Отправить сведения банку' }).click();
     await expect(page.getByRole('heading', { name: 'Условия финансирования' })).toBeVisible();
@@ -53,7 +53,8 @@ test.describe('логистика', () => {
       documents: ['Паспорт', 'Финансовая отчётность', 'Договор поставки'],
     });
     await expect(page.getByRole('heading', { name: 'Предлагаем другие условия' })).toBeVisible();
-    await expect(page.getByText('20,5% годовых')).toBeVisible();
+    await expect(page.getByRole('row', { name: 'Сумма 6 000 000,00 ₽ 3 900 000,00 ₽' })).toBeVisible();
+    await expect(page.getByRole('row', { name: 'Ставка в год 17% 20,5%' })).toBeVisible();
     await acceptAndSign(page);
   });
 });

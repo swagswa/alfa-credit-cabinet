@@ -213,7 +213,7 @@ export function Dashboard() {
       {!!snapshot?.attention.length && (
         <section className="dashboard-attention" aria-labelledby="attention-heading">
           <div className="dashboard-section-heading">
-            <Typography.Title tag="h2" view="small" font="system" defaultMargins id="attention-heading">
+            <Typography.Title tag="h2" view="small" font="system" id="attention-heading">
               Требует внимания
             </Typography.Title>
             <span>Ваш следующий шаг</span>

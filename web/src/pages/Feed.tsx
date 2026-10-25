@@ -55,7 +55,7 @@ export function Feed() {
         <section className="feed dashboard-feed" aria-labelledby="tips-heading">
           <div className="dashboard-section-heading">
             <div>
-              <Typography.Title tag="h2" view="small" font="system" defaultMargins id="tips-heading">
+              <Typography.Title tag="h2" view="small" font="system" id="tips-heading">
                 Подсказки
               </Typography.Title>
               <Typography.Text tag="p" view="primary-small">
@@ -70,7 +70,7 @@ export function Feed() {
                   ₽
                 </div>
                 <div className="event-content">
-                  <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                  <Typography.Title tag="h3" view="xsmall" font="system">
                     {item.title}
                   </Typography.Title>
                   <Typography.Text tag="p" view="primary-small">
@@ -85,7 +85,7 @@ export function Feed() {
       <section className="feed dashboard-feed" aria-busy={loading} aria-labelledby="events-heading">
         <div className="dashboard-section-heading">
           <div>
-            <Typography.Title tag="h2" view="small" font="system" defaultMargins id="events-heading">
+            <Typography.Title tag="h2" view="small" font="system" id="events-heading">
               События
             </Typography.Title>
             <Typography.Text tag="p" view="primary-small">
@@ -141,7 +141,7 @@ export function Feed() {
                   </svg>
                 </div>
                 <div className="event-content">
-                  <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                  <Typography.Title tag="h3" view="xsmall" font="system">
                     {item.title}
                   </Typography.Title>
                   <Typography.Text tag="p" view="primary-small">

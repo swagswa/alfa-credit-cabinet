@@ -82,7 +82,7 @@ export function PageHeading({
 export function SectionHeading({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return (
     <div className="dashboard-section-heading">
-      <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+      <Typography.Title tag="h2" view="small" font="system">
         {title}
       </Typography.Title>
       {children}
