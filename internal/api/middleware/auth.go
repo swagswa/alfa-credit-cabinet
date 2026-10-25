@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -39,6 +40,11 @@ func ClientIP(ctx context.Context) string {
 func Auth(auth usecase.AuthUseCase, enf *rbac.Enforcer) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// неизвестный путь попадает в групповой catch-all echo (/api/*):
+			// пусть отвечает 404, а не 401/403 от политики
+			if p := c.Path(); p == "" || strings.HasSuffix(p, "/*") {
+				return next(c)
+			}
 			req := c.Request()
 			s, err := session(c, auth)
 			if err != nil {
