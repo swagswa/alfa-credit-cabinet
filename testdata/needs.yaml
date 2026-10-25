@@ -1,0 +1,51 @@
+# Фразы клиента для подбора по тексту и что из них должно получиться: make eval-needs.
+# amount_rub и term_months 0: в тексте этого нет, поле должно остаться пустым.
+# Цель спорная (кофемашина и ремонт): берём ту, на которую больше денег, так сказано в промпте.
+- text: Нужно 2 млн на кофемашину и ремонт зала, отдам за пару лет
+  goal: equipment
+  amount_rub: 2000000
+  term_months: 24
+- text: Покупатель задерживает оплату, нечем платить зарплату, нужно 800 тысяч месяца на три
+  goal: cash_gap
+  amount_rub: 800000
+  term_months: 3
+- text: хочу закупить товар к новому году, полтора миллиона на год
+  goal: purchase
+  amount_rub: 1500000
+  term_months: 12
+- text: Открываем вторую точку, нужен ремонт помещения, примерно 3,5 млн, срок 3 года
+  goal: renovation
+  amount_rub: 3500000
+  term_months: 36
+- text: Грузовик за 6 700 000, своих есть 700 тысяч, остальное в кредит на 4 года
+  goal: equipment
+  amount_rub: 6000000
+  term_months: 48
+- text: налоги заплатить до конца месяца, 400 тыс, верну через полгода
+  goal: cash_gap
+  amount_rub: 400000
+  term_months: 6
+- text: Нужны деньги на сырьё для крупного контракта, 5 млн
+  goal: purchase
+  amount_rub: 5000000
+  term_months: 0
+- text: Станок с ЧПУ, 9 миллионов, лет на пять
+  goal: equipment
+  amount_rub: 9000000
+  term_months: 60
+- text: просто нужны деньги на развитие бизнеса
+  goal: other
+  amount_rub: 0
+  term_months: 0
+- text: Аренда и зарплаты, пока сезон не начался. 1 200 000 рублей на 9 месяцев
+  goal: cash_gap
+  amount_rub: 1200000
+  term_months: 9
+- text: Закупка партии запчастей у поставщика, 2,3 млн на год
+  goal: purchase
+  amount_rub: 2300000
+  term_months: 12
+- text: Ремонт кухни в кафе и новая вентиляция, миллион, отдам за 18 месяцев
+  goal: renovation
+  amount_rub: 1000000
+  term_months: 18
