@@ -23,6 +23,8 @@ func TestAlfaIDPage(t *testing.T) {
 		{"свой адрес", callback, http.StatusOK},
 		{"чужой сайт", "https://evil.example/cb", http.StatusBadRequest},
 		{"без схемы", "//evil.example/cb", http.StatusBadRequest},
+		// браузер читает обратный слеш как прямой, это тот же //evil.example
+		{"обратный слеш", "/\\evil.example/cb", http.StatusBadRequest},
 		{"пусто", "", http.StatusBadRequest},
 	}
 	e := mocks.New()

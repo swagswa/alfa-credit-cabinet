@@ -65,7 +65,8 @@ func (a *alfaID) routes(e *echo.Echo) {
 // localURI: возвращаем только на свой же сайт, иначе код уедет куда угодно
 func localURI(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
-	if err != nil || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || u.Host != "" {
+	if err != nil || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || strings.Contains(raw, `\`) ||
+		u.Host != "" {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, "redirect_uri только относительный")
 	}
 	return u, nil
