@@ -20,11 +20,14 @@ export function StatementForm({
   inn,
   refresh,
   initial,
+  problems = {},
 }: {
   documentId: string;
   inn: string;
   refresh: () => void;
   initial?: components['schemas']['StatementValues'];
+  // что не сошлось в распознанном, по имени поля
+  problems?: Record<string, string>;
 }) {
   const [from, setFrom] = useState(initial?.period_from ?? '');
   const [to, setTo] = useState(initial?.period_to ?? '');
@@ -111,12 +114,13 @@ export function StatementForm({
         </Typography.Text>
       )}
       <Typography.Text tag="p" view="primary-small">
-        Этот блок нужен только для подтверждения доходов. Перенесите суммы из банковской выписки или нажмите «Заполнить
-        из документа», если распознавание завершено. ИНН: {inn}. Период: от 1 до 13 месяцев.
+        Этот блок нужен только для подтверждения доходов. Если файл распознан, суммы уже подставлены, иначе перенесите
+        их из банковской выписки. ИНН: {inn}. Период: от 1 до 13 месяцев.
       </Typography.Text>
       <CalendarInput
         block
         label="Начало периода"
+        error={problems.period_from}
         value={from ? from.split('-').reverse().join('.') : ''}
         onChange={(_, p) => setFrom(p.value.split('.').reverse().join('-'))}
         disabled={busy}
@@ -124,6 +128,7 @@ export function StatementForm({
       <CalendarInput
         block
         label="Конец периода"
+        error={problems.period_to}
         value={to ? to.split('-').reverse().join('.') : ''}
         onChange={(_, p) => setTo(p.value.split('.').reverse().join('-'))}
         disabled={busy}
@@ -134,11 +139,17 @@ export function StatementForm({
           label={label}
           positiveOnly={!['opening_balance_kop', 'closing_balance_kop'].includes(key)}
           required
+          error={problems[key]}
           value={values[key] ?? ''}
           onChange={(value) => setValues({ ...values, [key]: value })}
           disabled={busy}
         />
       ))}
+      {problems.monthly_in && (
+        <Typography.Text tag="p" view="primary-small" color="negative">
+          Поступления по месяцам: {problems.monthly_in}
+        </Typography.Text>
+      )}
       {months.length <= 13 &&
         months.map((month) => (
           <MoneyField

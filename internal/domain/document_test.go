@@ -111,3 +111,70 @@ func fields(errs []domain.FieldError) []string {
 	}
 	return out
 }
+
+func TestReconcile(t *testing.T) {
+	// второе прочтение другим режимом OCR: часть цифр верна там, часть здесь
+	tests := []struct {
+		name   string
+		first  func(s *domain.Statement)
+		second func(s *domain.Statement)
+		want   bool
+		from   []string // поля, которые должны прийти из второго прочтения
+	}{
+		{
+			"первое и так сходится",
+			func(*domain.Statement) {},
+			func(s *domain.Statement) { s.TurnoverIn = 1 },
+			true,
+			nil,
+		},
+		{"одна цифра прихода", func(s *domain.Statement) { s.TurnoverIn = 950_00 },
+			func(s *domain.Statement) { s.ClosingBalance = 0 }, true, []string{"turnover_in_kop"}},
+		{"по одной ошибке в каждом", func(s *domain.Statement) { s.TurnoverIn = 950_00 },
+			func(s *domain.Statement) { s.OpeningBalance = 0 }, true, []string{"turnover_in_kop"}},
+		{
+			"месяц и остаток из второго",
+			func(s *domain.Statement) { s.MonthlyIn[1].Amount = 800_00; s.ClosingBalance = 1 },
+			func(s *domain.Statement) { s.TurnoverOut = 0 },
+			true,
+			[]string{"closing_balance_kop", "monthly_in"},
+		},
+		{"оба прочтения мимо в одном поле", func(s *domain.Statement) { s.TurnoverIn = 950_00 },
+			func(s *domain.Statement) { s.TurnoverIn = 990_00 }, false, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, b := statement(), statement()
+			tt.first(&a)
+			tt.second(&b)
+			got, ok := domain.DocValues{Statement: &a}.Reconcile(domain.DocValues{Statement: &b}, "0000100012", today)
+			require.Equal(t, tt.want, ok)
+			if !ok {
+				require.Equal(t, domain.DocValues{Statement: &a}, got, "не сошлось: остаётся первое прочтение")
+				return
+			}
+			want := statement()
+			require.Equal(t, &want, got.Statement)
+			require.Equal(t, tt.from, got.Edited(&domain.DocValues{Statement: &a}))
+		})
+	}
+}
+
+func TestGuessKind(t *testing.T) {
+	tests := []struct {
+		text string
+		want domain.DocKind
+	}{
+		{"АО «Банк А»\nВыписка по расчётному счёту\nза период", domain.DocStatement},
+		{"ВЫПИСКА ОПЕРАЦИЙ ПО СЧЁТУ № 40702810000000100012", domain.DocStatement},
+		{"Бухгалтерская (финансовая) отчётность\nБухгалтерский баланс на 31 декабря", domain.DocFinancials},
+		{"ПАСПОРТ ГРАЖДАНИНА РОССИЙСКОЙ ФЕДЕРАЦИИ\nФамилия", domain.DocPassport},
+		{"ДОВЕРЕННОСТЬ № 7\nООО «Тёплое зерно» уполномочивает", domain.DocProxy},
+		{"Договор поставки оборудования", ""},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.want), func(t *testing.T) {
+			require.Equal(t, tt.want, domain.GuessKind(tt.text))
+		})
+	}
+}

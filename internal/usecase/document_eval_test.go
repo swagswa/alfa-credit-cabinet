@@ -200,7 +200,7 @@ func render(results []result, cfg config.Recognition, digest, tess, hw string) s
 	b.p("| Модель | `%s` |", cfg.OllamaModel)
 	b.p("| Digest | `%s` |", digest)
 	b.p("| Версия конвейера | %s |", results[0].rec.Version)
-	b.p("| Tesseract | %s, `-l rus+eng --psm 6` |", tess)
+	b.p("| Tesseract | %s, `-l rus+eng --psm 6`, скан, который не сошёлся, ещё раз с `--psm 4` |", tess)
 	b.p("| Железо | %s, %d потоков; %s |", cpu(), runtime.NumCPU(), hw)
 	b.p("")
 	b.formats(results)

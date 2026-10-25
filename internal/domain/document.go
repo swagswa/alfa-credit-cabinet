@@ -3,8 +3,10 @@ package domain
 import (
 	"encoding/json"
 	"maps"
+	"math/bits"
 	"reflect"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,7 +23,44 @@ const (
 	DocFinancials DocKind = "financials"
 	// DocLoanAgreement договор с графиком, его формирует процесс после принятия условий
 	DocLoanAgreement DocKind = "loan_agreement"
+	DocPassport      DocKind = "passport"
+	DocProxy         DocKind = "power_of_attorney"
 )
+
+// kindMarkers: по чему узнаём документ в тексте первой страницы. Заголовки у
+// всех видов разные, модель для этого не нужна. Порядок важен: в отчётности
+// и выписке слова «паспорт» нет, а вот в доверенности «выписка» бывает.
+var kindMarkers = []struct {
+	kind   DocKind
+	name   string
+	marker string
+}{
+	{DocPassport, "паспорт", "паспорт"},
+	{DocProxy, "доверенность", "доверенност"},
+	{DocFinancials, "бухгалтерская отчётность", "бухгалтерск"},
+	{DocStatement, "выписка по счёту", "выписка"},
+}
+
+// GuessKind узнаёт вид документа по заголовку, пустая строка значит не узнали
+func GuessKind(text string) DocKind {
+	head := strings.ToLower(text[:min(len(text), firstPage)])
+	for _, m := range kindMarkers {
+		if strings.Contains(head, m.marker) {
+			return m.kind
+		}
+	}
+	return ""
+}
+
+// Name по-русски для сообщений клиенту
+func (k DocKind) Name() string {
+	for _, m := range kindMarkers {
+		if m.kind == k {
+			return m.name
+		}
+	}
+	return string(k)
+}
 
 // Recognizable значит, что итоги есть только у выписки и отчётности, их и распознаём, и подтверждаем.
 func (k DocKind) Recognizable() bool { return k == DocStatement || k == DocFinancials }
@@ -144,6 +183,50 @@ func (v DocValues) Edited(from *DocValues) []string {
 	return out
 }
 
+// Reconcile сводит два прочтения одного документа. OCR чаще всего путает одну
+// цифру в одной сумме, а другой режим разметки ошибается в другом месте:
+// берём из alt как можно меньше полей, чтобы сошлись остатки и месяцы.
+// Ни одна комбинация не прошла проверки: ok false и первое прочтение как было.
+func (v DocValues) Reconcile(alt DocValues, inn string, today time.Time) (DocValues, bool) {
+	a, b := v.fields(), alt.fields()
+	var diff []string
+	for _, k := range slices.Sorted(maps.Keys(a)) {
+		if !reflect.DeepEqual(a[k], b[k]) {
+			diff = append(diff, k)
+		}
+	}
+	masks := make([]int, 1<<len(diff))
+	for i := range masks {
+		masks[i] = i
+	}
+	slices.SortStableFunc(masks, func(x, y int) int { return bits.OnesCount(uint(x)) - bits.OnesCount(uint(y)) })
+	for _, m := range masks {
+		mixed := maps.Clone(a)
+		for i, k := range diff {
+			if m&(1<<i) != 0 {
+				mixed[k] = b[k]
+			}
+		}
+		if c := v.with(mixed); len(c.Check(inn, today)) == 0 {
+			return c, true
+		}
+	}
+	return v, false
+}
+
+// with собирает блок того же вида из полей. Поля пришли из fields тех же
+// типов, обратно они разбираются всегда
+func (v DocValues) with(f map[string]any) DocValues {
+	key := "financials"
+	if v.Statement != nil {
+		key = "statement"
+	}
+	var out DocValues
+	b, _ := json.Marshal(map[string]any{key: f})
+	_ = json.Unmarshal(b, &out)
+	return out
+}
+
 // fields раскладывает заполненный блок по именам полей из JSON, они же имена в форме
 func (v DocValues) fields() map[string]any {
 	var m map[string]map[string]any
@@ -174,6 +257,9 @@ type Recognition struct {
 }
 
 const (
+	// заголовок ищем в начале текста: дальше в выписке бывают назначения платежей
+	// вроде «оплата по доверенности», они вид документа не меняют
+	firstPage = 600
 	// допуск на округление: модель и OCR теряют копейки, рубль не страшно
 	sumTolerance = 100
 	maxMonths    = 13

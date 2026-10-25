@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 // TextReader достаёт текст из файла: текстовый слой PDF или OCR скана.
 type TextReader interface {
 	Text(ctx context.Context, contentType string, file []byte) (string, domain.TextSource, error)
+	// Reread даёт второе прочтение скана другим режимом, у текстового PDF пустую строку.
+	Reread(ctx context.Context, contentType string, file []byte) (string, error)
 }
 
 // Extractor раскладывает текст по полям, на стенде это модель в Ollama.
@@ -180,13 +183,48 @@ func (u *documentUseCase) Read(
 	if text, rec.Source, err = u.text.Text(ctx, contentType, file); err != nil {
 		return rec, fmt.Errorf("текст: %w", err)
 	}
+	// перепутанный файл модель всё равно разложит по полям, только мусором
+	if got := domain.GuessKind(text); got != "" && got != kind {
+		return rec, fmt.Errorf(
+			"%w: похоже, это %s, а загружено как %s. Загрузите нужный файл или введите итоги вручную",
+			domain.ErrInvalid,
+			got.Name(),
+			kind.Name(),
+		)
+	}
 	if rec.Raw, rec.Values, err = u.llm.Extract(ctx, kind, text); err != nil {
 		return rec, fmt.Errorf("поля: %w", err)
 	}
-	if rec.Problems = rec.Values.Check(inn, time.Now()); len(rec.Problems) > 0 {
-		return rec, fmt.Errorf("%w: цифры из документа не сходятся, проверьте их вручную", domain.ErrInvalid)
+	if rec.Problems = rec.Values.Check(inn, time.Now()); len(rec.Problems) > 0 && rec.Source == domain.TextOCR {
+		u.reread(ctx, kind, contentType, file, inn, &rec)
+	}
+	if len(rec.Problems) > 0 {
+		return rec, fmt.Errorf("%w: цифры из документа не сходятся, проверьте подсвеченные поля", domain.ErrInvalid)
 	}
 	return rec, nil
+}
+
+// reread: скан не сошёлся, читаем его ещё раз и сводим два прочтения. Это ещё
+// один проход модели, поэтому только для сканов с ошибкой. Второе прочтение не
+// удалось, значит, остаётся первое: клиент увидит его в форме с подсветкой.
+func (u *documentUseCase) reread(
+	ctx context.Context, kind domain.DocKind, contentType string, file []byte, inn string, rec *domain.Recognition,
+) {
+	text, err := u.text.Reread(ctx, contentType, file)
+	if err != nil || text == "" {
+		return
+	}
+	raw, alt, err := u.llm.Extract(ctx, kind, text)
+	if err != nil {
+		return
+	}
+	// в аудите оба ответа модели, по порядку прочтений
+	if both, err := json.Marshal([]json.RawMessage{rec.Raw, raw}); err == nil {
+		rec.Raw = both
+	}
+	if v, ok := rec.Values.Reconcile(alt, inn, time.Now()); ok {
+		rec.Values, rec.Problems = v, nil
+	}
 }
 
 func (u *documentUseCase) Recognize(ctx context.Context, id uuid.UUID) error {
@@ -210,7 +248,7 @@ func (u *documentUseCase) Recognize(ctx context.Context, id uuid.UUID) error {
 	status, reason := domain.DocRecognized, ""
 	switch {
 	case errors.Is(err, domain.ErrInvalid):
-		status, reason = domain.DocFailed, err.Error()
+		status, reason = domain.DocFailed, domain.Human(err)
 	case err != nil:
 		return err
 	}

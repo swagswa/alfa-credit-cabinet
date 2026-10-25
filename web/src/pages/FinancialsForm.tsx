@@ -20,11 +20,14 @@ export function FinancialsForm({
   inn,
   refresh,
   initial,
+  problems = {},
 }: {
   documentId: string;
   inn: string;
   refresh: () => void;
   initial?: components['schemas']['FinancialsValues'];
+  // что не сошлось в распознанном, по имени поля
+  problems?: Record<string, string>;
 }) {
   const [year, setYear] = useState(initial ? String(initial.year) : '');
   const [values, setValues] = useState<Record<string, string>>(
@@ -92,6 +95,7 @@ export function FinancialsForm({
         min={new Date().getFullYear() - 2}
         max={new Date().getFullYear() - 1}
         required
+        error={problems.year}
         value={year}
         onChange={(event) => setYear(event.target.value)}
         disabled={busy}
@@ -102,6 +106,7 @@ export function FinancialsForm({
           label={label}
           positiveOnly={key !== 'net_profit_kop'}
           required
+          error={problems[key]}
           value={values[key] ?? ''}
           onChange={(value) => setValues({ ...values, [key]: value })}
           disabled={busy}

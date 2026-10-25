@@ -163,9 +163,10 @@ func (r *documentRepo) SaveRecognition(
 		ExtractorVersion: text(rec.Version),
 		DurationMs:       pgtype.Int4{Int32: ms, Valid: true},
 	}
-	// в extracted только то, что прошло проверку, его клиент и увидит в форме;
-	// Marshal своих типов без каналов и функций не падает
-	if s == domain.DocRecognized {
+	// клиент увидит extracted в форме: и сошедшиеся цифры, и не сошедшиеся, тогда
+	// с подсветкой полей из validation_errors. Перепечатывать 17 верных полей
+	// из-за одного хуже. Marshal своих типов без каналов и функций не падает
+	if rec.Values.Statement != nil || rec.Values.Financials != nil {
 		p.Extracted, _ = json.Marshal(rec.Values)
 	}
 	if len(rec.Problems) > 0 {
