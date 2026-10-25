@@ -4,9 +4,9 @@ import { DocumentLinesLineSIcon } from '@alfalab/icons-glyph/DocumentLinesLineSI
 import { PlusSIcon } from '@alfalab/icons-glyph/PlusSIcon';
 import { ArrowsCwCircleSIcon } from '@alfalab/icons-glyph/ArrowsCwCircleSIcon';
 import { CheckmarkSIcon } from '@alfalab/icons-glyph/CheckmarkSIcon';
-import { ArrowRightSIcon } from '@alfalab/icons-glyph/ArrowRightSIcon';
 import { UserRoundedSIcon } from '@alfalab/icons-glyph/UserRoundedSIcon';
 import { LogOutMIcon } from '@alfalab/icons-glyph/LogOutMIcon';
+import { BellMIcon } from '@alfalab/icons-glyph/BellMIcon';
 import { Status } from '@alfalab/core-components/status';
 import { AppLink as Link } from './AppLink';
 import { Typography } from '@alfalab/core-components/typography';
@@ -24,10 +24,10 @@ const icons = {
   new: PlusSIcon,
   refresh: ArrowsCwCircleSIcon,
   check: CheckmarkSIcon,
-  next: ArrowRightSIcon,
   user: UserRoundedSIcon,
   profile: UserRoundedSIcon,
   logout: LogOutMIcon,
+  bell: BellMIcon,
 };
 export function Icon({ name }: { name: keyof typeof icons }) {
   const Glyph = icons[name];

@@ -668,35 +668,6 @@ pre {
   align-items: center;
   gap: 8px;
 }
-.application-pagination button {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--ink-secondary);
-  cursor: pointer;
-}
-.application-pagination button:disabled {
-  opacity: 0.38;
-  cursor: default;
-}
-.application-pagination button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 3px;
-}
-@media (hover: hover) {
-  .application-pagination button:hover:not(:disabled) {
-    background: var(--surface-inset);
-    color: var(--ink);
-  }
-}
-.application-pagination button:active:not(:disabled) {
-  background: var(--line);
-}
 .application-deadline {
   display: flex;
   flex-wrap: wrap;

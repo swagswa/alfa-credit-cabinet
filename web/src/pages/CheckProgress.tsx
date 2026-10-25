@@ -2,6 +2,7 @@ import { Typography } from '@alfalab/core-components/typography';
 import { checkSources, processLinks, type CheckProgressState } from '../api/checkProgress';
 import { sources } from '../api/presentation';
 import type { components } from '../api/schema.gen';
+import { Icon } from '../ui/Workspace';
 
 type App = components['schemas']['ApplicationView'];
 const clientSources = {
@@ -90,21 +91,7 @@ export function CheckProgress({
             className={`check-row check-${status ?? (retrying && !disconnected ? 'retrying' : 'waiting')}`}
           >
             <span className="check-indicator" aria-hidden="true">
-              {status === 'ok' ? (
-                <svg viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="m5 10 3.5 3.5L15 7"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : status ? (
-                '!'
-              ) : (
-                <span />
-              )}
+              {status === 'ok' ? <Icon name="check" /> : status ? '!' : <span />}
             </span>
             <div className="check-row-content">
               <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
