@@ -33,8 +33,8 @@ export function BankActions({
   const [comment, setComment] = useState('');
   const [infoComment, setInfoComment] = useState('');
   const [reason, setReason] = useState<Code>('R_MANUAL_RISK');
-  // клиенту доходят только причины из расчёта, где тексты уже с числами заявки: код вне расчёта
-  // он не увидит. «Смотрит специалист» после решения уже неправда, их не предлагаем
+  // у причин из расчёта тексты уже с числами заявки, коду вне расчёта воркер подставит общий текст
+  // из underwriter_reasons. «Смотрит специалист» после решения уже неправда, их не предлагаем
   const explained = card.reasons.filter((r) => r.text && !r.code.startsWith('R_MANUAL'));
   const [codes, setCodes] = useState<Code[]>(explained.filter((r) => r.code.startsWith('R_')).map((r) => r.code));
   const [pledge, setPledge] = useState('pledge_required' in base && !!base.pledge_required);
