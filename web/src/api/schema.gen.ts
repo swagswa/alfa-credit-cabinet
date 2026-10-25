@@ -692,7 +692,7 @@ export interface components {
          * @example R_APPROVED
          * @enum {string}
          */
-        ReasonCode: "R_APPROVED" | "R_AMOUNT_DSR" | "R_AMOUNT_MULT" | "R_TERM_EXTENDED" | "R_SWITCH_AGE" | "R_SWITCH_TO_LOAN" | "R_GUARANTOR" | "R_PLEDGE" | "R_RATE_PREMIUM" | "R_MANUAL_AMOUNT" | "R_MANUAL_RISK" | "R_GRADE_E" | "R_LIMIT_TOO_LOW" | "R_AGE_PRODUCT" | "SF_STATUS_INACTIVE" | "SF_BANKRUPTCY" | "SF_AGE_MIN" | "SF_OVERDUE_90_ACTIVE" | "SF_DISQUALIFIED" | "SF_TAX_BLOCK" | "SF_TAX_ARREARS" | "SF_TAX_BLOCK_DECL" | "SF_REVENUE_MISMATCH" | "SF_DOCS_MISSING" | "SF_NOT_FOUND" | "SF_UNRELIABLE" | "SF_MASS_ADDRESS" | "SF_MASS_DIRECTOR" | "SF_FOREIGN_SHARE" | "SF_OWNER_OVERDUE" | "SF_AML_FLAG" | "SF_DOC_MISMATCH" | "SF_SOURCE_UNAVAILABLE" | "SC_AGE_YOUNG" | "SC_AGE_MATURE" | "SC_REVENUE_DROP" | "SC_REVENUE_GROWTH" | "SC_TURNOVER_VOLATILE" | "SC_TURNOVER_STABLE" | "SC_DSR_HIGH" | "SC_DSR_LOW" | "SC_OVERDUE_HISTORY" | "SC_NO_OVERDUE" | "SC_INQUIRIES_MANY" | "SC_INQUIRIES_FEW" | "SC_TAX_ARREARS" | "SC_TAX_CLEAN" | "SC_NO_BANK_HISTORY" | "SC_BANK_HISTORY" | "SC_INDUSTRY_HIGH" | "SC_INDUSTRY_LOW";
+        ReasonCode: "R_APPROVED" | "R_AMOUNT_DSR" | "R_AMOUNT_MULT" | "R_TERM_EXTENDED" | "R_SWITCH_AGE" | "R_SWITCH_TO_LOAN" | "R_GUARANTOR" | "R_PLEDGE" | "R_RATE_PREMIUM" | "R_MANUAL_AMOUNT" | "R_MANUAL_RISK" | "R_GRADE_E" | "R_LIMIT_TOO_LOW" | "R_FIX_TAX" | "R_FIX_OVERDUE" | "R_AGE_PRODUCT" | "SF_STATUS_INACTIVE" | "SF_BANKRUPTCY" | "SF_AGE_MIN" | "SF_OVERDUE_90_ACTIVE" | "SF_DISQUALIFIED" | "SF_TAX_BLOCK" | "SF_TAX_ARREARS" | "SF_TAX_BLOCK_DECL" | "SF_REVENUE_MISMATCH" | "SF_DOCS_MISSING" | "SF_NOT_FOUND" | "SF_UNRELIABLE" | "SF_MASS_ADDRESS" | "SF_MASS_DIRECTOR" | "SF_FOREIGN_SHARE" | "SF_OWNER_OVERDUE" | "SF_AML_FLAG" | "SF_DOC_MISMATCH" | "SF_SOURCE_UNAVAILABLE" | "SC_AGE_YOUNG" | "SC_AGE_MATURE" | "SC_REVENUE_DROP" | "SC_REVENUE_GROWTH" | "SC_TURNOVER_VOLATILE" | "SC_TURNOVER_STABLE" | "SC_DSR_HIGH" | "SC_DSR_LOW" | "SC_OVERDUE_HISTORY" | "SC_NO_OVERDUE" | "SC_INQUIRIES_MANY" | "SC_INQUIRIES_FEW" | "SC_TAX_ARREARS" | "SC_TAX_CLEAN" | "SC_NO_BANK_HISTORY" | "SC_BANK_HISTORY" | "SC_INDUSTRY_HIGH" | "SC_INDUSTRY_LOW";
         /**
          * @description statement выписка из другого банка, financials бухотчётность или декларация ИП, tax_receipt квитанция о сдаче декларации.
          *     loan_agreement кредитный договор с графиком, его формирует банк после принятия условий, загрузить нельзя (400).
@@ -1149,6 +1149,13 @@ export interface components {
             code: components["schemas"]["ReasonCode"];
             /** @example Заявка одобрена на запрошенных условиях */
             text: string;
+            /**
+             * @description Для плана после отказа: plus и minus это плюсы и минусы скоринга, fix что клиент
+             *     может исправить сам. У остальных причин поля нет
+             * @example minus
+             * @enum {string}
+             */
+            kind?: "plus" | "minus" | "fix";
         };
         ScoreFactor: {
             /** @example F4 */
