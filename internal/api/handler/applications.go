@@ -198,12 +198,43 @@ func (h *Handler) AcceptOffer(
 	if err != nil {
 		return nil, err
 	}
-	err = h.issue.Accept(ctx, a, req.Id, req.Body.Version)
+	b := req.Body
+	var choice *usecase.Choice
+	switch {
+	case b.AmountKop != nil && b.TermMonths != nil:
+		choice = &usecase.Choice{AmountKop: *b.AmountKop, TermMonths: *b.TermMonths}
+	case b.AmountKop != nil || b.TermMonths != nil:
+		return nil, domain.FieldErrors{{Field: "term_months", Message: "свои условия это сумма и срок вместе"}}
+	}
+	err = h.issue.Accept(ctx, a, req.Id, b.Version, choice)
 	if err != nil {
 		return nil, err
 	}
 	v, err := h.card(ctx, a, req.Id)
 	return oapi.AcceptOffer200JSONResponse(v), err
+}
+
+func (h *Handler) OfferVariant(
+	ctx context.Context,
+	req oapi.OfferVariantRequestObject,
+) (oapi.OfferVariantResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c := usecase.Choice{AmountKop: req.Params.AmountKop, TermMonths: req.Params.TermMonths}
+	d, err := h.issue.Variant(ctx, a, req.Id, c)
+	if err != nil {
+		return nil, err
+	}
+	out := oapi.OfferVariant{Fit: oapi.OfferVariantFit(d.Fit())}
+	if t := d.Terms; t != nil {
+		out.Terms = &oapi.VariantTerms{
+			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
+			MonthlyPaymentKop: t.PaymentKop, GuarantorRequired: &t.Guarantor, PledgeRequired: &t.Pledge,
+		}
+	}
+	return oapi.OfferVariant200JSONResponse(out), nil
 }
 
 func (h *Handler) RequestSigningCode(

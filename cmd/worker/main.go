@@ -69,8 +69,19 @@ func main() {
 	notifier := usecase.NewNotifier(repo.NewNotification(db), notices)
 	apps := usecase.NewApplication(db, appRepo, notifier, nil, tc, catalog)
 	// коды подписи выдаёт api, воркеру их срок не нужен
-	issue := usecase.NewIssue(db, apps, appRepo, repo.NewDocument(db), repo.NewSigning(db), notifier, catalog, 0)
-	appActs := activity.NewApplicationActivities(apps, usecase.NewDecision(catalog, scoring, policy), issue, deadlines)
+	decisions := usecase.NewDecision(catalog, scoring, policy)
+	issue := usecase.NewIssue(
+		db,
+		apps,
+		decisions,
+		appRepo,
+		repo.NewDocument(db),
+		repo.NewSigning(db),
+		notifier,
+		catalog,
+		0,
+	)
+	appActs := activity.NewApplicationActivities(apps, decisions, issue, deadlines)
 	checkActs := activity.NewCheckActivities(usecase.NewCheck(appRepo, repo.NewCheck(q), sources))
 
 	w := temporalsvc.NewWorker(tc, usecase.QueueCredit, sdkworker.Options{}, func(r sdkworker.Registry) {

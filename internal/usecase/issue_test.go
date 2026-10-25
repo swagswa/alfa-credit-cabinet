@@ -20,7 +20,7 @@ import (
 func (e *appEnv) issue() usecase.IssueUseCase {
 	catalog, err := rules.Products("../../rules/products.yaml")
 	require.NoError(e.t, err)
-	return usecase.NewIssue(&postgres.Client{Pool: e.pool}, e.uc, repo.NewApplication(db.New(e.pool)),
+	return usecase.NewIssue(&postgres.Client{Pool: e.pool}, e.uc, decisions(e.t), repo.NewApplication(db.New(e.pool)),
 		repo.NewDocument(e.pool), repo.NewSigning(e.pool), e.notes, catalog, 5*time.Minute)
 }
 
@@ -149,8 +149,45 @@ func TestSign(t *testing.T) {
 func TestAccept(t *testing.T) {
 	e := newAppEnv(t)
 	id := e.offer(domain.StatusApproved)
-	require.NoError(t, e.issue().Accept(t.Context(), e.client, id, 2))
+	require.NoError(t, e.issue().Accept(t.Context(), e.client, id, 2, nil))
 	require.Equal(t, []any{id.String(), usecase.UpdateAccept, domain.Action{Actor: e.client, Version: 2}}, e.wf.args)
+}
+
+// до расчёта: чужая заявка, не встречное, условия вне продукта
+func TestVariantRejects(t *testing.T) {
+	e := newAppEnv(t)
+	uc := e.issue()
+	ctx := t.Context()
+	approved := e.offer(domain.StatusApproved)
+	ok := usecase.Choice{AmountKop: 200_000_000, TermMonths: 24}
+
+	_, err := uc.Variant(ctx, e.user("logistics"), approved, ok)
+	require.ErrorIs(t, err, domain.ErrNotFound)
+	_, err = uc.Variant(ctx, e.client, approved, ok)
+	require.ErrorIs(t, err, domain.ErrIllegalTransition, "одобрено как просили, подбирать нечего")
+	err = uc.Accept(ctx, e.client, approved, 2, &ok)
+	require.ErrorIs(t, err, domain.ErrIllegalTransition)
+	require.Nil(t, e.wf.args, "в процесс ничего не ушло")
+
+	counter := e.app(domain.StatusScoring)
+	d := &domain.Decision{
+		Stage: domain.StagePolicy, Outcome: domain.StatusCounterOffer, Score: &domain.Score{Points: 64, Grade: "C"},
+		Terms:         &domain.Terms{Product: "working_capital", AmountKop: 150_000_000, TermMonths: 24, RateBP: 2050},
+		PolicyVersion: "test",
+	}
+	require.NoError(
+		t,
+		e.uc.Transition(ctx, counter, domain.Move{To: domain.StatusCounterOffer, Actor: system, Decision: d}),
+	)
+	for name, c := range map[string]usecase.Choice{
+		"срок вне продукта":    {AmountKop: 150_000_000, TermMonths: 2},
+		"больше, чем просили":  {AmountKop: 1_000_000_000, TermMonths: 24},
+		"сумма не кратна шагу": {AmountKop: 150_000_100, TermMonths: 24},
+	} {
+		_, err = uc.Variant(ctx, e.client, counter, c)
+		var fields domain.FieldErrors
+		require.ErrorAs(t, err, &fields, name)
+	}
 }
 
 func TestPrepareContractAndPayout(t *testing.T) {

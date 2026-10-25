@@ -16,6 +16,8 @@ type Action struct {
 	Terms   *Terms
 	// RevenueKop уточнённая выручка из ответа клиента
 	RevenueKop *int64
+	// Decision у принятия своих условий: расчёт политики по ним
+	Decision *Decision
 }
 
 // Deadlines сроки шагов, которые ведёт процесс. На стенде минуты, на проде рабочие дни.

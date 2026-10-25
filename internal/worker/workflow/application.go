@@ -307,6 +307,9 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 	switch u.name {
 	case usecase.UpdateDecide:
 		m.Decision = p.verdict(a)
+	case usecase.UpdateAccept:
+		// свои условия клиента, расчёт по ним сделал usecase; без них nil, условия банка
+		m.Decision = a.Decision
 	case usecase.UpdateSign:
 		// код уже сверил usecase, тут только выдача; срок подписи на ней не сработает
 		var acts *activity.ApplicationActivities
