@@ -501,7 +501,7 @@ section.dashboard-attention {
   display: inline-flex;
   align-items: center;
   gap: 32px;
-  background: #ef3124;
+  background: var(--workspace-accent-strong);
   color: #fff;
   padding: 14px 20px;
   border-radius: 12px;
@@ -774,7 +774,7 @@ section > button {
   display: inline-flex;
   gap: 24px;
   align-items: center;
-  background: #ef3124;
+  background: var(--workspace-accent-strong);
   color: white;
   padding: 16px 24px;
   border-radius: 12px;

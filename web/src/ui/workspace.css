@@ -65,6 +65,7 @@
   grid-column: 3;
 }
 .notification-count {
+  --color-light-accent-primary: var(--workspace-accent-strong);
   position: absolute;
   top: 4px;
   right: 2px;
