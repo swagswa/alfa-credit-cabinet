@@ -80,7 +80,9 @@ func TestDocumentRecognition(t *testing.T) {
 		SELECT status, extracted_raw::text, extracted::text, validation_errors::text, error, duration_ms
 		FROM documents WHERE id = $1`, id).Scan(new(string), &raw, &extracted, &problems, &errs, &ms))
 	require.Equal(t, `"{\"inn\":\"0000100012\",\"turnover_in\":1"`, raw)
-	require.Nil(t, extracted, "не прошло проверку, в форму не идёт")
+	require.JSONEq(t, `{"statement":{"inn":"0000100012","period_from":"","period_to":"","opening_balance_kop":0,`+
+		`"turnover_in_kop":0,"turnover_out_kop":0,"closing_balance_kop":0,"monthly_in":null}}`, *extracted,
+		"не сошлось, но в форму идёт с подсветкой")
 	require.JSONEq(t, `[{"field":"turnover_in_kop","message":"нет поступлений за период"}]`, problems)
 	require.Equal(t, "не сошлось", *errs)
 	require.Equal(t, 42000, ms)
