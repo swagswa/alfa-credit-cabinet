@@ -193,6 +193,19 @@ func TestConfirm(t *testing.T) {
 		require.Zero(t, text.calls)
 	})
 
+	t.Run("заявку уже проверяют", func(t *testing.T) {
+		uc, _ := e.docs(false, nil)
+		late := e.app(domain.StatusDraft)
+		d, err := uc.Upload(ctx, e.client, late, domain.DocStatement, "v.pdf", pdf)
+		require.NoError(t, err)
+		_, err = e.pool.Exec(ctx,
+			"UPDATE applications SET status = 'checking', submitted_at = now() WHERE id = $1", late)
+		require.NoError(t, err)
+
+		_, err = uc.Confirm(ctx, e.client, d.ID, domain.DocValues{Statement: statement(coffeeINN)})
+		require.ErrorIs(t, err, domain.ErrIllegalTransition)
+	})
+
 	uc, _ := e.docs(false, nil)
 	wrongINN := statement("0000300011")
 	broken := statement(coffeeINN)
