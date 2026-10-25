@@ -9,6 +9,8 @@ g, admin, manager
 g, admin, underwriter
 
 p, anonymous, /api/login, POST
+p, anonymous, /api/auth/alfa-id/start, GET
+p, anonymous, /api/auth/alfa-id/callback, GET
 p, anonymous, /api/health, GET
 # без сессии отвечает 204, по нему фронт понимает, что входа нет
 p, anonymous, /api/me, GET

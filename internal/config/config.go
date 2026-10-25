@@ -113,6 +113,8 @@ type API struct {
 	SeedDemo bool `env:"SEED_DEMO" envDefault:"false"`
 	// MocksURL ручка сбоев моков для пульта admin, на проде её нет
 	MocksURL string `env:"MOCKS_URL" envDefault:"http://localhost:8081"`
+	// AlfaIDURL куда меняем код входа на профиль, на стенде симулятор в mocks
+	AlfaIDURL string `env:"ALFA_ID_URL" envDefault:"http://localhost:8081"`
 }
 
 type Worker struct {

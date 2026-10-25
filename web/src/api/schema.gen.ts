@@ -24,6 +24,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/alfa-id/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Вход через Альфа ID, переход на страницу согласия
+         * @description Authorization code: кабинет кладёт state в Redis на 5 минут и в cookie браузера,
+         *     уводит на страницу согласия. На стенде Альфа ID это симулятор в mocks.
+         */
+        get: operations["alfaIDStart"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/alfa-id/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Возврат из Альфа ID
+         * @description Сверяет state с cookie и Redis, меняет код на профиль, обновляет телефон и почту
+         *     из Альфа ID и заводит сессию, как обычный вход. Ошибки тоже редиректом:
+         *     `/login?error=alfa_id_denied` (клиент отказался), `alfa_id_unknown` (нет такого клиента
+         *     в кабинете), `alfa_id_expired` (протухший или уже потраченный код и state),
+         *     `too_many_attempts` (общий с паролем лимит попыток).
+         */
+        get: operations["alfaIDCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/logout": {
         parameters: {
             query?: never;
@@ -1892,6 +1937,52 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             429: components["responses"]["Problem"];
+        };
+    };
+    alfaIDStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description На страницу согласия */
+            302: {
+                headers: {
+                    Location?: string;
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    alfaIDCallback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                alfa_id_state?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description В кабинет клиента или на вход с причиной */
+            302: {
+                headers: {
+                    Location?: string;
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     logout: {

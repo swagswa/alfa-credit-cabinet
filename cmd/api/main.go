@@ -12,6 +12,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/api/server"
 	"github.com/swagswa/alfa-credit-cabinet/internal/config"
 	dbq "github.com/swagswa/alfa-credit-cabinet/internal/db"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/alfaid"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/faults"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
@@ -55,7 +56,7 @@ func main() {
 	tokens := token.New(cfg.Secret, cfg.TTL)
 	limit := usecase.LoginLimit{Attempts: cfg.LoginAttempts, Window: cfg.LoginWindow}
 	users := repo.NewUser(dbq.New(db))
-	auth := usecase.NewAuth(users, repo.NewSession(rdb), tokens, limit)
+	auth := usecase.NewAuth(users, repo.NewSession(rdb), alfaid.New(cfg.AlfaIDURL, cfg.Timeout), tokens, limit)
 	catalog, err := rules.Products(filepath.Join(cfg.RulesDir, "products.yaml"))
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))

@@ -19,6 +19,9 @@ type SessionRepository interface {
 	Delete(ctx context.Context, id string) error
 	// Hit считает попытку по ключу в окне window и отдаёт число попыток в текущем окне.
 	Hit(ctx context.Context, key string, window time.Duration) (int64, error)
+	// Put и Take: одноразовая метка с TTL, Take её тут же стирает
+	Put(ctx context.Context, key string, ttl time.Duration) error
+	Take(ctx context.Context, key string) (bool, error)
 }
 
 type sessionRepo struct {
@@ -85,4 +88,22 @@ func (r *sessionRepo) Hit(ctx context.Context, key string, window time.Duration)
 		return 0, fmt.Errorf("hit %s: %w", key, err)
 	}
 	return n.Val(), nil
+}
+
+func (r *sessionRepo) Put(ctx context.Context, key string, ttl time.Duration) error {
+	if err := r.rdb.Set(ctx, key, 1, ttl).Err(); err != nil {
+		return fmt.Errorf("put %s: %w", key, err)
+	}
+	return nil
+}
+
+func (r *sessionRepo) Take(ctx context.Context, key string) (bool, error) {
+	err := r.rdb.GetDel(ctx, key).Err()
+	if errors.Is(err, redis.Nil) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("take %s: %w", key, err)
+	}
+	return true, nil
 }

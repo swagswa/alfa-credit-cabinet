@@ -1,0 +1,10 @@
+# Клиенты банка, как их знает Альфа ID. Это не наша база: логин совпадает с учёткой
+# кабинета, а телефон и почта свои, после входа кабинет берёт их отсюда.
+- {login: coffee, full_name: Соколова Анна Викторовна, inn: "0000100012", phone: "+79161000001", email: sokolova.av@alfa-id.demo}
+- {login: logistics, full_name: Лебедев Сергей Николаевич, inn: "000020001010", phone: "+79161000002", email: lebedev.sn@alfa-id.demo}
+- {login: it, full_name: Орлов Дмитрий Андреевич, inn: "0000300011", phone: "+79161000003", email: orlov.da@alfa-id.demo}
+- {login: build, full_name: Морозов Олег Игоревич, inn: "0000400016", phone: "+79161000004", email: morozov.oi@alfa-id.demo}
+- {login: unavailable, full_name: Захарова Елена Павловна, inn: "0000500010", phone: "+79161000005", email: zakharova.ep@alfa-id.demo}
+- {login: auto, full_name: Белов Константин Артурович, inn: "0000700010", phone: "+79161000006", email: belov.ka@alfa-id.demo}
+# в Альфа ID есть, в кабинете такой учётки нет: кабинет отвечает «не нашли вас»
+- {login: newbie, full_name: Петрова Мария Ильинична, inn: "0000800014", phone: "+79161000007", email: petrova.mi@alfa-id.demo}

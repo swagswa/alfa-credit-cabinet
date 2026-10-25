@@ -1,0 +1,27 @@
+meta {
+  name: 48 Вход через Альфа ID
+  type: http
+  seq: 48
+}
+
+get {
+  url: {{webUrl}}/auth/alfa-id/start
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("страница согласия симулятора", function () {
+    expect(res.body).to.include("Кредитный кабинет запрашивает");
+  });
+}
+
+docs {
+  api уводит на страницу согласия Альфа ID, её отдаёт mocks через nginx фронта, поэтому webUrl.
+  Дальше форма в браузере: «Разрешить» возвращает в /api/auth/alfa-id/callback с кодом, оттуда в кабинет.
+  Весь путь с отказом и повтором кода гоняет e2e, TestAlfaID.
+}

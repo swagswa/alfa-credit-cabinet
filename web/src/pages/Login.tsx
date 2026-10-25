@@ -20,13 +20,20 @@ const personas = [
   ['admin', 'Администратор', 'просмотр и пульт сбоев'],
 ];
 const demoPassword = 'demo12345';
+// api возвращает сюда из Альфа ID с причиной в ?error=
+const alfaErrors: Record<string, string> = {
+  alfa_id_denied: 'Вход через Альфа ID отменён. Попробуйте снова или войдите демо-учёткой.',
+  alfa_id_unknown: 'В Альфа ID вы есть, а в кредитном кабинете нет. Войдите демо-учёткой.',
+  alfa_id_expired: 'Вход через Альфа ID устарел. Нажмите кнопку ещё раз.',
+  too_many_attempts: 'Слишком много попыток. Попробуйте позже.',
+};
 
 export function Login({ onLogin }: { onLogin: (session: Session) => void }) {
   const [search] = useSearchParams();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => alfaErrors[search.get('error') ?? ''] ?? '');
   async function enter(user: string, secret: string) {
     if (busy) return;
     setBusy(true);
@@ -81,6 +88,9 @@ export function Login({ onLogin }: { onLogin: (session: Session) => void }) {
             </button>
           ))}
         </div>
+        <Button view="secondary" block href="/api/auth/alfa-id/start" disabled={busy}>
+          Войти через Альфа ID
+        </Button>
       </section>
       <Input
         block

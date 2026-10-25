@@ -21,6 +21,11 @@ type fakeUsers struct {
 	loans     []domain.Loan
 }
 
+func (f *fakeUsers) SetContacts(_ context.Context, _ uuid.UUID, phone, email string) error {
+	f.user.Phone, f.user.Email = phone, email
+	return nil
+}
+
 func (f *fakeUsers) Credentials(_ context.Context, login string) (domain.User, []byte, error) {
 	if login != f.user.Login {
 		return domain.User{}, nil, domain.ErrNotFound
@@ -43,6 +48,18 @@ func (f *fakeUsers) Loans(context.Context, uuid.UUID) ([]domain.Loan, error) { r
 type fakeSessions struct {
 	saved map[string]domain.Session
 	hits  map[string]int64
+	keys  map[string]bool
+}
+
+func (f *fakeSessions) Put(_ context.Context, key string, _ time.Duration) error {
+	f.keys[key] = true
+	return nil
+}
+
+func (f *fakeSessions) Take(_ context.Context, key string) (bool, error) {
+	ok := f.keys[key]
+	delete(f.keys, key)
+	return ok, nil
 }
 
 func (f *fakeSessions) Save(_ context.Context, s domain.Session, _ time.Duration) error {
@@ -68,14 +85,35 @@ func (f *fakeSessions) Hit(_ context.Context, key string, _ time.Duration) (int6
 	return f.hits[key], nil
 }
 
+// fakeAlfaID: код одноразовый, как у настоящего провайдера
+type fakeAlfaID map[string]domain.AlfaProfile
+
+func (f fakeAlfaID) Profile(_ context.Context, code string) (domain.AlfaProfile, error) {
+	p, ok := f[code]
+	if !ok {
+		return domain.AlfaProfile{}, domain.ErrUnauthorized
+	}
+	delete(f, code)
+	return p, nil
+}
+
 func newAuth(t *testing.T) (usecase.AuthUseCase, *fakeSessions) {
+	auth, sessions, _ := newAuthUsers(t)
+	return auth, sessions
+}
+
+func newAuthUsers(t *testing.T) (usecase.AuthUseCase, *fakeSessions, *fakeUsers) {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte("demo12345"), bcrypt.MinCost)
 	require.NoError(t, err)
 	users := &fakeUsers{user: domain.User{ID: uuid.New(), Login: "coffee", Role: domain.RoleClient}, hash: hash}
-	sessions := &fakeSessions{saved: map[string]domain.Session{}, hits: map[string]int64{}}
+	sessions := &fakeSessions{saved: map[string]domain.Session{}, hits: map[string]int64{}, keys: map[string]bool{}}
 	limit := usecase.LoginLimit{Attempts: 3, Window: time.Minute}
-	return usecase.NewAuth(users, sessions, token.New("secret", time.Hour), limit), sessions
+	alfa := fakeAlfaID{
+		"c-coffee": {Login: "coffee", Phone: "+79161000001", Email: "sokolova.av@alfa-id.demo"},
+		"c-newbie": {Login: "newbie", Phone: "+79161000007", Email: "petrova.mi@alfa-id.demo"},
+	}
+	return usecase.NewAuth(users, sessions, alfa, token.New("secret", time.Hour), limit), sessions, users
 }
 
 func TestLogin(t *testing.T) {
@@ -139,4 +177,62 @@ func TestResolveGarbage(t *testing.T) {
 	auth, _ := newAuth(t)
 	_, err := auth.Resolve(t.Context(), "junk")
 	require.ErrorIs(t, err, domain.ErrUnauthorized)
+}
+
+func TestAlfaIDLogin(t *testing.T) {
+	tests := []struct {
+		name, code string
+		stale      bool // state не тот, что выдали
+		err        error
+	}{
+		{"вход", "c-coffee", false, nil},
+		{"чужой state", "c-coffee", true, domain.ErrUnauthorized},
+		{"код не выдавали", "junk", false, domain.ErrUnauthorized},
+		{"в кабинете нет такого клиента", "c-newbie", false, domain.ErrNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auth, sessions, users := newAuthUsers(t)
+			state, err := auth.AlfaIDStart(t.Context())
+			require.NoError(t, err)
+			if tt.stale {
+				state = "forged"
+			}
+
+			raw, err := auth.AlfaIDLogin(t.Context(), state, tt.code, "10.0.0.1")
+
+			require.ErrorIs(t, err, tt.err)
+			if tt.err != nil {
+				require.Empty(t, sessions.saved)
+				return
+			}
+			s, err := auth.Resolve(t.Context(), raw)
+			require.NoError(t, err)
+			require.Equal(t, domain.RoleClient, s.Role)
+			require.Equal(t, "+79161000001", users.user.Phone, "контакты берём из Альфа ID")
+			require.Equal(t, "sokolova.av@alfa-id.demo", users.user.Email)
+		})
+	}
+}
+
+func TestAlfaIDReplay(t *testing.T) {
+	auth, sessions, _ := newAuthUsers(t)
+	state, err := auth.AlfaIDStart(t.Context())
+	require.NoError(t, err)
+	_, err = auth.AlfaIDLogin(t.Context(), state, "c-coffee", "10.0.0.1")
+	require.NoError(t, err)
+
+	_, err = auth.AlfaIDLogin(t.Context(), state, "c-coffee", "10.0.0.1")
+	require.ErrorIs(t, err, domain.ErrUnauthorized, "тот же callback второй раз")
+	require.Len(t, sessions.saved, 1)
+}
+
+func TestAlfaIDLimit(t *testing.T) {
+	auth, _ := newAuth(t)
+	for range 3 {
+		_, err := auth.AlfaIDLogin(t.Context(), "forged", "junk", "10.0.0.1")
+		require.ErrorIs(t, err, domain.ErrUnauthorized)
+	}
+	_, err := auth.AlfaIDLogin(t.Context(), "forged", "junk", "10.0.0.1")
+	require.ErrorIs(t, err, domain.ErrTooManyRequests, "общий лимит с входом по паролю")
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,10 +64,39 @@ func (f *fakeUsers) Companies(context.Context, uuid.UUID) ([]domain.ProfileCompa
 
 func (f *fakeUsers) Loans(context.Context, uuid.UUID) ([]domain.Loan, error) { return nil, nil }
 
+func (f *fakeUsers) SetContacts(context.Context, uuid.UUID, string, string) error { return nil }
+
 type fakeSessions struct {
 	mu    sync.Mutex
 	saved map[string]domain.Session
 	hits  map[string]int64
+	keys  map[string]bool
+}
+
+func (f *fakeSessions) Put(_ context.Context, key string, _ time.Duration) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.keys[key] = true
+	return nil
+}
+
+func (f *fakeSessions) Take(_ context.Context, key string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	ok := f.keys[key]
+	delete(f.keys, key)
+	return ok, nil
+}
+
+// fakeAlfaID знает один код coffee, код одноразовый
+type fakeAlfaID struct{ used bool }
+
+func (f *fakeAlfaID) Profile(_ context.Context, code string) (domain.AlfaProfile, error) {
+	if code != "c-coffee" || f.used {
+		return domain.AlfaProfile{}, domain.ErrUnauthorized
+	}
+	f.used = true
+	return domain.AlfaProfile{Login: "coffee"}, nil
 }
 
 func (f *fakeSessions) Save(_ context.Context, s domain.Session, _ time.Duration) error {
@@ -105,9 +135,9 @@ func newAuth(t *testing.T) usecase.AuthUseCase {
 	hash, err := bcrypt.GenerateFromPassword([]byte("demo12345"), bcrypt.MinCost)
 	require.NoError(t, err)
 	users := &fakeUsers{user: domain.User{ID: uuid.New(), Login: "coffee", Role: domain.RoleClient}, hash: hash}
-	sessions := &fakeSessions{saved: map[string]domain.Session{}, hits: map[string]int64{}}
+	sessions := &fakeSessions{saved: map[string]domain.Session{}, hits: map[string]int64{}, keys: map[string]bool{}}
 	limit := usecase.LoginLimit{Attempts: 3, Window: time.Minute}
-	return usecase.NewAuth(users, sessions, token.New("test-secret", time.Hour), limit)
+	return usecase.NewAuth(users, sessions, &fakeAlfaID{}, token.New("test-secret", time.Hour), limit)
 }
 
 func newServer(t *testing.T, auth usecase.AuthUseCase, dbErr error) http.Handler {
@@ -404,5 +434,46 @@ func TestSigningHTTP(t *testing.T) {
 func TestEventKinds(t *testing.T) {
 	for _, k := range []string{"transition", "escalation", "override", "signing"} {
 		require.True(t, oapi.ApplicationEventKind(k).Valid(), k)
+	}
+}
+
+func TestAlfaIDRedirects(t *testing.T) {
+	h := newServer(t, newAuth(t), nil)
+	rec := call(t, h, "GET", "/api/auth/alfa-id/start", "", "")
+	require.Equal(t, http.StatusFound, rec.Code, rec.Body.String())
+	page, err := url.Parse(rec.Header().Get("Location"))
+	require.NoError(t, err)
+	require.Equal(t, "/alfa-id/authorize", page.Path)
+	state := page.Query().Get("state")
+	require.Contains(t, rec.Header().Get("Set-Cookie"), "alfa_id_state="+state)
+
+	callback := func(query, cookie string) *httptest.ResponseRecorder {
+		req := httptest.NewRequestWithContext(t.Context(), "GET", "/api/auth/alfa-id/callback?"+query, http.NoBody)
+		req.AddCookie(&http.Cookie{Name: "alfa_id_state", Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusFound, rec.Code, rec.Body.String())
+		return rec
+	}
+	tests := []struct {
+		name, query, cookie, location string
+	}{
+		{"отказался", "error=access_denied&state=" + state, state, "/login?error=alfa_id_denied"},
+		{"state не из этого браузера", "code=c-coffee&state=" + state, "other", "/login?error=alfa_id_expired"},
+		{"вошёл", "code=c-coffee&state=" + state, state, "/client"},
+		{"тот же callback ещё раз", "code=c-coffee&state=" + state, state, "/login?error=alfa_id_expired"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := callback(tt.query, tt.cookie)
+			require.Equal(t, tt.location, rec.Header().Get("Location"))
+			if tt.location != "/client" {
+				require.Empty(t, rec.Header().Get("Set-Cookie"), "без сессии")
+				return
+			}
+			ck, err := http.ParseSetCookie(rec.Header().Get("Set-Cookie"))
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, call(t, h, "GET", "/api/me", "", ck.Value).Code)
+		})
 	}
 }

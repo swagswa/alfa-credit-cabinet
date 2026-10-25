@@ -168,6 +168,21 @@ func (q *Queries) ProfileCompanies(ctx context.Context, userID uuid.UUID) ([]Pro
 	return items, nil
 }
 
+const setUserContacts = `-- name: SetUserContacts :exec
+UPDATE users SET phone = $2, email = $3 WHERE id = $1
+`
+
+type SetUserContactsParams struct {
+	ID    uuid.UUID
+	Phone string
+	Email string
+}
+
+func (q *Queries) SetUserContacts(ctx context.Context, arg SetUserContactsParams) error {
+	_, err := q.db.Exec(ctx, setUserContacts, arg.ID, arg.Phone, arg.Email)
+	return err
+}
+
 const userByID = `-- name: UserByID :one
 SELECT id, login, full_name, role, phone, email
 FROM users

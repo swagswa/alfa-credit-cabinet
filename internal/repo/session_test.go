@@ -45,3 +45,15 @@ func TestSessionHit(t *testing.T) {
 	require.Positive(t, ttl, "у счётчика есть срок, иначе адрес заблокирован навсегда")
 	require.LessOrEqual(t, ttl, time.Minute)
 }
+
+func TestSessionTake(t *testing.T) {
+	r := repo.NewSession(testenv.Redis(t))
+	ctx := t.Context()
+
+	require.NoError(t, r.Put(ctx, "alfa_id_state:s1", time.Minute))
+	for _, want := range []bool{true, false} {
+		ok, err := r.Take(ctx, "alfa_id_state:s1")
+		require.NoError(t, err)
+		require.Equal(t, want, ok, "метка одноразовая")
+	}
+}

@@ -4,7 +4,10 @@ package e2e
 
 import (
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -428,4 +431,43 @@ func TestBankStats(t *testing.T) {
 	bad, err := as(t, "underwriter").BankStatsWithResponse(t.Context(), &oapi.BankStatsParams{Days: new(91)})
 	require.NoError(t, err)
 	require.Equal(t, http.StatusBadRequest, bad.StatusCode())
+}
+
+// AC22: вход через Альфа ID. Страница согласия живёт в mocks, браузер за неё жмёт форму.
+func TestAlfaID(t *testing.T) {
+	t.Parallel()
+	mocksURL := env("E2E_MOCKS_URL", "http://localhost:8081")
+	jar, _ := cookiejar.New(nil)
+	noFollow := func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	hc := &http.Client{Jar: jar, CheckRedirect: noFollow}
+	location := func(res *http.Response, err error) *url.URL {
+		require.NoError(t, err)
+		res.Body.Close()
+		require.Equal(t, http.StatusFound, res.StatusCode)
+		u, err := url.Parse(res.Header.Get("Location"))
+		require.NoError(t, err)
+		return u
+	}
+	// callback отдаёт адрес относительно сайта, а ходим мимо nginx прямо в api
+	callback := func(back *url.URL) string {
+		return location(hc.Get(strings.TrimSuffix(baseURL, "/api") + back.String())).String()
+	}
+	login := func(form url.Values) *url.URL {
+		page := location(hc.Get(baseURL + "/auth/alfa-id/start"))
+		form.Set("redirect_uri", page.Query().Get("redirect_uri"))
+		form.Set("state", page.Query().Get("state"))
+		return location(hc.PostForm(mocksURL+"/alfa-id/authorize", form))
+	}
+
+	require.Equal(t, "/login?error=alfa_id_denied", callback(login(url.Values{"deny": {"1"}})))
+	require.Equal(t, "/login?error=alfa_id_unknown", callback(login(url.Values{"login": {"newbie"}})))
+
+	back := login(url.Values{"login": {"build"}})
+	require.Equal(t, "/client", callback(back))
+	me, err := hc.Get(baseURL + "/me")
+	require.NoError(t, err)
+	me.Body.Close()
+	require.Equal(t, http.StatusOK, me.StatusCode, "сессия как после входа паролем")
+
+	require.Equal(t, "/login?error=alfa_id_expired", callback(back), "тот же код второй раз")
 }

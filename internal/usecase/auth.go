@@ -18,6 +18,9 @@ import (
 
 const sessionIDBytes = 32
 
+// alfaStateTTL сколько ждём клиента со страницы согласия Альфа ID
+const alfaStateTTL = 5 * time.Minute
+
 // dummyHash сравнивается, когда логина нет: иначе по времени ответа видно,
 // существует ли пользователь (bcrypt занимает десятки миллисекунд).
 const dummyHash = "$2a$10$04Zt0uJ6BnjrJWX6bIgz5eeUSNrpBbPJiaoksCu7qAAFO8gfBxXvq"
@@ -29,6 +32,16 @@ type AuthUseCase interface {
 	// Resolve находит сессию по токену из cookie. Любой негодный токен это ErrUnauthorized.
 	Resolve(ctx context.Context, raw string) (domain.Session, error)
 	Me(ctx context.Context, userID uuid.UUID) (domain.Me, error)
+	// AlfaIDStart отдаёт state для страницы согласия, AlfaIDLogin по нему и коду
+	// заводит сессию. Протухший или чужой state и код это ErrUnauthorized,
+	// клиента Альфа ID нет в кабинете: ErrNotFound.
+	AlfaIDStart(ctx context.Context) (string, error)
+	AlfaIDLogin(ctx context.Context, state, code, ip string) (string, error)
+}
+
+// AlfaID провайдер входа, на стенде симулятор в mocks.
+type AlfaID interface {
+	Profile(ctx context.Context, code string) (domain.AlfaProfile, error)
 }
 
 type LoginLimit struct {
@@ -39,6 +52,7 @@ type LoginLimit struct {
 type authUseCase struct {
 	users    repo.UserRepository
 	sessions repo.SessionRepository
+	alfa     AlfaID
 	tokens   *token.Issuer
 	limit    LoginLimit
 }
@@ -46,19 +60,28 @@ type authUseCase struct {
 func NewAuth(
 	users repo.UserRepository,
 	sessions repo.SessionRepository,
+	alfa AlfaID,
 	tokens *token.Issuer,
 	limit LoginLimit,
 ) AuthUseCase {
-	return &authUseCase{users: users, sessions: sessions, tokens: tokens, limit: limit}
+	return &authUseCase{users: users, sessions: sessions, alfa: alfa, tokens: tokens, limit: limit}
+}
+
+// attempt считает попытку входа с адреса, общий счётчик для пароля и Альфа ID
+func (u *authUseCase) attempt(ctx context.Context, ip string) error {
+	n, err := u.sessions.Hit(ctx, "login_attempts:"+ip, u.limit.Window)
+	if err != nil {
+		return err
+	}
+	if n > u.limit.Attempts {
+		return domain.ErrTooManyRequests
+	}
+	return nil
 }
 
 func (u *authUseCase) Login(ctx context.Context, login, password, ip string) (domain.Me, string, error) {
-	n, err := u.sessions.Hit(ctx, "login_attempts:"+ip, u.limit.Window)
-	if err != nil {
+	if err := u.attempt(ctx, ip); err != nil {
 		return domain.Me{}, "", err
-	}
-	if n > u.limit.Attempts {
-		return domain.Me{}, "", domain.ErrTooManyRequests
 	}
 
 	user, hash, err := u.users.Credentials(ctx, login)
@@ -83,6 +106,37 @@ func (u *authUseCase) Login(ctx context.Context, login, password, ip string) (do
 		return domain.Me{}, "", err
 	}
 	return me, raw, nil
+}
+
+func (u *authUseCase) AlfaIDStart(ctx context.Context) (string, error) {
+	state := rand.Text()
+	return state, u.sessions.Put(ctx, "alfa_id_state:"+state, alfaStateTTL)
+}
+
+func (u *authUseCase) AlfaIDLogin(ctx context.Context, state, code, ip string) (string, error) {
+	if err := u.attempt(ctx, ip); err != nil {
+		return "", err
+	}
+	ok, err := u.sessions.Take(ctx, "alfa_id_state:"+state)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", domain.ErrUnauthorized
+	}
+	p, err := u.alfa.Profile(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	user, _, err := u.users.Credentials(ctx, p.Login)
+	if err != nil {
+		return "", err
+	}
+	// контакты у банка свежее наших: клиент мог сменить телефон в Альфа ID
+	if err := u.users.SetContacts(ctx, user.ID, p.Phone, p.Email); err != nil {
+		return "", err
+	}
+	return u.newSession(ctx, user)
 }
 
 // newSession заводит сессию в хранилище и отдаёт подписанный токен с её ID.

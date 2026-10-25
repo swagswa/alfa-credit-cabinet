@@ -43,6 +43,12 @@ func TestUserRepository(t *testing.T) {
 
 	_, err = r.ByID(ctx, uuid.New())
 	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	require.NoError(t, r.SetContacts(ctx, u.ID, "+79161000001", "sokolova.av@alfa-id.demo"))
+	u, err = r.ByID(ctx, u.ID)
+	require.NoError(t, err)
+	require.Equal(t, "+79161000001", u.Phone)
+	require.Error(t, r.SetContacts(ctx, u.ID, "8 916", ""), "формат телефона держит CHECK")
 }
 
 func TestUserProfile(t *testing.T) {

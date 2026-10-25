@@ -101,6 +101,8 @@ linters:
         - .JSON(
         - .NoContent(
         - .Blob(
+        - .HTML(
+        - .Redirect(
         - .WithTx(
         - (github.com/jackc/pgx/v5.Tx).Commit(
         # pkg/postgres прозрачно прокидывает пул, ошибку подпишет вызывающий
