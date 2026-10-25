@@ -28,8 +28,8 @@ func (q *Queries) AddBKIConsent(ctx context.Context, applicationID uuid.UUID) er
 }
 
 const addCompany = `-- name: AddCompany :one
-INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, address, registered_at, simulated)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO companies (inn, kind, ogrn, kpp, short_name, full_name, okved, okved_name, address, registered_at, simulated)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING id
 `
 
@@ -41,6 +41,7 @@ type AddCompanyParams struct {
 	ShortName    string
 	FullName     string
 	Okved        string
+	OkvedName    string
 	Address      string
 	RegisteredAt pgtype.Date
 	Simulated    bool
@@ -55,6 +56,7 @@ func (q *Queries) AddCompany(ctx context.Context, arg AddCompanyParams) (uuid.UU
 		arg.ShortName,
 		arg.FullName,
 		arg.Okved,
+		arg.OkvedName,
 		arg.Address,
 		arg.RegisteredAt,
 		arg.Simulated,

@@ -7,9 +7,63 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const loansByUser = `-- name: LoansByUser :many
+SELECT a.id, a.company_id, a.number, a.status, p.created_at AS issued_at, d.terms,
+       doc.id AS contract_id
+FROM applications a
+JOIN company_members m ON m.company_id = a.company_id AND m.user_id = $1
+JOIN payouts p ON p.application_id = a.id
+JOIN LATERAL (
+    SELECT terms FROM decisions WHERE application_id = a.id AND terms IS NOT NULL ORDER BY id DESC LIMIT 1
+) d ON true
+LEFT JOIN documents doc ON doc.application_id = a.id AND doc.kind = 'loan_agreement'
+ORDER BY p.created_at DESC
+`
+
+type LoansByUserRow struct {
+	ID         uuid.UUID
+	CompanyID  uuid.UUID
+	Number     int64
+	Status     string
+	IssuedAt   time.Time
+	Terms      []byte
+	ContractID pgtype.UUID
+}
+
+// кредит это заявка с выдачей; условия из последнего решения, по которому выдали
+func (q *Queries) LoansByUser(ctx context.Context, userID uuid.UUID) ([]LoansByUserRow, error) {
+	rows, err := q.db.Query(ctx, loansByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LoansByUserRow
+	for rows.Next() {
+		var i LoansByUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Number,
+			&i.Status,
+			&i.IssuedAt,
+			&i.Terms,
+			&i.ContractID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const membershipsByUser = `-- name: MembershipsByUser :many
 SELECT c.id, c.inn, c.short_name, c.kind, c.simulated, m.representative_role
@@ -55,8 +109,67 @@ func (q *Queries) MembershipsByUser(ctx context.Context, userID uuid.UUID) ([]Me
 	return items, nil
 }
 
+const profileCompanies = `-- name: ProfileCompanies :many
+SELECT c.id, c.inn, c.kind, c.ogrn, c.kpp, c.short_name, c.full_name, c.okved, c.okved_name, c.address,
+       c.registered_at, c.simulated, m.representative_role
+FROM company_members m
+JOIN companies c ON c.id = m.company_id
+WHERE m.user_id = $1
+ORDER BY c.short_name
+`
+
+type ProfileCompaniesRow struct {
+	ID                 uuid.UUID
+	Inn                string
+	Kind               string
+	Ogrn               string
+	Kpp                pgtype.Text
+	ShortName          string
+	FullName           string
+	Okved              string
+	OkvedName          string
+	Address            string
+	RegisteredAt       pgtype.Date
+	Simulated          bool
+	RepresentativeRole string
+}
+
+func (q *Queries) ProfileCompanies(ctx context.Context, userID uuid.UUID) ([]ProfileCompaniesRow, error) {
+	rows, err := q.db.Query(ctx, profileCompanies, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProfileCompaniesRow
+	for rows.Next() {
+		var i ProfileCompaniesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Inn,
+			&i.Kind,
+			&i.Ogrn,
+			&i.Kpp,
+			&i.ShortName,
+			&i.FullName,
+			&i.Okved,
+			&i.OkvedName,
+			&i.Address,
+			&i.RegisteredAt,
+			&i.Simulated,
+			&i.RepresentativeRole,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const userByID = `-- name: UserByID :one
-SELECT id, login, full_name, role
+SELECT id, login, full_name, role, phone, email
 FROM users
 WHERE id = $1
 `
@@ -66,6 +179,8 @@ type UserByIDRow struct {
 	Login    string
 	FullName string
 	Role     string
+	Phone    string
+	Email    string
 }
 
 func (q *Queries) UserByID(ctx context.Context, id uuid.UUID) (UserByIDRow, error) {
@@ -76,6 +191,8 @@ func (q *Queries) UserByID(ctx context.Context, id uuid.UUID) (UserByIDRow, erro
 		&i.Login,
 		&i.FullName,
 		&i.Role,
+		&i.Phone,
+		&i.Email,
 	)
 	return i, err
 }

@@ -18,6 +18,8 @@ type User struct {
 	Login    string
 	FullName string
 	Role     Role
+	Phone    string
+	Email    string
 }
 
 // RepresentativeRole говорит, на каком основании клиент действует за компанию.
