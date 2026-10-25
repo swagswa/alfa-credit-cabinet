@@ -381,8 +381,37 @@ export interface paths {
         /**
          * Принять условия
          * @description `approved | counter_offer -> accepted`. `version` защищает от принятия условий, которые успели поменяться.
+         *     Во встречном можно принять свои сумму и срок, подобранные через `variant`: принимаются, только если
+         *     расчёт по ним даёт `auto`, иначе 409. Договор и выдача пойдут на эти условия.
          */
         post: operations["acceptOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/variant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41 */
+                id: components["parameters"]["ApplicationID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Свои условия под встречным
+         * @description Только во встречном предложении. Банк пересчитывает решение по тем же проверкам, но с другой суммой
+         *     и сроком, ничего не сохраняет. `auto`: одобрит без специалиста, можно принять; `limited`: столько
+         *     не даст, в `terms` что даст; `manual`: такие условия решает специалист, это новая заявка;
+         *     `rejected`: на таких условиях не одобрит. Сумма не больше запрошенной, оба поля в рамках продукта,
+         *     иначе 422 с полем.
+         */
+        get: operations["offerVariant"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1270,6 +1299,31 @@ export interface components {
              * @example 7
              */
             version: number;
+        };
+        AcceptRequest: {
+            /**
+             * @description Версия карточки, которую видел клиент
+             * @example 7
+             */
+            version: number;
+            amount_kop?: components["schemas"]["AmountKop"];
+            term_months?: components["schemas"]["TermMonths"];
+        };
+        OfferVariant: {
+            /**
+             * @example auto
+             * @enum {string}
+             */
+            fit: "auto" | "limited" | "manual" | "rejected";
+            terms?: components["schemas"]["VariantTerms"];
+        };
+        /** @description Что банк даст, у auto и limited */
+        VariantTerms: components["schemas"]["OfferTerms"] & {
+            /**
+             * Format: int64
+             * @example 10746000
+             */
+            monthly_payment_kop: number;
         };
         CancelRequest: {
             /** @example Нашли деньги у поставщика, кредит пока не нужен */
@@ -2436,7 +2490,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VersionRequest"];
+                "application/json": components["schemas"]["AcceptRequest"];
             };
         };
         responses: {
@@ -2454,6 +2508,39 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    offerVariant: {
+        parameters: {
+            query: {
+                amount_kop: components["schemas"]["AmountKop"];
+                term_months: components["schemas"]["TermMonths"];
+            };
+            header?: never;
+            path: {
+                /** @example 0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41 */
+                id: components["parameters"]["ApplicationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Расчёт */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferVariant"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
         };
     };
     requestSigningCode: {
