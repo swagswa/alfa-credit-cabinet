@@ -17,6 +17,7 @@ type policyFile struct {
 	LimitRoundRub     int64                        `yaml:"limit_round_rub"`
 	StopFactors       []stopYAML                   `yaml:"stop_factors"`
 	Reasons           map[string]string            `yaml:"reasons"`
+	UnderwriterTexts  map[string]string            `yaml:"underwriter_reasons"`
 	DocumentNames     map[string]string            `yaml:"document_names"`
 	ReapplyMonths     int                          `yaml:"reapply_months"`
 }
@@ -59,6 +60,7 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 		SwitchAgeMinShare: f.SwitchAgeMinShare,
 		LimitRoundKop:     f.LimitRoundRub * domain.KopInRub,
 		Texts:             f.Reasons,
+		UnderwriterTexts:  f.UnderwriterTexts,
 		DocumentNames:     f.DocumentNames,
 		ReapplyMonths:     f.ReapplyMonths,
 	}

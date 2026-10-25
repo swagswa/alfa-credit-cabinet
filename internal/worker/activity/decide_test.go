@@ -199,3 +199,31 @@ func TestDecideNonRetryable(t *testing.T) {
 	require.True(t, appErr.NonRetryable())
 	require.Equal(t, usecase.InvalidErrorType, appErr.Type())
 }
+
+type movedApps struct {
+	usecase.ApplicationUseCase
+	got *domain.Move
+}
+
+func (f movedApps) Transition(_ context.Context, _ uuid.UUID, m domain.Move) error {
+	*f.got = m
+	return nil
+}
+
+// решение андеррайтера без расчёта политики: клиент всё равно видит, почему так решили
+func TestTransitionExplains(t *testing.T) {
+	policy, err := rules.Policy(filepath.Join("..", "..", "..", "rules", "policy.yaml"))
+	require.NoError(t, err)
+	var got domain.Move
+	decisions := usecase.NewDecision(domain.Catalog{}, domain.ScoringRules{}, policy)
+	a := activity.NewApplicationActivities(movedApps{got: &got}, decisions, nil, domain.Deadlines{})
+
+	d := &domain.Decision{Stage: domain.StageUnderwriter, Outcome: domain.StatusCounterOffer, Reasons: []domain.Reason{
+		{Code: "R_MANUAL_RISK"}, {Code: "R_GUARANTOR", Text: "из расчёта"}, {Code: "SF_MASS_ADDRESS"},
+	}}
+	require.NoError(t, a.Transition(t.Context(), uuid.New(), domain.Move{To: domain.StatusCounterOffer, Decision: d}))
+	r := got.Decision.Reasons
+	require.Contains(t, r[0].Text, "Специалист банка")
+	require.Equal(t, "из расчёта", r[1].Text, "текст из расчёта с числами заявки не трогаем")
+	require.Empty(t, r[2].Text, "мягкий стоп-фактор клиенту не раскрываем")
+}

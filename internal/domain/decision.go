@@ -286,6 +286,8 @@ type PolicyRules struct {
 	StopFactors       []StopRule
 	// Texts шаблоны клиенту по коду, подстановки в фигурных скобках
 	Texts map[string]string
+	// UnderwriterTexts для причин андеррайтера, которых не было в расчёте
+	UnderwriterTexts map[string]string
 	// DocumentNames для подстановки {doc}: вид документа -> как его назвать клиенту
 	DocumentNames map[string]string
 	ReapplyMonths int // через сколько после отказа по классу E подавать снова

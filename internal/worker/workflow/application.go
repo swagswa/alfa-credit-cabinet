@@ -321,8 +321,8 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 }
 
 // verdict это решение андеррайтера поверх расчёта, который он видел. Тексты причин
-// берём из расчёта: они там с числами заявки. Причину, которой в расчёте не было,
-// клиент не увидит, банк увидит код.
+// берём из расчёта: они там с числами заявки. Причине, которой в расчёте не было,
+// общий текст допишет activity перехода.
 func (p *process) verdict(a domain.Action) *domain.Decision {
 	var d domain.Decision
 	if p.decision != nil {

@@ -62,7 +62,11 @@ func (a *ApplicationActivities) Payout(ctx context.Context, id uuid.UUID) error 
 }
 
 // Transition повторять безопасно: повтор после коммита ничего не меняет.
+// Тексты причин андеррайтера дописываем тут: правила есть только у воркера, не у процесса.
 func (a *ApplicationActivities) Transition(ctx context.Context, id uuid.UUID, m domain.Move) error {
+	if m.Decision != nil && m.Decision.Stage == domain.StageUnderwriter {
+		a.decisions.Explain(m.Decision)
+	}
 	return classify(a.apps.Transition(ctx, id, m))
 }
 
