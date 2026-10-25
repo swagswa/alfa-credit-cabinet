@@ -213,6 +213,25 @@ section .archive-panel {
 .dashboard > section {
   margin: 0;
 }
+.profile-section {
+  display: grid;
+  gap: 8px;
+}
+.profile-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  align-items: start;
+  column-gap: 24px;
+}
+/* pure-cell внутри себя тоже section, общий стиль карточки им не нужен */
+.profile-fields section {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
 .dashboard-section-heading {
   display: flex;
   align-items: center;

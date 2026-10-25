@@ -9,6 +9,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Applications } from './pages/Applications';
 import { BankStats } from './pages/BankStats';
 import { Faults } from './pages/Faults';
+import { Profile } from './pages/Profile';
 import { api, settle } from './api/client';
 import type { components } from './api/schema.gen';
 
@@ -96,6 +97,10 @@ export function App() {
                       <Icon name="new" />
                       Новая заявка
                     </NavLink>
+                    <NavLink to="/client/profile">
+                      <Icon name="profile" />
+                      Профиль
+                    </NavLink>
                   </>
                 ) : (
                   <>
@@ -168,6 +173,7 @@ export function App() {
                 <Route path="/client" element={only('/client', <Dashboard />)} />
                 <Route path="/client/new" element={only('/client', <Applications createOnly />)} />
                 <Route path="/client/applications/:id?" element={only('/client', <Applications />)} />
+                <Route path="/client/profile" element={only('/client', <Profile />)} />
                 <Route path="/bank/stats" element={only('/bank', <BankStats />)} />
                 <Route
                   path="/bank/faults"
