@@ -32,7 +32,7 @@ import { BankDetails } from './BankDetails';
 import { BankQueueOffer } from './BankQueueOffer';
 import { Cancel, Decision } from './Decision';
 import { Documents } from './Documents';
-import { useEffect, useState, useRef, type FormEvent } from 'react';
+import { useEffect, useState, useRef, type FormEvent, type SVGProps } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { RepeatApplication } from '../api/repeatApplication';
 import { Input } from '@alfalab/core-components/input';
@@ -43,6 +43,9 @@ import { api, errorText, settle } from '../api/client';
 import type { components, operations } from '../api/schema.gen';
 
 type App = components['schemas']['ApplicationView'];
+// у глифа role=img без подписи, кнопка и так подписана
+const PrevIcon = (props: SVGProps<SVGSVGElement>) => <ArrowLeftSIcon {...props} aria-hidden="true" />;
+const NextIcon = (props: SVGProps<SVGSVGElement>) => <ArrowRightSIcon {...props} aria-hidden="true" />;
 type Sort = NonNullable<operations['listApplications']['parameters']['query']>['sort'];
 const sorts = [
   { key: '-created_at', content: 'Сначала новые' },
@@ -680,7 +683,7 @@ export function Applications({
                     </Typography.Text>
                     <nav className="application-pagination" aria-label="Страницы заявок">
                       <IconButton
-                        icon={ArrowLeftSIcon}
+                        icon={PrevIcon}
                         size={40}
                         view="secondary"
                         aria-label="Назад"
@@ -688,7 +691,7 @@ export function Applications({
                         onClick={() => setOffset(Math.max(0, offset - 20))}
                       />
                       <IconButton
-                        icon={ArrowRightSIcon}
+                        icon={NextIcon}
                         size={40}
                         view="secondary"
                         aria-label="Далее"
