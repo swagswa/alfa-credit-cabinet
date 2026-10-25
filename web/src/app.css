@@ -67,12 +67,7 @@ button:focus-visible {
   outline: 3px solid #145bce;
   outline-offset: 4px;
 }
-[role='alert'] {
-  padding: 12px 16px;
-  background: #fff1f0;
-  color: #a11916;
-  border-radius: 12px;
-}
+
 .application-toolbar {
   display: flex;
   align-items: center;

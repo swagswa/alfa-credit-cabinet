@@ -197,6 +197,7 @@ test('уведомление имеет регион, статус и досту
   );
   const region = page.getByRole('region', { name: 'Уведомления', exact: true });
   await expect(region.getByRole('status')).toHaveText('Изменения сохранены.');
+  await expect(region.getByRole('alert')).toHaveCount(0);
   await expect(refresh).toBeFocused();
   await audit(page);
   await region.getByRole('button', { name: 'Закрыть уведомление', exact: true }).click();

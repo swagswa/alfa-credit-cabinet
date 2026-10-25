@@ -62,13 +62,14 @@ export function NoticeHost() {
             layout={reduced ? false : 'position'}
             key={notice.id}
             className={`bottom-notice notice-${notice.tone}`}
-            role={notice.tone === 'error' ? 'alert' : 'status'}
             initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, transition: { duration: reduced ? 0 : timing.exit } }}
             transition={reduced ? { duration: 0 } : springs.panel}
           >
             <ToastPlate
+              role={notice.tone === 'error' ? 'alert' : 'status'}
+              aria-live={notice.tone === 'error' ? 'assertive' : 'polite'}
               block
               leftAddons={
                 <span aria-hidden="true">
