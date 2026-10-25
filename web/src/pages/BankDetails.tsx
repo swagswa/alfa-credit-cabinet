@@ -1,5 +1,9 @@
+import { Table } from '@alfalab/core-components/table';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
+import { Disclosure } from '../ui/Disclosure';
 import { useState } from 'react';
-import { Button, MotionDetails } from '../motion';
+import { Button } from '../motion';
 import { BankActions } from './BankActions';
 import { useHistory } from '../api/client';
 import { isCompleted } from '../api/dashboard';
@@ -27,20 +31,24 @@ export function BankDetails({
     <section>
       {finished && (
         <div className={card.status === 'rejected' ? 'rejection-result' : 'bank-result'}>
-          <p className="eyebrow">Итог рассмотрения</p>
-          <h2>{labels[card.status]}</h2>
-          <p>
+          <Typography.Text tag="p" view="primary-small" className="eyebrow">
+            Итог рассмотрения
+          </Typography.Text>
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+            {labels[card.status]}
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-small">
             {card.status === 'rejected'
               ? 'Заявка завершена отказом. Повторное решение и запрос документов недоступны.'
               : 'Работа по текущему этапу завершена. Ниже доступны материалы и история заявки.'}
-          </p>
+          </Typography.Text>
           <ul>{reasonList}</ul>
           {lastDecision && (
-            <p className="hint">
+            <Typography.Text tag="p" view="primary-small" className="hint">
               {lastDecision.actor_name ?? actors[lastDecision.actor_role]} ·{' '}
               {new Date(lastDecision.created_at).toLocaleString('ru-RU')}
               {lastDecision.comment && <> · {lastDecision.comment}</>}
-            </p>
+            </Typography.Text>
           )}
           <a href="#bank-audit" className="back-link">
             Посмотреть историю решения
@@ -60,24 +68,36 @@ export function BankDetails({
       )}
       {card.offer && (
         <>
-          <h2>Предложено клиенту</h2>
-          <p>
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+            Предложено клиенту
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-small">
             {products[card.offer.product]}: {money(card.offer.amount_kop)}, {card.offer.term_months} мес.,{' '}
             {rate(card.offer.rate_bp)} годовых, платёж {money(card.offer.monthly_payment_kop)} в месяц.{' '}
             {card.offer.guarantor_required ? 'Нужно поручительство.' : ''}{' '}
             {card.offer.pledge_required ? 'Нужен залог.' : ''}
-          </p>
+          </Typography.Text>
           {(card.status === 'approved' || card.status === 'counter_offer') && (
-            <p className="hint">Клиент может принять до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.</p>
+            <Typography.Text tag="p" view="primary-small" className="hint">
+              Клиент может принять до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.
+            </Typography.Text>
           )}
         </>
       )}
-      <h2>Проверки источников</h2>
-      {!card.checks?.length && <p>Результаты проверок ещё не поступили.</p>}
+      <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+        Проверки источников
+      </Typography.Title>
+      {!card.checks?.length && (
+        <Typography.Text tag="p" view="primary-small">
+          Результаты проверок ещё не поступили.
+        </Typography.Text>
+      )}
       {card.checks?.map((check, index) => (
         <article key={`${check.source}-${index}`}>
-          <h3>{sources[check.source]}</h3>
-          <p>
+          <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+            {sources[check.source]}
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-small">
             Результат:{' '}
             {(
               { ok: 'Успешно', unavailable: 'Источник недоступен', error: 'Ошибка', not_found: 'Не найдено' } as Record<
@@ -86,99 +106,120 @@ export function BankDetails({
               >
             )[check.status] ?? check.status}
             . Проверено: {new Date(check.checked_at).toLocaleString('ru-RU')}.
-          </p>
+          </Typography.Text>
           {check.status === 'unavailable' && (
-            <p role="alert">
+            <InlineNotice>
               Источник не ответил и после повторных попыток. Когда он заработает, нажмите «Повторить проверки».
-            </p>
+            </InlineNotice>
           )}
-          {check.error && <p className="hint">Ответ системы: {check.error}</p>}
+          {check.error && (
+            <Typography.Text tag="p" view="primary-small" className="hint">
+              Ответ системы: {check.error}
+            </Typography.Text>
+          )}
           {check.payload && (
-            <MotionDetails>
-              <summary>Ответ источника</summary>
+            <Disclosure label={<>Ответ источника</>}>
               <pre>{JSON.stringify(check.payload, null, 2)}</pre>
-            </MotionDetails>
+            </Disclosure>
           )}
         </article>
       ))}
       {/* у автоматического решения рекомендации нет, пустой блок только сбивает */}
       {(card.recommendation || card.status === 'manual_review') && (
         <>
-          <h2>Рекомендация политики</h2>
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+            Рекомендация политики
+          </Typography.Title>
           {card.recommendation ? (
-            <p>
+            <Typography.Text tag="p" view="primary-small">
               {products[card.recommendation.product]}: {money(card.recommendation.amount_kop)},{' '}
               {card.recommendation.term_months} мес., {rate(card.recommendation.rate_bp)} годовых.{' '}
               {card.recommendation.guarantor_required ? 'Нужно поручительство.' : ''}{' '}
               {card.recommendation.pledge_required ? 'Нужен залог.' : ''}
-            </p>
+            </Typography.Text>
           ) : (
-            <p>Рекомендация пока не поступила.</p>
+            <Typography.Text tag="p" view="primary-small">
+              Рекомендация пока не поступила.
+            </Typography.Text>
           )}
         </>
       )}
-      <h2>Оценка риска</h2>
-      <p className="hint">
+      <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+        Оценка риска
+      </Typography.Title>
+      {card.status === 'manual_review' && (
+        <Typography.Text tag="p" view="primary-small" className="hint">
+          <strong>Предварительная оценка.</strong> Факторы и расчётные условия помогают сотруднику банка принять
+          решение; окончательные условия ещё не определены.
+        </Typography.Text>
+      )}
+      <Typography.Text tag="p" view="primary-small" className="hint">
         Скоринг: оценка риска по набору факторов. Решение банка также учитывает проверки и условия продукта.
         Стоп-фактор: обстоятельство, требующее отказа или ручной проверки.
-      </p>
+      </Typography.Text>
       {card.scoring ? (
         <>
-          <p>
+          <Typography.Text tag="p" view="primary-small">
             Баллы: {card.scoring.score} из 100. Класс риска: {card.scoring.grade}. Вероятность невозврата:{' '}
             {card.scoring.pd}.
-          </p>
-          <p>
+          </Typography.Text>
+          <Typography.Text tag="p" view="primary-small">
             Версия модели: {card.scoring.version}. Версия политики: {card.policy_version ?? 'не указана'}.
-          </p>
+          </Typography.Text>
           <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Фактор</th>
-                  <th>Значение</th>
-                  <th>Баллы</th>
-                  <th>Влияние</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <Table.THead>
+                <Table.THeadCell>Фактор</Table.THeadCell>
+                <Table.THeadCell>Значение</Table.THeadCell>
+                <Table.THeadCell>Баллы</Table.THeadCell>
+                <Table.THeadCell>Влияние</Table.THeadCell>
+              </Table.THead>
+              <Table.TBody>
                 {card.scoring.factors.map((factor, index) => (
-                  <tr key={`${factor.code}-${index}`}>
-                    <th>{factor.name}</th>
-                    <td>{factorValue(factor.code, factor.value)}</td>
-                    <td>
+                  <Table.TRow key={`${factor.code}-${index}`}>
+                    <Table.TCell>{factor.name}</Table.TCell>
+                    <Table.TCell>{factorValue(factor.code, factor.value)}</Table.TCell>
+                    <Table.TCell>
                       {factor.points} / {factor.max_points}
-                    </td>
-                    <td>
+                    </Table.TCell>
+                    <Table.TCell>
                       {factor.points === factor.max_points
                         ? 'лучшее значение'
                         : `минус ${factor.max_points - factor.points} от максимума`}
-                    </td>
-                  </tr>
+                    </Table.TCell>
+                  </Table.TRow>
                 ))}
-              </tbody>
-            </table>
+              </Table.TBody>
+            </Table>
           </div>
         </>
       ) : (
-        <p>
+        <Typography.Text tag="p" view="primary-small">
           {card.status === 'submitted' || card.status === 'checking'
             ? 'Оценка появится после проверок источников.'
             : 'Оценку не считали: решение принято по стоп-факторам или не хватило данных источников.'}
-        </p>
+        </Typography.Text>
       )}
       {!!card.reasons.length && (
         <>
-          <h3>Причины решения и стоп-факторы</h3>
+          <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+            Причины решения и стоп-факторы
+          </Typography.Title>
           <ul>{reasonList}</ul>
         </>
       )}
-      <h2 id="bank-audit">История заявки</h2>
-      {state === 'error' && <p role="alert">Не удалось загрузить историю.</p>}
+      <Typography.Title tag="h2" view="small" font="system" defaultMargins id="bank-audit">
+        История заявки
+      </Typography.Title>
+      {state === 'error' && <InlineNotice>Не удалось загрузить историю.</InlineNotice>}
       <Button size={40} onClick={() => setRevision((value) => value + 1)}>
         Обновить историю
       </Button>
-      {state === 'ready' && !history.length && <p>Событий пока нет.</p>}
+      {state === 'ready' && !history.length && (
+        <Typography.Text tag="p" view="primary-small">
+          Событий пока нет.
+        </Typography.Text>
+      )}
       <ol>
         {history.map((event) => (
           <li key={event.id}>
@@ -194,8 +235,16 @@ export function BankDetails({
             }
             {event.from_status && <>: {labels[event.from_status]}</>}
             {event.to_status && <> → {labels[event.to_status]}</>}
-            {event.comment && <p>{event.comment}</p>}
-            {!!event.reason_codes?.length && <p>Причины: {event.reason_codes.map(reasonText).join('; ')}</p>}
+            {event.comment && (
+              <Typography.Text tag="p" view="primary-small">
+                {event.comment}
+              </Typography.Text>
+            )}
+            {!!event.reason_codes?.length && (
+              <Typography.Text tag="p" view="primary-small">
+                Причины: {event.reason_codes.map(reasonText).join('; ')}
+              </Typography.Text>
+            )}
           </li>
         ))}
       </ol>
