@@ -394,11 +394,6 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
           )}
         </>
       )}
-      {['issued', 'closed'].includes(card.status) && (
-        <Typography.Text tag="p" view="primary-small">
-          Деньги на счёте. Выдача смоделирована, реального перевода нет.
-        </Typography.Text>
-      )}
     </motion.section>
   );
 }
