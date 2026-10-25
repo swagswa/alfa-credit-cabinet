@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { Icon } from './ui/Workspace';
 import { NoticeHost } from './BottomNotice';
+import { NotificationBell } from './Notifications';
 import { CabinetCacheProvider } from './CabinetCache';
 import { Button, MotionNavLink as NavLink, RouteSurface } from './motion';
 import { Login } from './pages/Login';
@@ -138,6 +139,7 @@ export function App() {
                     </svg>
                   </span>
                   <strong title={name}>{name}</strong>
+                  {client && <NotificationBell />}
                   <Button
                     className="profile-logout"
                     size={40}
