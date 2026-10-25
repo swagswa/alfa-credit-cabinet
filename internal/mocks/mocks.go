@@ -30,6 +30,11 @@ func New() *echo.Echo {
 		panic(err)
 	}
 	s.routes(e)
+	a, err := newAlfaID()
+	if err != nil {
+		panic(err)
+	}
+	a.routes(e)
 	return e
 }
 
