@@ -9,8 +9,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -75,37 +78,15 @@ func (c *Client) Digest(ctx context.Context) (string, error) {
 // Extract отдаёт ответ модели как есть и поля из него в копейках. Ответ не по
 // схеме это domain.ErrInvalid: при temperature 0 повтор вернёт то же самое.
 func (c *Client) Extract(ctx context.Context, kind domain.DocKind, text string) ([]byte, domain.DocValues, error) {
-	schema, err := files.ReadFile("schema/" + string(kind) + ".json")
-	if err != nil {
+	if _, err := files.ReadFile("schema/" + string(kind) + ".json"); err != nil {
 		return nil, domain.DocValues{}, fmt.Errorf("%w: документы вида %q не распознаём", domain.ErrInvalid, kind)
-	}
-	prompt, err := files.ReadFile("prompt/" + string(kind) + ".txt")
-	if err != nil {
-		return nil, domain.DocValues{}, fmt.Errorf("prompt %s: %w", kind, err)
 	}
 	if r := []rune(text); len(r) > maxText {
 		text = string(r[:maxText])
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	stream := false
-	var raw []byte
-	err = c.api.Chat(ctx, &api.ChatRequest{
-		Model: c.model,
-		Messages: []api.Message{
-			{Role: "system", Content: string(prompt)},
-			{Role: "user", Content: text},
-		},
-		Stream:  &stream,
-		Format:  schema,
-		Options: map[string]any{"temperature": 0, "num_ctx": numCtx},
-	}, func(r api.ChatResponse) error {
-		raw = []byte(r.Message.Content)
-		return nil
-	})
+	raw, err := c.chat(ctx, string(kind), text)
 	if err != nil {
-		return nil, domain.DocValues{}, fmt.Errorf("ollama %s: %w", c.model, err)
+		return nil, domain.DocValues{}, err
 	}
 
 	var v domain.DocValues
@@ -127,6 +108,89 @@ func (c *Client) Extract(ctx context.Context, kind domain.DocKind, text string) 
 		return raw, domain.DocValues{}, err
 	}
 	return raw, v, nil
+}
+
+// chat: системный промпт и схема по имени из prompt/ и schema/, текст сообщением клиента
+func (c *Client) chat(ctx context.Context, name, text string) ([]byte, error) {
+	schema, err := files.ReadFile("schema/" + name + ".json")
+	if err != nil {
+		return nil, fmt.Errorf("schema %s: %w", name, err)
+	}
+	prompt, err := files.ReadFile("prompt/" + name + ".txt")
+	if err != nil {
+		return nil, fmt.Errorf("prompt %s: %w", name, err)
+	}
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	stream := false
+	var raw []byte
+	err = c.api.Chat(ctx, &api.ChatRequest{
+		Model: c.model,
+		Messages: []api.Message{
+			{Role: "system", Content: string(prompt)},
+			{Role: "user", Content: text},
+		},
+		Stream:  &stream,
+		Format:  schema,
+		Options: map[string]any{"temperature": 0, "num_ctx": numCtx},
+	}, func(r api.ChatResponse) error {
+		raw = []byte(r.Message.Content)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ollama %s: %w", c.model, err)
+	}
+	return raw, nil
+}
+
+// Need достаёт цель, сумму и срок из слов клиента. Сумму модель переписывает как
+// сказали («2 млн»), в копейки переводим сами. Цель не из списка это «другое».
+func (c *Client) Need(ctx context.Context, text string) (domain.Need, error) {
+	raw, err := c.chat(ctx, "need", text)
+	if err != nil {
+		return domain.Need{}, err
+	}
+	var n struct {
+		Goal       domain.Goal `json:"goal"`
+		Amount     string      `json:"amount"`
+		TermMonths int         `json:"term_months"`
+	}
+	if err := strict(raw, &n); err != nil {
+		return domain.Need{}, err
+	}
+	if !slices.Contains(domain.Goals, n.Goal) {
+		n.Goal = domain.GoalOther
+	}
+	return domain.Need{Goal: n.Goal, AmountKop: spoken(n.Amount), TermMonths: max(n.TermMonths, 0)}, nil
+}
+
+var (
+	// «3 500 000» и «3 500 000»: пробелы внутри числа
+	digitGap = regexp.MustCompile(`(\d)[\s\x{00a0}]+(\d)`)
+	number   = regexp.MustCompile(`\d+(?:[.,]\d+)?`)
+)
+
+// spoken: «1,5 миллиона», «800 тыс. рублей», «3 500 000 ₽» в копейки, 0 если числа нет
+func spoken(s string) int64 {
+	s = strings.ToLower(digitGap.ReplaceAllString(digitGap.ReplaceAllString(s, "$1$2"), "$1$2"))
+	loc := number.FindStringIndex(s)
+	if loc == nil {
+		return 0
+	}
+	v, err := strconv.ParseFloat(strings.Replace(s[loc[0]:loc[1]], ",", ".", 1), 64)
+	if err != nil {
+		return 0
+	}
+	unit := s[loc[1]:]
+	switch {
+	case strings.Contains(unit, "млрд") || strings.Contains(unit, "миллиард"):
+		v *= 1e9
+	case strings.Contains(unit, "млн") || strings.Contains(unit, "миллион") || strings.Contains(unit, "лям"):
+		v *= 1e6
+	case strings.Contains(unit, "тыс") || strings.Contains(unit, "т.р"):
+		v *= 1e3
+	}
+	return int64(math.Round(v * domain.KopInRub))
 }
 
 func strict(raw []byte, v any) error {

@@ -81,3 +81,16 @@ func (h *Handler) RecommendProducts(
 	}
 	return res, nil
 }
+
+func (h *Handler) NeedFromText(
+	ctx context.Context,
+	req oapi.NeedFromTextRequestObject,
+) (oapi.NeedFromTextResponseObject, error) {
+	n, err := h.products.Need(ctx, req.Body.Text)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.NeedFromText200JSONResponse{
+		Goal: oapi.Goal(n.Goal), AmountKop: opt(n.AmountKop), TermMonths: opt(n.TermMonths),
+	}, nil
+}

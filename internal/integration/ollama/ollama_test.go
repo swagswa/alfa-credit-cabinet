@@ -99,3 +99,35 @@ func TestExtract(t *testing.T) {
 		})
 	}
 }
+
+func TestNeed(t *testing.T) {
+	tests := []struct {
+		name, content string
+		want          domain.Need
+		wantErr       error
+	}{
+		{"миллионы словом", `{"goal":"equipment","amount":"2 млн","term_months":24}`,
+			domain.Need{Goal: domain.GoalEquipment, AmountKop: 200_000_000, TermMonths: 24}, nil},
+		{"дробь с запятой", `{"goal":"cash_gap","amount":"1,5 миллиона","term_months":12}`,
+			domain.Need{Goal: domain.GoalCashGap, AmountKop: 150_000_000, TermMonths: 12}, nil},
+		{"тысячи", `{"goal":"purchase","amount":"800 тыс. рублей","term_months":0}`,
+			domain.Need{Goal: domain.GoalPurchase, AmountKop: 80_000_000}, nil},
+		{"цифрами с пробелами", `{"goal":"renovation","amount":"3 500 000 ₽","term_months":36}`,
+			domain.Need{Goal: domain.GoalRenovation, AmountKop: 350_000_000, TermMonths: 36}, nil},
+		{"суммы нет", `{"goal":"other","amount":"","term_months":6}`,
+			domain.Need{Goal: domain.GoalOther, TermMonths: 6}, nil},
+		// рамки продуктов проверяет usecase, клиент только переводит в копейки
+		{"сумма и срок как сказали", `{"goal":"equipment","amount":"500 млн","term_months":120}`,
+			domain.Need{Goal: domain.GoalEquipment, AmountKop: 50_000_000_000, TermMonths: 120}, nil},
+		{"цель не из списка", `{"goal":"yacht","amount":"1 млн","term_months":12}`,
+			domain.Need{Goal: domain.GoalOther, AmountKop: 100_000_000, TermMonths: 12}, nil},
+		{"не по схеме", `{"goal":"equipment","price":"1"}`, domain.Need{}, domain.ErrInvalid},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := fake(t, tt.content).Need(t.Context(), "нужно 2 млн на кофемашину, отдам за пару лет")
+			require.ErrorIs(t, err, tt.wantErr)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

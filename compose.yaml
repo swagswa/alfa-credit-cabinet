@@ -128,6 +128,8 @@ services:
       # демо-значение, чтобы стенд поднимался одной командой; вне демо задать свой в .env
       JWT_SECRET: ${JWT_SECRET:-demo-only-jwt-secret-replace-outside-demo}
       AI_ENABLED: ${AI_ENABLED:-false}
+      # с профилем ai api спрашивает модель про цель и сумму из слов клиента
+      OLLAMA_URL: http://ollama:11434
       SEED_DEMO: ${SEED_DEMO:-true}
       REDIS_ADDR: redis:6379
       # стенд по http: с Secure браузер cookie не сохранит; за https включить

@@ -271,6 +271,53 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
 
+  /products/need:
+    post:
+      tags: [products]
+      operationId: needFromText
+      summary: Цель, сумма и срок из слов клиента
+      description: |
+        Только с профилем ai (`ai` в health). Локальная модель достаёт из текста цель, сумму и срок,
+        продукт по ним выбирает `/products/recommendation`, не модель. Чего в тексте нет или что вне рамок
+        продуктов, в ответе нет. Модель не ответила или выключена: 503.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              additionalProperties: false
+              properties:
+                text:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                  example: Нужно 2 млн на кофемашину и ремонт зала, отдам за пару лет
+      responses:
+        '200':
+          description: Что поняли
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goal]
+                properties:
+                  goal:
+                    $ref: '#/components/schemas/Goal'
+                  amount_kop:
+                    $ref: '#/components/schemas/AmountKop'
+                  term_months:
+                    $ref: '#/components/schemas/TermMonths'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+
   /products/recommendation:
     get:
       tags: [products]
@@ -2762,3 +2809,7 @@ components:
             type: string
             enum: [ok, down]
           example: {db: ok, temporal: ok}
+        ai:
+          type: boolean
+          description: Стенд с профилем ai, есть распознавание документов и подбор по тексту
+          example: false

@@ -15,6 +15,7 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/alfaid"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/egrul"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/faults"
+	"github.com/swagswa/alfa-credit-cabinet/internal/integration/ollama"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
 	"github.com/swagswa/alfa-credit-cabinet/internal/rbac"
 	"github.com/swagswa/alfa-credit-cabinet/internal/repo"
@@ -87,7 +88,14 @@ func main() {
 		repo.NewDocument(db), repo.NewSigning(db), notifier, catalog, cfg.SigningCodeTTL)
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
-	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
+	// без профиля ai подбора по тексту нет, фронт узнаёт об этом из health
+	var reader usecase.NeedReader
+	if cfg.AIEnabled {
+		if reader, err = ollama.New(cfg.OllamaURL, cfg.OllamaModel, cfg.NeedTimeout); err != nil {
+			lg.Zap.Fatal("ollama", zap.Error(err))
+		}
+	}
+	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog, reader), companies, apps,
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
 		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)),
 		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)),

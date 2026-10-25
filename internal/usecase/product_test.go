@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ func products(t *testing.T) usecase.ProductUseCase {
 	t.Helper()
 	c, err := rules.Products("../../rules/products.yaml")
 	require.NoError(t, err)
-	return usecase.NewProduct(c)
+	return usecase.NewProduct(c, nil)
 }
 
 // строки таблицы подбора goals из rules/products.yaml
@@ -122,4 +123,52 @@ func q(g domain.Goal, amountRub int64, term int, revenueRub int64) usecase.Recom
 		TermMonths:        term,
 		MonthlyRevenueKop: revenueRub * domain.KopInRub,
 	}
+}
+
+type fakeNeed struct {
+	need domain.Need
+	err  error
+}
+
+func (f fakeNeed) Need(context.Context, string) (domain.Need, error) { return f.need, f.err }
+
+// модель достала что-то из слов клиента, рамки продуктов наши
+func TestNeed(t *testing.T) {
+	c, err := rules.Products("../../rules/products.yaml")
+	require.NoError(t, err)
+	eq := domain.GoalEquipment
+	tests := []struct {
+		name string
+		got  fakeNeed
+		want domain.Need
+		err  error
+	}{
+		{"всё в рамках", fakeNeed{need: domain.Need{Goal: eq, AmountKop: 200_000_000, TermMonths: 24}},
+			domain.Need{Goal: eq, AmountKop: 200_000_000, TermMonths: 24}, nil},
+		{
+			"сумма больше любого продукта",
+			fakeNeed{need: domain.Need{Goal: eq, AmountKop: 50_000_000_000, TermMonths: 24}},
+			domain.Need{Goal: eq, TermMonths: 24},
+			nil,
+		},
+		{"сумма меньше любого продукта", fakeNeed{need: domain.Need{Goal: eq, AmountKop: 5_000_000}},
+			domain.Need{Goal: eq}, nil},
+		{"сумма не кратна шагу", fakeNeed{need: domain.Need{Goal: eq, AmountKop: 123_456_700, TermMonths: 120}},
+			domain.Need{Goal: eq, AmountKop: 123_000_000}, nil},
+		{"модель не ответила", fakeNeed{err: domain.ErrUnavailable}, domain.Need{}, domain.ErrUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uc := usecase.NewProduct(c, tt.got)
+			require.True(t, uc.NeedEnabled())
+			got, needErr := uc.Need(t.Context(), "нужно 2 млн на кофемашину")
+			require.ErrorIs(t, needErr, tt.err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+
+	off := usecase.NewProduct(c, nil)
+	require.False(t, off.NeedEnabled())
+	_, err = off.Need(t.Context(), "нужно 2 млн")
+	require.ErrorIs(t, err, domain.ErrUnavailable, "без профиля ai")
 }

@@ -24,6 +24,7 @@ p, user, /api/documents/:id, GET
 p, user, /api/documents/:id/file, GET
 
 p, client, /api/products/recommendation, GET
+p, client, /api/products/need, POST
 p, client, /api/companies/:inn, GET
 p, client, /api/applications, GET
 p, client, /api/applications, POST

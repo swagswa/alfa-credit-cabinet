@@ -154,7 +154,7 @@ func newServer(t *testing.T, auth usecase.AuthUseCase, dbErr error) http.Handler
 		Log: zap.NewNop(),
 		Handler: handler.New(handler.Deps{
 			Health:     health,
-			Products:   usecase.NewProduct(catalog),
+			Products:   usecase.NewProduct(catalog, nil),
 			Companies:  usecase.NewCompany(egrulDown{}),
 			Auth:       auth,
 			Documents:  &fakeDocs{},
@@ -476,4 +476,22 @@ func TestAlfaIDRedirects(t *testing.T) {
 			require.Equal(t, http.StatusOK, call(t, h, "GET", "/api/me", "", ck.Value).Code)
 		})
 	}
+}
+
+// стенд без профиля ai: подбора по тексту нет, фронт узнаёт это из health
+func TestNeedWithoutAI(t *testing.T) {
+	auth := newAuth(t)
+	_, client, err := auth.Login(t.Context(), "coffee", "demo12345", "10.0.0.1")
+	require.NoError(t, err)
+	h := newServer(t, auth, nil)
+
+	rec := call(t, h, "GET", "/api/health", "", "")
+	var health oapi.Health
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &health))
+	require.Nil(t, health.Ai)
+
+	body := `{"text":"нужно 2 млн на кофемашину"}`
+	require.Equal(t, http.StatusUnauthorized, call(t, h, "POST", "/api/products/need", body, "").Code)
+	require.Equal(t, http.StatusServiceUnavailable, call(t, h, "POST", "/api/products/need", body, client).Code)
+	require.Equal(t, http.StatusBadRequest, call(t, h, "POST", "/api/products/need", `{"text":"а"}`, client).Code)
 }
