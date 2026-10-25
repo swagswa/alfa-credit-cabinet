@@ -183,6 +183,15 @@ func (u *documentUseCase) Read(
 	if text, rec.Source, err = u.text.Text(ctx, contentType, file); err != nil {
 		return rec, fmt.Errorf("текст: %w", err)
 	}
+	// перепутанный файл модель всё равно разложит по полям, только мусором
+	if got := domain.GuessKind(text); got != "" && got != kind {
+		return rec, fmt.Errorf(
+			"%w: похоже, это %s, а загружено как %s. Загрузите нужный файл или введите итоги вручную",
+			domain.ErrInvalid,
+			got.Name(),
+			kind.Name(),
+		)
+	}
 	if rec.Raw, rec.Values, err = u.llm.Extract(ctx, kind, text); err != nil {
 		return rec, fmt.Errorf("поля: %w", err)
 	}

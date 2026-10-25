@@ -41,20 +41,22 @@ func (f *fakeDocs) SaveRecognition(
 type fakeText struct {
 	calls int
 	scan  bool
+	text  string
 	err   error
 }
 
 func (f *fakeText) Text(context.Context, string, []byte) (string, domain.TextSource, error) {
 	f.calls++
+	text := cmp.Or(f.text, "Итоги за период")
 	if f.scan {
-		return "Выписка", domain.TextOCR, f.err
+		return text, domain.TextOCR, f.err
 	}
-	return "Выписка", domain.TextPDF, f.err
+	return text, domain.TextPDF, f.err
 }
 
 func (f *fakeText) Reread(context.Context, string, []byte) (string, error) {
 	f.calls++
-	return "Выписка", nil
+	return "Итоги за период", nil
 }
 
 // второе прочтение отдаёт reread, если он задан
@@ -93,6 +95,7 @@ func TestRecognize(t *testing.T) {
 		disabled bool
 		textErr  error
 		scan     bool
+		text     string
 		llm      fakeLLM
 		want     []domain.DocStatus
 		wantErr  error
@@ -109,6 +112,8 @@ func TestRecognize(t *testing.T) {
 			want: []domain.DocStatus{domain.DocRecognizing, domain.DocRecognized}, wantOCR: 2},
 		{name: "скан не сошёлся и со второго", scan: true, llm: fakeLLM{values: wrongINN, reread: &wrongINN},
 			want: []domain.DocStatus{domain.DocRecognizing, domain.DocFailed}, wantOCR: 2},
+		{name: "паспорт вместо отчётности", text: "ПАСПОРТ ГРАЖДАНИНА РОССИЙСКОЙ ФЕДЕРАЦИИ", llm: fakeLLM{values: good},
+			want: []domain.DocStatus{domain.DocRecognizing, domain.DocFailed}, wantOCR: 1},
 		{name: "битый файл", textErr: domain.ErrInvalid,
 			want: []domain.DocStatus{domain.DocRecognizing, domain.DocFailed}, wantOCR: 1},
 		{name: "модель ответила не по схеме", llm: fakeLLM{err: domain.ErrInvalid},
@@ -122,7 +127,7 @@ func TestRecognize(t *testing.T) {
 				Kind: cmp.Or(tt.kind, domain.DocFinancials), Status: cmp.Or(tt.status, domain.DocUploaded),
 				INN: "0000100012",
 			}}
-			text := &fakeText{err: tt.textErr, scan: tt.scan}
+			text := &fakeText{err: tt.textErr, scan: tt.scan, text: tt.text}
 			uc := usecase.NewDocument(docs, nil, nil, text, &tt.llm, !tt.disabled)
 
 			require.ErrorIs(t, uc.Recognize(t.Context(), uuid.New()), tt.wantErr)
@@ -131,6 +136,10 @@ func TestRecognize(t *testing.T) {
 			if last := len(tt.want) - 1; last > 0 && tt.want[last] == domain.DocFailed {
 				require.NotEmpty(t, docs.reason, "клиенту нужно объяснить, почему вводить руками")
 				require.Equal(t, "qwen3:4b-instruct-2507-q4_K_M", docs.saved.Model)
+			}
+			if tt.text != "" {
+				require.Equal(t, "похоже, это паспорт, а загружено как бухгалтерская отчётность. "+
+					"Загрузите нужный файл или введите итоги вручную", docs.reason)
 			}
 			if tt.wantOCR == 2 {
 				require.JSONEq(t, `[{"n":1},{"n":2}]`, string(docs.saved.Raw), "в аудите оба ответа модели")

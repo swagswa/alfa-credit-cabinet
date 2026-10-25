@@ -6,6 +6,7 @@ import (
 	"math/bits"
 	"reflect"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +23,44 @@ const (
 	DocFinancials DocKind = "financials"
 	// DocLoanAgreement договор с графиком, его формирует процесс после принятия условий
 	DocLoanAgreement DocKind = "loan_agreement"
+	DocPassport      DocKind = "passport"
+	DocProxy         DocKind = "power_of_attorney"
 )
+
+// kindMarkers: по чему узнаём документ в тексте первой страницы. Заголовки у
+// всех видов разные, модель для этого не нужна. Порядок важен: в отчётности
+// и выписке слова «паспорт» нет, а вот в доверенности «выписка» бывает.
+var kindMarkers = []struct {
+	kind   DocKind
+	name   string
+	marker string
+}{
+	{DocPassport, "паспорт", "паспорт"},
+	{DocProxy, "доверенность", "доверенност"},
+	{DocFinancials, "бухгалтерская отчётность", "бухгалтерск"},
+	{DocStatement, "выписка по счёту", "выписка"},
+}
+
+// GuessKind узнаёт вид документа по заголовку, пустая строка значит не узнали
+func GuessKind(text string) DocKind {
+	head := strings.ToLower(text[:min(len(text), firstPage)])
+	for _, m := range kindMarkers {
+		if strings.Contains(head, m.marker) {
+			return m.kind
+		}
+	}
+	return ""
+}
+
+// Name по-русски для сообщений клиенту
+func (k DocKind) Name() string {
+	for _, m := range kindMarkers {
+		if m.kind == k {
+			return m.name
+		}
+	}
+	return string(k)
+}
 
 // Recognizable значит, что итоги есть только у выписки и отчётности, их и распознаём, и подтверждаем.
 func (k DocKind) Recognizable() bool { return k == DocStatement || k == DocFinancials }
@@ -219,6 +257,9 @@ type Recognition struct {
 }
 
 const (
+	// заголовок ищем в начале текста: дальше в выписке бывают назначения платежей
+	// вроде «оплата по доверенности», они вид документа не меняют
+	firstPage = 600
 	// допуск на округление: модель и OCR теряют копейки, рубль не страшно
 	sumTolerance = 100
 	maxMonths    = 13

@@ -38,7 +38,11 @@ func (e FieldErrors) Error() string { return fmt.Sprintf("%s: %v", ErrIncomplete
 
 func (FieldErrors) Unwrap() error { return ErrIncomplete }
 
-// Human: причина для человека без «неверные данные: » в начале, оно ему ничего не говорит
+// Human: причина для человека без «неверные данные: » и того, что обёртки
+// дописали перед ним, ему это ничего не говорит
 func Human(err error) string {
-	return strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": ")
+	if _, reason, ok := strings.Cut(err.Error(), ErrInvalid.Error()+": "); ok {
+		return reason
+	}
+	return err.Error()
 }

@@ -159,3 +159,22 @@ func TestReconcile(t *testing.T) {
 		})
 	}
 }
+
+func TestGuessKind(t *testing.T) {
+	tests := []struct {
+		text string
+		want domain.DocKind
+	}{
+		{"АО «Банк А»\nВыписка по расчётному счёту\nза период", domain.DocStatement},
+		{"ВЫПИСКА ОПЕРАЦИЙ ПО СЧЁТУ № 40702810000000100012", domain.DocStatement},
+		{"Бухгалтерская (финансовая) отчётность\nБухгалтерский баланс на 31 декабря", domain.DocFinancials},
+		{"ПАСПОРТ ГРАЖДАНИНА РОССИЙСКОЙ ФЕДЕРАЦИИ\nФамилия", domain.DocPassport},
+		{"ДОВЕРЕННОСТЬ № 7\nООО «Тёплое зерно» уполномочивает", domain.DocProxy},
+		{"Договор поставки оборудования", ""},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.want), func(t *testing.T) {
+			require.Equal(t, tt.want, domain.GuessKind(tt.text))
+		})
+	}
+}
