@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => ({
   server: {
     headers: { 'Permissions-Policy': 'otp-credentials=()' },
     // api в compose слушает 8080, cookie сессии ходит через тот же origin
-    proxy: { '/api/samples': 'http://localhost:8081', '/alfa-id': 'http://localhost:8081', '/api': 'http://localhost:8080' },
+    proxy: {
+      '/api/samples': 'http://localhost:8081',
+      '/alfa-id': 'http://localhost:8081',
+      '/api': 'http://localhost:8080',
+    },
   },
 }));
