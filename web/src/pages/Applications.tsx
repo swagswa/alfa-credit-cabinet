@@ -12,6 +12,7 @@ import {
   money,
   options,
   products as productNames,
+  rate,
   representatives,
   requiredDocs,
 } from '../api/presentation';
@@ -260,10 +261,8 @@ export function Applications({
     if (createOnly) return;
     let active = true;
     let serial = 0;
-    let pending = false;
     async function load() {
       const request = ++serial;
-      pending = true;
       if (!loaded.current) setLoading(true);
       try {
         const result = id
@@ -320,18 +319,26 @@ export function Applications({
         if (active && request === serial) setError('Нет связи с сервером. Попробуйте обновить данные.');
       } finally {
         if (active && request === serial) {
-          pending = false;
           setLoading(false);
         }
       }
     }
     window.addEventListener('application-refresh', load);
     void load();
+    return () => {
+      active = false;
+      window.removeEventListener('application-refresh', load);
+    };
+  }, [id, revision, offset, status, product, grade, sort, bank, cache, createOnly, group]);
+  // поток событий не зависит от фильтров: фильтры читает load через событие
+  useEffect(() => {
+    if (createOnly) return;
+    const reload = () => window.dispatchEvent(new Event('application-refresh'));
     const events = new EventSource('/api/events');
     events.onopen = () => {
       setCheckProgress({ applicationId: id ?? '', version: 0, items: {} });
       setConnectionFailed(false);
-      if (!pending) void load();
+      reload();
       window.dispatchEvent(new Event('feed-refresh'));
     };
     events.onerror = () => {
@@ -343,7 +350,7 @@ export function Applications({
       if (!event || event.application_id !== id) return;
       setCheckProgress((current) => updateCheckProgress(current, event));
       // Результат сохранён в БД: обновляем также подробные ответы источников у банка.
-      if (event.check_status) void load();
+      if (event.check_status) reload();
     };
     const statusChanged = (message: MessageEvent<string>) => {
       try {
@@ -359,19 +366,15 @@ export function Applications({
       } catch {
         /* Повреждённое уведомление не должно блокировать обновление карточки. */
       }
-      void load();
+      reload();
     };
     events.addEventListener('check', check);
     events.addEventListener('status', statusChanged);
     const updateFeed = () => window.dispatchEvent(new Event('feed-refresh'));
     events.addEventListener('status', updateFeed);
-    events.addEventListener('document', load);
-    return () => {
-      active = false;
-      events.close();
-      window.removeEventListener('application-refresh', load);
-    };
-  }, [id, revision, offset, status, product, grade, sort, bank, cache, createOnly, group]);
+    events.addEventListener('document', reload);
+    return () => events.close();
+  }, [id, revision, createOnly]);
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !found || !selectedProduct) return;
@@ -473,7 +476,7 @@ export function Applications({
       </PageHeading>
       <section className="workspace-content" aria-busy={loading}>
         {error && <BottomNotice message={error} onClose={() => setError('')} />}
-        {loading && !createOnly && (
+        {(loading || (!!id && card?.id !== id && !error)) && !createOnly && (
           <div className="initial-loading" role="status">
             Загружаем...
           </div>
@@ -902,7 +905,7 @@ export function Applications({
                       {selectedProduct.term_max_months} месяцев.
                     </Typography.Text>
                     <Typography.Text tag="p" view="primary-small">
-                      Ставка: от {selectedProduct.rate_min_bp / 100}% до {selectedProduct.rate_max_bp / 100}% годовых.
+                      Ставка: от {rate(selectedProduct.rate_min_bp)} до {rate(selectedProduct.rate_max_bp)} годовых.
                       Возраст бизнеса: от {selectedProduct.min_business_age_months} мес.
                     </Typography.Text>
                     <ul>
