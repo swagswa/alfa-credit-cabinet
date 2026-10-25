@@ -118,11 +118,11 @@ SET product             = @product,
     updated_at          = now()
 WHERE id = @id AND version = @version AND status = 'draft';
 
--- выручку после подачи клиент уточняет только в ответ на запрос банка
+-- выручку после подачи клиент уточняет только в ответ на запрос банка;
+-- зовётся в транзакции перехода, версию поднимет сам переход
 -- name: SetRevenue :execrows
 UPDATE applications
 SET monthly_revenue_kop = @monthly_revenue_kop::bigint,
-    version             = version + 1,
     updated_at          = now()
 WHERE id = @id AND status = 'need_info';
 

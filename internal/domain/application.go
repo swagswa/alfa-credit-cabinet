@@ -135,6 +135,8 @@ type Move struct {
 	Decision *Decision
 	// Documents просит сотрудник вместе с переходом в need_info
 	Documents []DocKind
+	// RevenueKop уточнённая выручка из ответа клиента, пишется вместе с переходом из need_info
+	RevenueKop *int64
 }
 
 // InfoRequest из перехода в need_info. По стоп-фактору документы и тексты причин

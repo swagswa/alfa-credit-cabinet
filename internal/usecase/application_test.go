@@ -511,23 +511,33 @@ func TestProvideInfo(t *testing.T) {
 func TestProvideRevenue(t *testing.T) {
 	e := newAppEnv(t)
 	revenue := int64(350000000)
+	revenueOf := func(id uuid.UUID) int64 {
+		var got int64
+		err := e.pool.QueryRow(t.Context(), "SELECT coalesce(monthly_revenue_kop, 0) FROM applications WHERE id = $1", id).
+			Scan(&got)
+		require.NoError(t, err)
+		return got
+	}
 
+	// выручка едет в действии: процесс отказал, анкета и версия как были
 	waiting := e.app(domain.StatusNeedInfo)
-	require.NoError(t, e.uc.ProvideInfo(t.Context(), e.client, waiting, usecase.Answer{RevenueKop: &revenue}))
-	var got int64
-	err := e.pool.QueryRow(t.Context(), "SELECT monthly_revenue_kop FROM applications WHERE id = $1", waiting).
-		Scan(&got)
-	require.NoError(t, err)
-	require.Equal(t, revenue, got)
-
-	// банк выручку не просил: анкету после подачи не трогаем
-	e.wf.args = nil
-	checking := e.app(domain.StatusChecking)
-	err = e.uc.ProvideInfo(t.Context(), e.client, checking, usecase.Answer{RevenueKop: &revenue})
+	before := revenueOf(waiting)
+	e.wf.err = temporal.NewApplicationError("нельзя", usecase.IllegalTransitionErrorType)
+	err := e.uc.ProvideInfo(t.Context(), e.client, waiting, usecase.Answer{RevenueKop: &revenue})
 	require.ErrorIs(t, err, domain.ErrIllegalTransition)
-	require.Nil(t, e.wf.args)
-	_, version, _ := e.state(checking)
+	require.Equal(t, &revenue, e.wf.args[2].(domain.Action).RevenueKop)
+	require.Equal(t, before, revenueOf(waiting))
+	_, version, _ := e.state(waiting)
 	require.Equal(t, 1, version)
+
+	// процесс принял: выручка ложится вместе с переходом, версия одна на всё
+	m := domain.Move{To: domain.StatusChecking, Actor: e.client, RevenueKop: &revenue}
+	require.NoError(t, e.uc.Transition(t.Context(), waiting, m))
+	require.Equal(t, revenue, revenueOf(waiting))
+	status, version, events := e.state(waiting)
+	require.Equal(t, domain.StatusChecking, status)
+	require.Equal(t, 2, version)
+	require.Equal(t, 1, events)
 }
 
 func TestDecide(t *testing.T) {

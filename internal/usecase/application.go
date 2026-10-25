@@ -55,7 +55,7 @@ type ApplicationUseCase interface {
 	// Cancel отменяет черновик сам, поданную заявку через её процесс.
 	Cancel(ctx context.Context, actor domain.Actor, id uuid.UUID, reason string) (domain.Application, error)
 	// ProvideInfo принимает ответ клиента на запрос банка. Документы годятся подтверждённые
-	// или те, что не распознаём (паспорт, доверенность). Выручку пишем до перехода.
+	// или те, что не распознаём (паспорт, доверенность). Выручка ляжет вместе с переходом.
 	ProvideInfo(ctx context.Context, actor domain.Actor, id uuid.UUID, a Answer) error
 	// Decide для андеррайтера, заявка на ручном рассмотрении. Условия проверяем
 	// по продукту, как анкету при подаче, платёж считаем сами. К месту ли решение, решает процесс.
@@ -129,6 +129,12 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		}
 		if m.Decision != nil {
 			if err := apps.SaveDecision(ctx, id, &m); err != nil {
+				return err
+			}
+		}
+		// до смены статуса: выручку принимаем только в need_info
+		if m.RevenueKop != nil {
+			if err := apps.SetRevenue(ctx, id, *m.RevenueKop); err != nil {
 				return err
 			}
 		}
@@ -369,14 +375,8 @@ func (u *applicationUseCase) ProvideInfo(ctx context.Context, actor domain.Actor
 	if errs != nil {
 		return errs
 	}
-	if a.RevenueKop != nil {
-		if err := u.apps.SetRevenue(ctx, id, *a.RevenueKop); err != nil {
-			return err
-		}
-	}
-	return fromProcess(
-		u.workflows.Update(ctx, id.String(), UpdateProvideInfo, domain.Action{Actor: actor, Comment: a.Comment}),
-	)
+	act := domain.Action{Actor: actor, Comment: a.Comment, RevenueKop: a.RevenueKop}
+	return fromProcess(u.workflows.Update(ctx, id.String(), UpdateProvideInfo, act))
 }
 
 func (u *applicationUseCase) Decide(ctx context.Context, id uuid.UUID, a domain.Action) error {

@@ -14,6 +14,8 @@ type Action struct {
 	// Outcome и Terms только у решения андеррайтера
 	Outcome Status
 	Terms   *Terms
+	// RevenueKop уточнённая выручка из ответа клиента
+	RevenueKop *int64
 }
 
 // Deadlines сроки шагов, которые ведёт процесс. На стенде минуты, на проде рабочие дни.

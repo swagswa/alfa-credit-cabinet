@@ -302,6 +302,7 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 	}
 	m := domain.Move{
 		To: u.target(a), Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment, Documents: a.Documents,
+		RevenueKop: a.RevenueKop,
 	}
 	switch u.name {
 	case usecase.UpdateDecide:
