@@ -9,6 +9,7 @@ import { money, rate, products } from '../api/presentation';
 import { isCompleted } from '../api/dashboard';
 import { repeatApplication } from '../api/repeatApplication';
 import { CounterOfferComparison } from './CounterOfferComparison';
+import { OfferVariants, type Choice } from './OfferVariants';
 import { Value } from '../motion/Value';
 import { Button, motion, useMotionDisabled } from '../motion';
 import { OutcomePanel } from '../motion/OutcomePanel';
@@ -24,6 +25,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
   const reduced = useMotionDisabled();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [choice, setChoice] = useState<Choice | null>(null);
   const codeInput = useRef<React.ComponentRef<typeof CodeInput>>(null);
   const [code, setCode] = useState('');
   const [issued, setIssued] = useState<components['schemas']['SigningCode'] | null>(null);
@@ -46,7 +48,9 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         kind === 'accept'
           ? await api.POST('/applications/{id}/accept', {
               params: { path: { id: card.id } },
-              body: { version: card.version },
+              body: choice
+                ? { version: card.version, amount_kop: choice.amount_kop, term_months: choice.term_months }
+                : { version: card.version },
             })
           : await api.POST('/applications/{id}/signing-code', { params: { path: { id: card.id } } });
       if (result.data) {
@@ -257,7 +261,12 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
             {card.status === 'counter_offer' ? 'Предлагаем другие условия' : 'Условия финансирования'}
           </Typography.Title>
           {card.status === 'counter_offer' ? (
-            <CounterOfferComparison key={card.id} card={card} />
+            <>
+              <CounterOfferComparison key={card.id} card={card} />
+              {card.allowed_next.includes('accepted') && !offerExpired && (
+                <OfferVariants key={`${card.id}-${card.version}`} card={card} onChoice={setChoice} />
+              )}
+            </>
           ) : (
             <>
               <div className="offer-highlights">
@@ -344,8 +353,13 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         <InlineNotice>Срок предложения истёк. Обновите карточку, чтобы узнать актуальный статус.</InlineNotice>
       )}
       {card.allowed_next.includes('accepted') && !offerExpired && (
-        <Button view="primary" loading={busy} onClick={() => action('accept')}>
-          Принять условия
+        <Button
+          view="primary"
+          loading={busy}
+          disabled={!!choice && choice.fit !== 'auto'}
+          onClick={() => action('accept')}
+        >
+          {choice ? 'Принять свои условия' : 'Принять условия'}
         </Button>
       )}
       {card.status === 'signing' && card.allowed_next.includes('issued') && (

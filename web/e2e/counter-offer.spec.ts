@@ -47,7 +47,13 @@ const original = {
 
 async function open(
   page: Page,
-  options: { bank?: boolean; baseline?: 'error' | 'mismatch'; card?: Partial<App>; queueFailure?: boolean } = {},
+  options: {
+    bank?: boolean;
+    baseline?: 'error' | 'mismatch';
+    card?: Partial<App>;
+    queueFailure?: boolean;
+    variants?: boolean;
+  } = {},
 ) {
   let card = { ...original, ...options.card };
   const writes: { path: string; body: unknown }[] = [];
@@ -71,6 +77,25 @@ async function open(
       if (options.baseline === 'error') return route.fulfill({ status: 503, json: { detail: 'Недоступно' } });
       return route.fulfill({
         json: { items: [options.baseline === 'mismatch' ? { ...requested, amount_kop: 100000000 } : requested] },
+      });
+    }
+    if (path === '/api/applications/counter/variant') {
+      const amount = Number(new URL(req.url()).searchParams.get('amount_kop'));
+      const auto = amount <= offer.amount_kop;
+      return route.fulfill({
+        json: {
+          fit: auto ? 'auto' : 'limited',
+          terms: {
+            ...offer,
+            amount_kop: auto ? amount : offer.amount_kop,
+            monthly_payment_kop: auto ? 10746000 : 11972000,
+          },
+        },
+      });
+    }
+    if (path === '/api/products' && options.variants) {
+      return route.fulfill({
+        json: [{ code: 'equipment', amount_min_kop: 50000000, term_min_months: 12, term_max_months: 60 }],
       });
     }
     if (path === '/api/applications/counter') {
@@ -170,4 +195,27 @@ test('очередь при ошибке карточки не называет 
   await expect(row).toContainText('Не удалось загрузить условия. Откройте карточку заявки.');
   await expect(row.locator('.application-amount')).toHaveCount(0);
   await expect(row.getByRole('link')).toHaveAttribute('href', '/bank/applications/counter');
+});
+
+test('свои условия под встречным: банк пересчитывает, принять можно только то, что одобрит сам', async ({ page }) => {
+  const { writes } = await open(page, { variants: true });
+  const result = page.locator('.offer-variant-result');
+  await expect(result).toContainText('Это предложение банка');
+  const amount = page.getByLabel('Сумма, ₽');
+  await amount.fill('5000000');
+  await expect(result).toContainText('Столько банк не одобрит: на 36 мес. до 3 900 000,00 ₽');
+  await expect(page.getByRole('button', { name: 'Принять свои условия', exact: true })).toBeDisabled();
+  await amount.fill('3500000');
+  await expect(result).toContainText('Останетесь в рамках автоматического одобрения');
+  await expect(result).toContainText('107 460,00 ₽');
+  await expect(result).toContainText('Своих денег на оборудование понадобится 3 200 000,00 ₽');
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.locator('.offer-variants').screenshot({ path: 'test-results/offer-variants-375.png' });
+  await page.getByRole('button', { name: 'Принять свои условия', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0]).toEqual({
+    path: '/api/applications/counter/accept',
+    body: { version: 5, amount_kop: 350000000, term_months: 36 },
+  });
 });

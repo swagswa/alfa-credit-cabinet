@@ -699,6 +699,23 @@ export function mockApi(): Plugin {
               publish(entry.owner, app, actor.user.role, body.comment ?? 'Повтор проверок');
               return json(200, view(app));
             }
+            if (entry && req.method === 'GET' && action === 'variant') {
+              const offer = entry.app.offer;
+              if (entry.app.status !== 'counter_offer' || !offer) return problem(409, 'Только во встречном');
+              // упрощение мока: в рамках всё, что не больше встречного и не короче его
+              const amount = Number(url.searchParams.get('amount_kop'));
+              const term = Number(url.searchParams.get('term_months'));
+              const auto = amount <= offer.amount_kop && term >= offer.term_months;
+              const [a, n] = auto ? [amount, term] : [offer.amount_kop, offer.term_months];
+              const r = offer.rate_bp / 120000;
+              const terms = {
+                ...offer,
+                amount_kop: a,
+                term_months: n,
+                monthly_payment_kop: Math.round((a * r) / (1 - (1 + r) ** -n)),
+              };
+              return json(200, { fit: auto ? 'auto' : 'limited', terms });
+            }
             if (entry && req.method === 'POST' && ['accept', 'cancel', 'signing-code', 'sign'].includes(action)) {
               const app = entry.app;
               if (action === 'cancel') {
@@ -711,6 +728,11 @@ export function mockApi(): Plugin {
                   return problem(409, 'Условия или статус изменились');
                 if (!app.offer || Date.parse(app.offer.expires_at) <= Date.now())
                   return problem(409, 'Предложение истекло');
+                if (body.amount_kop) {
+                  if (body.amount_kop > app.offer.amount_kop || body.term_months < app.offer.term_months)
+                    return problem(409, 'Такие условия банк автоматически не одобряет');
+                  app.offer = { ...app.offer, amount_kop: body.amount_kop, term_months: body.term_months };
+                }
                 // Подготовка документов в моке мгновенная.
                 app.status = 'signing';
               } else {
