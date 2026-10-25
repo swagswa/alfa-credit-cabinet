@@ -69,13 +69,22 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
+	// свои условия под встречным api считает той же политикой, что и воркер
+	scoring, err := rules.Scoring(filepath.Join(cfg.RulesDir, "scoring.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
+	policy, err := rules.Policy(filepath.Join(cfg.RulesDir, "policy.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
 	notifications := repo.NewNotification(db)
 	notifier := usecase.NewNotifier(notifications, notices)
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
 	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), notifier, companies, tc, catalog)
 	events := repo.NewEvent(lg.Zap, db)
-	issue := usecase.NewIssue(db, apps, repo.NewApplication(dbq.New(db)), repo.NewDocument(db), repo.NewSigning(db),
-		notifier, catalog, cfg.SigningCodeTTL)
+	issue := usecase.NewIssue(db, apps, usecase.NewDecision(catalog, scoring, policy), repo.NewApplication(dbq.New(db)),
+		repo.NewDocument(db), repo.NewSigning(db), notifier, catalog, cfg.SigningCodeTTL)
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,

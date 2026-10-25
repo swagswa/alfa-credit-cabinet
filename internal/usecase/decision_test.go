@@ -212,3 +212,41 @@ func requireTerms(t *testing.T, want, got *domain.Terms) {
 	w.PaymentKop, g.PaymentKop = 0, 0
 	require.Equal(t, w, g)
 }
+
+// клиент двигает сумму и срок под встречным: та же политика по тем же фактам
+func TestVariantFit(t *testing.T) {
+	uc := decisions(t)
+	cases := map[string]demoCase{}
+	for _, c := range demoCases(t) {
+		cases[c.Name] = c
+	}
+	tests := []struct {
+		name, company string
+		amountRub     int64
+		term          int
+		fit           domain.Fit
+		gotRub        int64 // сколько банк даст
+	}{
+		{"меньше встречного на тот же срок", "логистика", 3_500_000, 48, domain.FitAuto, 3_500_000},
+		{"само встречное", "логистика", 3_900_000, 48, domain.FitAuto, 3_900_000},
+		{"больше встречного", "логистика", 5_000_000, 48, domain.FitLimited, 3_900_000},
+		{"срок короче, платёж не влезает", "логистика", 3_900_000, 36, domain.FitLimited, 3_900_000},
+		{"выше автолимита продукта", "кофейня", 6_000_000, 24, domain.FitManual, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := cases[tt.company]
+			f := c.facts()
+			s := uc.Score(&f)
+			app := c.application()
+			app.AmountKop, app.TermMonths = tt.amountRub*domain.KopInRub, tt.term
+
+			d := uc.Policy(app, &f, &domain.Decision{}, &s, now)
+
+			require.Equal(t, tt.fit, d.Fit(), d.Outcome)
+			if tt.gotRub > 0 {
+				require.Equal(t, tt.gotRub*domain.KopInRub, d.Terms.AmountKop)
+			}
+		})
+	}
+}

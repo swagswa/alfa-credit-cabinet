@@ -30,6 +30,7 @@ p, client, /api/applications, POST
 p, client, /api/applications/:id, GET
 p, client, /api/applications/:id, PATCH
 p, client, /api/applications/:id/cancel, POST
+p, client, /api/applications/:id/variant, GET
 p, client, /api/applications/:id/submit, POST
 p, client, /api/applications/:id/provide-info, POST
 p, client, /api/applications/:id/accept, POST

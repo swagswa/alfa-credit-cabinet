@@ -188,6 +188,26 @@ func (d *Decision) Codes() []string {
 	return out
 }
 
+// Fit как банк отнесётся к условиям, которые клиент подобрал под встречным сам.
+type Fit string
+
+const (
+	FitAuto     Fit = "auto"    // одобрит без специалиста, можно принять
+	FitLimited  Fit = "limited" // столько не даст, в Terms что даст
+	FitManual   Fit = "manual"  // нужен специалист, это уже новая заявка
+	FitRejected Fit = "rejected"
+)
+
+// fits по исходу политики: одобрение у неё бывает, только когда условия совпали с запросом
+var fits = map[Status]Fit{StatusApproved: FitAuto, StatusCounterOffer: FitLimited, StatusManualReview: FitManual}
+
+func (d *Decision) Fit() Fit {
+	if f, ok := fits[d.Outcome]; ok {
+		return f
+	}
+	return FitRejected
+}
+
 // Bin одна строка фактора: подходит, если значение < Lt; Lt nil это "всё остальное".
 type Bin struct {
 	Lt     *float64

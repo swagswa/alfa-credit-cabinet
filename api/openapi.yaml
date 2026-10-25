@@ -594,12 +594,14 @@ paths:
       summary: Принять условия
       description: |
         `approved | counter_offer -> accepted`. `version` защищает от принятия условий, которые успели поменяться.
+        Во встречном можно принять свои сумму и срок, подобранные через `variant`: принимаются, только если
+        расчёт по ним даёт `auto`, иначе 409. Договор и выдача пойдут на эти условия.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VersionRequest'
+              $ref: '#/components/schemas/AcceptRequest'
       responses:
         '200':
           description: Условия приняты, готовим документы
@@ -616,6 +618,44 @@ paths:
         '404':
           $ref: '#/components/responses/Problem'
         '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+
+  /applications/{id}/variant:
+    parameters:
+      - $ref: '#/components/parameters/ApplicationID'
+    get:
+      tags: [applications]
+      operationId: offerVariant
+      summary: Свои условия под встречным
+      description: |
+        Только во встречном предложении. Банк пересчитывает решение по тем же проверкам, но с другой суммой
+        и сроком, ничего не сохраняет. `auto`: одобрит без специалиста, можно принять; `limited`: столько
+        не даст, в `terms` что даст; `manual`: такие условия решает специалист, это новая заявка;
+        `rejected`: на таких условиях не одобрит. Сумма не больше запрошенной, оба поля в рамках продукта,
+        иначе 422 с полем.
+      parameters:
+        - {name: amount_kop, in: query, required: true, schema: {$ref: '#/components/schemas/AmountKop'}}
+        - {name: term_months, in: query, required: true, schema: {$ref: '#/components/schemas/TermMonths'}}
+      responses:
+        '200':
+          description: Расчёт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferVariant'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
           $ref: '#/components/responses/Problem'
 
   /applications/{id}/signing-code:
@@ -1929,6 +1969,43 @@ components:
           description: Версия карточки, которую видел клиент
           example: 7
 
+    AcceptRequest:
+      type: object
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          description: Версия карточки, которую видел клиент
+          example: 7
+        amount_kop:
+          $ref: '#/components/schemas/AmountKop'
+        term_months:
+          $ref: '#/components/schemas/TermMonths'
+
+    OfferVariant:
+      type: object
+      required: [fit]
+      properties:
+        fit:
+          type: string
+          enum: [auto, limited, manual, rejected]
+          example: auto
+        terms:
+          $ref: '#/components/schemas/VariantTerms'
+
+    VariantTerms:
+      description: Что банк даст, у auto и limited
+      allOf:
+        - $ref: '#/components/schemas/OfferTerms'
+        - type: object
+          required: [monthly_payment_kop]
+          properties:
+            monthly_payment_kop:
+              type: integer
+              format: int64
+              example: 10746000
+
     CancelRequest:
       type: object
       additionalProperties: false
@@ -2050,6 +2127,11 @@ components:
               format: date-time
               description: До какого момента можно принять
               example: '2026-10-21T10:25:00Z'
+            adjustable:
+              type: boolean
+              description: Встречное посчитала политика, клиент может подобрать сумму и срок через variant
+              default: false
+              example: true
 
     InfoRequestCreate:
       type: object

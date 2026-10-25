@@ -32,7 +32,12 @@ func wrongCode(msg string) error {
 
 // IssueUseCase всё после решения: принятие условий, договор, код подписи, выдача.
 type IssueUseCase interface {
-	Accept(ctx context.Context, actor domain.Actor, id uuid.UUID, version int) error
+	// Accept принимает условия банка, а с choice свои, подобранные под встречным.
+	// Свои принимаем, только если политика одобряет их без специалиста.
+	Accept(ctx context.Context, actor domain.Actor, id uuid.UUID, version int, choice *Choice) error
+	// Variant считает решение по встречному с другой суммой и сроком, ничего не пишет.
+	// Сумма не больше запрошенной, оба поля в рамках продукта.
+	Variant(ctx context.Context, actor domain.Actor, id uuid.UUID, c Choice) (domain.Decision, error)
 	// PrepareContract кладёт договор с графиком в документы заявки. date приходит
 	// из процесса, поэтому повтор шага даёт тот же файл, а второй договор не появится.
 	PrepareContract(ctx context.Context, id uuid.UUID, date time.Time) error
@@ -46,9 +51,16 @@ type IssueUseCase interface {
 	Payout(ctx context.Context, id uuid.UUID) error
 }
 
+// Choice сумма и срок, которые клиент подобрал под встречным сам.
+type Choice struct {
+	AmountKop  int64
+	TermMonths int
+}
+
 type issueUseCase struct {
 	db      *postgres.Client
 	apps    ApplicationUseCase
+	rules   DecisionUseCase
 	repo    repo.ApplicationRepository
 	docs    repo.DocumentRepository
 	signing repo.SigningRepository
@@ -60,6 +72,7 @@ type issueUseCase struct {
 func NewIssue(
 	db *postgres.Client,
 	apps ApplicationUseCase,
+	rules DecisionUseCase,
 	appRepo repo.ApplicationRepository,
 	docs repo.DocumentRepository,
 	signing repo.SigningRepository,
@@ -68,13 +81,66 @@ func NewIssue(
 	codeTTL time.Duration,
 ) IssueUseCase {
 	return &issueUseCase{
-		db: db, apps: apps, repo: appRepo, docs: docs, signing: signing, notes: notes, catalog: catalog,
+		db: db, apps: apps, rules: rules, repo: appRepo, docs: docs, signing: signing, notes: notes, catalog: catalog,
 		codeTTL: codeTTL,
 	}
 }
 
-func (u *issueUseCase) Accept(ctx context.Context, actor domain.Actor, id uuid.UUID, version int) error {
-	return u.apps.Act(ctx, id, UpdateAccept, domain.Action{Actor: actor, Version: version})
+func (u *issueUseCase) Accept(
+	ctx context.Context,
+	actor domain.Actor,
+	id uuid.UUID,
+	version int,
+	choice *Choice,
+) error {
+	a := domain.Action{Actor: actor, Version: version}
+	if choice != nil {
+		d, err := u.Variant(ctx, actor, id, *choice)
+		if err != nil {
+			return err
+		}
+		if d.Fit() != domain.FitAuto {
+			return fmt.Errorf("%w: такие условия банк автоматически не одобряет", domain.ErrConflict)
+		}
+		// решение по варианту ляжет вместе с переходом, договор и выдача возьмут его условия
+		a.Decision = &d
+		a.Comment = fmt.Sprintf(
+			"клиент выбрал свои условия: %s руб. на %d мес.",
+			rubles(d.Terms.AmountKop),
+			d.Terms.TermMonths,
+		)
+	}
+	return u.apps.Act(ctx, id, UpdateAccept, a)
+}
+
+func (u *issueUseCase) Variant(
+	ctx context.Context,
+	actor domain.Actor,
+	id uuid.UUID,
+	c Choice,
+) (domain.Decision, error) {
+	// карточкой под клиентом проверяем, что заявка его; проверки источников видит только система
+	if _, err := u.apps.Get(ctx, actor, id); err != nil {
+		return domain.Decision{}, err
+	}
+	app, err := u.apps.Get(ctx, domain.Actor{Role: domain.RoleSystem}, id)
+	if err != nil {
+		return domain.Decision{}, err
+	}
+	if !app.Adjustable() {
+		return domain.Decision{}, fmt.Errorf("%w: свои условия подбираются только во встречном предложении банка",
+			domain.ErrIllegalTransition)
+	}
+	d := app.Draft
+	d.AmountKop, d.TermMonths = c.AmountKop, c.TermMonths
+	if errs := u.catalog.Ready(&d); errs != nil {
+		return domain.Decision{}, errs
+	}
+	if c.AmountKop > app.AmountKop {
+		return domain.Decision{}, domain.FieldErrors{{Field: "amount_kop", Message: "не больше суммы из заявки"}}
+	}
+	app.Draft = d
+	return u.rules.Decide(&app, time.Now())
 }
 
 func (u *issueUseCase) PrepareContract(ctx context.Context, id uuid.UUID, date time.Time) error {

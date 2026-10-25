@@ -167,3 +167,20 @@ func TestAcceptDuringMove(t *testing.T) {
 	require.NoError(t, e.GetWorkflowError())
 	require.NoError(t, r.err)
 }
+
+// logistics подобрала свои условия под встречным: расчёт по ним уходит в базу вместе с принятием
+func TestAcceptChoice(t *testing.T) {
+	e := newEnv(t)
+	e.offered(logistics)
+	choice := logistics
+	choice.Outcome = domain.StatusApproved
+	choice.Terms = &domain.Terms{Product: domain.Equipment, AmountKop: 350_000_000, TermMonths: 48}
+	e.move(domain.StatusAccepted, domain.RoleClient, &choice)
+	e.OnActivity(e.apps.PrepareContract, mock.Anything, e.id, mock.Anything).Return(nil).Once()
+	e.expect(domain.StatusSigning, domain.RoleSystem)
+	r := e.act(time.Minute, usecase.UpdateAccept, domain.Action{Actor: client, Version: 7, Decision: &choice})
+	e.RegisterDelayedCallback(e.CancelWorkflow, 2*time.Minute)
+
+	e.run()
+	require.NoError(t, r.err)
+}

@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -198,12 +197,43 @@ func (h *Handler) AcceptOffer(
 	if err != nil {
 		return nil, err
 	}
-	err = h.issue.Accept(ctx, a, req.Id, req.Body.Version)
+	b := req.Body
+	var choice *usecase.Choice
+	switch {
+	case b.AmountKop != nil && b.TermMonths != nil:
+		choice = &usecase.Choice{AmountKop: *b.AmountKop, TermMonths: *b.TermMonths}
+	case b.AmountKop != nil || b.TermMonths != nil:
+		return nil, domain.FieldErrors{{Field: "term_months", Message: "свои условия это сумма и срок вместе"}}
+	}
+	err = h.issue.Accept(ctx, a, req.Id, b.Version, choice)
 	if err != nil {
 		return nil, err
 	}
 	v, err := h.card(ctx, a, req.Id)
 	return oapi.AcceptOffer200JSONResponse(v), err
+}
+
+func (h *Handler) OfferVariant(
+	ctx context.Context,
+	req oapi.OfferVariantRequestObject,
+) (oapi.OfferVariantResponseObject, error) {
+	a, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c := usecase.Choice{AmountKop: req.Params.AmountKop, TermMonths: req.Params.TermMonths}
+	d, err := h.issue.Variant(ctx, a, req.Id, c)
+	if err != nil {
+		return nil, err
+	}
+	out := oapi.OfferVariant{Fit: oapi.OfferVariantFit(d.Fit())}
+	if t := d.Terms; t != nil {
+		out.Terms = &oapi.VariantTerms{
+			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
+			MonthlyPaymentKop: t.PaymentKop, GuarantorRequired: &t.Guarantor, PledgeRequired: &t.Pledge,
+		}
+	}
+	return oapi.OfferVariant200JSONResponse(out), nil
 }
 
 func (h *Handler) RequestSigningCode(
@@ -384,8 +414,8 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 		g := oapi.Grade(app.Grade)
 		v.Grade = &g
 	}
-	if d := app.Decision; d != nil {
-		decisionView(&v, d, app.DueAt, role)
+	if app.Decision != nil {
+		decisionView(&v, app, role)
 	}
 	// без срока запрос не отдаём: в контракте он обязательный, а need_info без срока не бывает
 	if r := app.InfoRequest; r != nil && app.DueAt != nil {
@@ -419,13 +449,15 @@ func toView(app *domain.Application, role domain.Role) oapi.ApplicationView {
 
 // decisionView: клиент видит условия и причины с текстом, банк ещё коды без текста,
 // балл с разбивкой и рекомендацию политики
-func decisionView(v *oapi.ApplicationView, d *domain.Decision, due *time.Time, role domain.Role) {
+func decisionView(v *oapi.ApplicationView, app *domain.Application, role domain.Role) {
+	d, due := app.Decision, app.DueAt
 	bank := role != domain.RoleClient
 	v.Reasons = reasons(d.Reasons, role)
 	if t := d.Terms; t != nil {
 		o := oapi.Offer{
 			Product: oapi.ProductCode(t.Product), AmountKop: t.AmountKop, TermMonths: t.TermMonths, RateBp: t.RateBP,
 			MonthlyPaymentKop: t.PaymentKop, GuarantorRequired: &t.Guarantor, PledgeRequired: &t.Pledge,
+			Adjustable: opt(app.Adjustable()),
 		}
 		if due != nil {
 			o.ExpiresAt = *due

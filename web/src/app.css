@@ -1299,3 +1299,11 @@ section .rejection-result {
   color: #625650;
   line-height: 1.6;
 }
+.offer-variants {
+  display: grid;
+  gap: 16px;
+  margin: 16px 0;
+}
+.offer-variant-result p {
+  margin: 0 0 4px;
+}

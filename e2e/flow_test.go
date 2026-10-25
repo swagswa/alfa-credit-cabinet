@@ -51,7 +51,7 @@ func TestApproveSignIssue(t *testing.T) {
 	require.Equal(t, 1900, v.Offer.RateBp)
 	require.Contains(t, codes(v), "R_APPROVED")
 
-	acc, err := c.AcceptOfferWithResponse(t.Context(), v.Id, oapi.VersionRequest{Version: v.Version})
+	acc, err := c.AcceptOfferWithResponse(t.Context(), v.Id, oapi.AcceptRequest{Version: v.Version})
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, acc.StatusCode(), string(acc.Body))
 	wait(t, c, v.Id, oapi.ApplicationStatusSigning)
@@ -135,6 +135,36 @@ func TestCounterOffer(t *testing.T) {
 	require.Equal(t, 2050, v.Offer.RateBp)
 	require.True(t, *v.Offer.PledgeRequired)
 	require.Subset(t, codes(v), []string{"R_TERM_EXTENDED", "R_AMOUNT_DSR"})
+
+	// своё под встречным: больше встречного банк не даст, меньше одобрит сам
+	require.True(t, *v.Offer.Adjustable, "встречное посчитала политика")
+	variant := func(amount int64, term int) oapi.OfferVariant {
+		res, err := c.OfferVariantWithResponse(t.Context(), app.Id,
+			&oapi.OfferVariantParams{AmountKop: amount, TermMonths: term})
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, res.StatusCode(), string(res.Body))
+		return *res.JSON200
+	}
+	more := variant(5*mln, 48)
+	require.Equal(t, oapi.OfferVariantFitLimited, more.Fit)
+	require.Equal(t, int64(39*mln/10), more.Terms.AmountKop)
+	less := variant(35*mln/10, 48)
+	require.Equal(t, oapi.OfferVariantFitAuto, less.Fit)
+	require.Less(t, less.Terms.MonthlyPaymentKop, v.Offer.MonthlyPaymentKop)
+
+	big, term := int64(5*mln), 48
+	res, err := c.AcceptOfferWithResponse(t.Context(), app.Id,
+		oapi.AcceptRequest{Version: v.Version, AmountKop: &big, TermMonths: &term})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusConflict, res.StatusCode(), "больше встречного принять нельзя")
+	small := int64(35 * mln / 10)
+	res, err = c.AcceptOfferWithResponse(t.Context(), app.Id,
+		oapi.AcceptRequest{Version: v.Version, AmountKop: &small, TermMonths: &term})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode(), string(res.Body))
+	signing := wait(t, c, app.Id, oapi.ApplicationStatusSigning)
+	require.Equal(t, small, signing.Offer.AmountKop, "договор и выдача на выбранную сумму")
+	require.Equal(t, less.Terms.MonthlyPaymentKop, signing.Offer.MonthlyPaymentKop)
 }
 
 // AC04: стройке отказ, банк видит балл и класс
@@ -224,7 +254,7 @@ func TestUnderwriter(t *testing.T) {
 
 	v = wait(t, c, app.Id, oapi.ApplicationStatusCounterOffer)
 	require.Equal(t, int64(7*mln), v.Offer.AmountKop)
-	acc, err := c.AcceptOfferWithResponse(t.Context(), app.Id, oapi.VersionRequest{Version: v.Version})
+	acc, err := c.AcceptOfferWithResponse(t.Context(), app.Id, oapi.AcceptRequest{Version: v.Version})
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, acc.StatusCode(), string(acc.Body))
 }
