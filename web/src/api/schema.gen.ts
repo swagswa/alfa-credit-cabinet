@@ -204,6 +204,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/need": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Цель, сумма и срок из слов клиента
+         * @description Только с профилем ai (`ai` в health). Локальная модель достаёт из текста цель, сумму и срок,
+         *     продукт по ним выбирает `/products/recommendation`, не модель. Чего в тексте нет или что вне рамок
+         *     продуктов, в ответе нет. Модель не ответила или выключена: 503.
+         */
+        post: operations["needFromText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/recommendation": {
         parameters: {
             query?: never;
@@ -1942,6 +1964,11 @@ export interface components {
             checks: {
                 [key: string]: "ok" | "down";
             };
+            /**
+             * @description Стенд с профилем ai, есть распознавание документов и подбор по тексту
+             * @example false
+             */
+            ai?: boolean;
         };
     };
     responses: {
@@ -2202,6 +2229,41 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    needFromText: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Нужно 2 млн на кофемашину и ремонт зала, отдам за пару лет */
+                    text: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Что поняли */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        goal: components["schemas"]["Goal"];
+                        amount_kop?: components["schemas"]["AmountKop"];
+                        term_months?: components["schemas"]["TermMonths"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     recommendProducts: {
