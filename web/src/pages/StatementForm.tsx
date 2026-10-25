@@ -1,7 +1,9 @@
+import { MoneyField } from '../ui/MoneyField';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
 import { notify } from '../BottomNotice';
 import { CalendarInput } from '@alfalab/core-components/calendar-input';
 import { useState, type FormEvent } from 'react';
-import { Input } from '@alfalab/core-components/input';
 import { Button } from '../motion';
 import { api, errorText } from '../api/client';
 import { validDate } from '../api/date';
@@ -100,16 +102,18 @@ export function StatementForm({
   }
   return (
     <form onSubmit={submit}>
-      <h3>Подтвердите итоги выписки</h3>
+      <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+        Подтвердите итоги выписки
+      </Typography.Title>
       {initial && (
-        <p className="extracted">
+        <Typography.Text tag="p" view="primary-small" className="extracted">
           Поля заполнены из документа. Проверьте каждое значение и при необходимости исправьте.
-        </p>
+        </Typography.Text>
       )}
-      <p>
+      <Typography.Text tag="p" view="primary-small">
         Этот блок нужен только для подтверждения доходов. Перенесите суммы из банковской выписки или нажмите «Заполнить
         из документа», если распознавание завершено. ИНН: {inn}. Период: от 1 до 13 месяцев.
-      </p>
+      </Typography.Text>
       <CalendarInput
         block
         label="Начало периода"
@@ -125,34 +129,28 @@ export function StatementForm({
         disabled={busy}
       />
       {Object.entries(fields).map(([key, label]) => (
-        <Input
-          block
+        <MoneyField
           key={key}
           label={label}
-          type="number"
-          step="0.01"
+          positiveOnly={!['opening_balance_kop', 'closing_balance_kop'].includes(key)}
           required
           value={values[key] ?? ''}
-          onChange={(event) => setValues({ ...values, [key]: event.target.value })}
+          onChange={(value) => setValues({ ...values, [key]: value })}
           disabled={busy}
         />
       ))}
       {months.length <= 13 &&
         months.map((month) => (
-          <Input
-            block
+          <MoneyField
             key={month}
             label={`Поступления за ${month}, ₽`}
-            type="number"
-            min={0}
-            step="0.01"
             required
             value={monthly[month] ?? ''}
-            onChange={(event) => setMonthly({ ...monthly, [month]: event.target.value })}
+            onChange={(value) => setMonthly({ ...monthly, [month]: value })}
             disabled={busy}
           />
         ))}
-      {error && <p role="alert">{error}</p>}
+      {error && <InlineNotice>{error}</InlineNotice>}
       <Button type="submit" loading={busy}>
         Подтвердить выписку
       </Button>

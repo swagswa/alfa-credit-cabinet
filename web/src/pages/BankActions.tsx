@@ -1,3 +1,5 @@
+import { MoneyField } from '../ui/MoneyField';
+import { Typography } from '@alfalab/core-components/typography';
 import { BottomNotice, notify } from '../BottomNotice';
 import { useState, type FormEvent } from 'react';
 import { Button, Checkbox, Select } from '../motion';
@@ -111,11 +113,15 @@ export function BankActions({
   const underwriter = role === 'underwriter' || role === 'admin';
   return (
     <section>
-      <h2>Действия сотрудника</h2>
+      <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+        Действия сотрудника
+      </Typography.Title>
       {error && <BottomNotice message={error} onClose={() => setError('')} />}
       {(manager || underwriter) && card.allowed_next.includes('need_info') && (
         <form onSubmit={(event) => act('request-info', event)}>
-          <h3>Запросить уточнения</h3>
+          <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+            Запросить уточнения
+          </Typography.Title>
           <Checkbox
             label="Запросить выписку"
             checked={statement}
@@ -151,7 +157,9 @@ export function BankActions({
       )}
       {underwriter && card.allowed_next.some((s) => ['approved', 'counter_offer', 'rejected'].includes(s)) && (
         <form onSubmit={(event) => act('decide', event)}>
-          <h3>Решение по заявке</h3>
+          <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+            Решение по заявке
+          </Typography.Title>
           <Select
             block
             label="Исход решения"
@@ -174,17 +182,7 @@ export function BankActions({
                 onChange={({ selected }) => setProduct(selected!.key as App['product'])}
                 disabled={busy}
               />
-              <Input
-                block
-                label="Сумма решения, ₽"
-                type="number"
-                min={1}
-                step="0.01"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled={busy}
-              />
+              <MoneyField label="Сумма решения, ₽" required value={amount} onChange={setAmount} disabled={busy} />
               <Input
                 block
                 label="Срок решения, месяцев"
@@ -229,7 +227,9 @@ export function BankActions({
             </>
           )}
           {card.checks?.some((c) => c.status === 'unavailable') && (
-            <p role="note">Часть источников не ответила, расчёта политики нет: решение будет без него.</p>
+            <Typography.Text tag="p" view="primary-small" role="note">
+              Часть источников не ответила, расчёта политики нет: решение будет без него.
+            </Typography.Text>
           )}
           {explained.length ? (
             <fieldset>
@@ -245,7 +245,11 @@ export function BankActions({
                   disabled={busy}
                 />
               ))}
-              {!codes.length && <p>Без отмеченных причин клиент увидит только условия, без объяснения.</p>}
+              {!codes.length && (
+                <Typography.Text tag="p" view="primary-small">
+                  Без отмеченных причин клиент увидит только условия, без объяснения.
+                </Typography.Text>
+              )}
             </fieldset>
           ) : (
             <>
@@ -262,7 +266,9 @@ export function BankActions({
                 onChange={({ selected }) => setReason(selected!.key as Code)}
                 disabled={busy}
               />
-              <p>В расчёте нет причин, которые можно показать клиенту: он увидит только условия решения.</p>
+              <Typography.Text tag="p" view="primary-small">
+                В расчёте нет причин, которые можно показать клиенту: он увидит только условия решения.
+              </Typography.Text>
             </>
           )}
           <Input
@@ -275,7 +281,9 @@ export function BankActions({
             onChange={(e) => setComment(e.target.value)}
             disabled={busy}
           />
-          <p>Отклонение от рекомендации политики будет отражено в аудите.</p>
+          <Typography.Text tag="p" view="primary-small">
+            Отклонение от рекомендации политики будет отражено в аудите.
+          </Typography.Text>
           <Button type="submit" loading={busy}>
             Сохранить решение
           </Button>

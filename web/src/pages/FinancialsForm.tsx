@@ -1,3 +1,6 @@
+import { MoneyField } from '../ui/MoneyField';
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
 import { notify } from '../BottomNotice';
 import { useState, type FormEvent } from 'react';
 import { Input } from '@alfalab/core-components/input';
@@ -71,13 +74,17 @@ export function FinancialsForm({
   }
   return (
     <form onSubmit={submit}>
-      <h3>Подтвердите итоги отчётности</h3>
+      <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+        Подтвердите итоги отчётности
+      </Typography.Title>
       {initial && (
-        <p className="extracted">
+        <Typography.Text tag="p" view="primary-small" className="extracted">
           Поля заполнены из документа. Проверьте каждое значение и при необходимости исправьте.
-        </p>
+        </Typography.Text>
       )}
-      <p>Перенесите значения из файла. В расчёт попадут только подтверждённые данные. ИНН: {inn}.</p>
+      <Typography.Text tag="p" view="primary-small">
+        Перенесите значения из файла. В расчёт попадут только подтверждённые данные. ИНН: {inn}.
+      </Typography.Text>
       <Input
         block
         label="Отчётный год"
@@ -90,20 +97,17 @@ export function FinancialsForm({
         disabled={busy}
       />
       {Object.entries(fields).map(([key, label]) => (
-        <Input
-          block
+        <MoneyField
           key={key}
           label={label}
-          type="number"
-          step="0.01"
-          min={key === 'net_profit_kop' ? undefined : 0}
+          positiveOnly={key !== 'net_profit_kop'}
           required
           value={values[key] ?? ''}
-          onChange={(event) => setValues({ ...values, [key]: event.target.value })}
+          onChange={(value) => setValues({ ...values, [key]: value })}
           disabled={busy}
         />
       ))}
-      {error && <p role="alert">{error}</p>}
+      {error && <InlineNotice>{error}</InlineNotice>}
       <Button type="submit" loading={busy}>
         Подтвердить отчётность
       </Button>
