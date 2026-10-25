@@ -1,10 +1,13 @@
+import { Typography } from '@alfalab/core-components/typography';
+import { InlineNotice } from '../ui/InlineNotice';
+import { Disclosure } from '../ui/Disclosure';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, settle, useHistory } from '../api/client';
 import { fieldNames, goals, kinds, labels, money, rate, products, representatives } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 import { Progress, steps } from './Progress';
 import { Decision } from './Decision';
-import { MotionDetails } from '../motion';
+import { StatusBadge } from '../ui/Workspace';
 
 type App = components['schemas']['ApplicationView'];
 const date = (value: string) => new Date(value).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
@@ -34,14 +37,17 @@ function SavedDocumentValues({ id }: { id: string }) {
   );
   const values = document?.confirmed?.statement ?? document?.confirmed?.financials;
   return (
-    <MotionDetails className="saved-document-values">
-      <summary>Посмотреть подтверждённые данные</summary>
+    <Disclosure className="saved-document-values" label={<>Посмотреть подтверждённые данные</>}>
       {failed ? (
-        <p role="alert">Не удалось загрузить данные документа.</p>
+        <InlineNotice>Не удалось загрузить данные документа.</InlineNotice>
       ) : !document ? (
-        <p role="status">Загружаем данные…</p>
+        <Typography.Text tag="p" view="primary-small" role="status">
+          Загружаем данные…
+        </Typography.Text>
       ) : !values ? (
-        <p>Подтверждённые значения не сохранены.</p>
+        <Typography.Text tag="p" view="primary-small">
+          Подтверждённые значения не сохранены.
+        </Typography.Text>
       ) : (
         <dl className="archive-fields">
           {Object.entries(values)
@@ -59,7 +65,32 @@ function SavedDocumentValues({ id }: { id: string }) {
           ))}
         </dl>
       )}
-    </MotionDetails>
+    </Disclosure>
+  );
+}
+
+function SavedDocuments({ documents }: { documents: App['documents'] }) {
+  return (
+    <>
+      {documents.length ? (
+        <ul className="archive-documents">
+          {documents.map((document) => (
+            <li key={document.id}>
+              <span>{kinds[document.kind]}</span>
+              <a href={`/api/documents/${encodeURIComponent(document.id)}/file`} target="_blank" rel="noreferrer">
+                {document.file_name}
+              </a>
+              <small>{document.status === 'confirmed' ? 'Данные подтверждены' : 'Сохранённый документ'}</small>
+              {['statement', 'financials'].includes(document.kind) && <SavedDocumentValues id={document.id} />}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Typography.Text tag="p" view="primary-small">
+          Прикреплённых документов нет.
+        </Typography.Text>
+      )}
+    </>
   );
 }
 
@@ -70,12 +101,21 @@ export function CompletedJourney({ card }: { card: App }) {
   return (
     <>
       <Progress card={card} selected={step} onSelect={setStep} />
-      <h2>Заявка № {card.number}</h2>
+      <Typography.Title tag="h2" view="small" font="system" defaultMargins>
+        Заявка № {card.number}
+      </Typography.Title>
+      {step === 4 && ['expired', 'cancelled_by_client'].includes(card.status) && <StatusBadge status={card.status} />}
       <div id="journey-view" className="journey-view" role="region" aria-label={steps[step]}>
-        {step !== 4 && <p className="archive-caption">Заявка завершена · Только просмотр</p>}
+        {step !== 4 && (
+          <Typography.Text tag="p" view="primary-small" className="archive-caption">
+            Заявка завершена · Только просмотр
+          </Typography.Text>
+        )}
         {step === 0 && (
           <section className="archive-panel">
-            <h3>Данные заявки</h3>
+            <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+              Данные заявки
+            </Typography.Title>
             <dl className="archive-fields">
               <Field title="Компания">{card.company.short_name}</Field>
               <Field title="ИНН">{card.company.inn}</Field>
@@ -95,19 +135,31 @@ export function CompletedJourney({ card }: { card: App }) {
               )}
               {card.comment && <Field title="Комментарий">{card.comment}</Field>}
             </dl>
-            <p className="hint">Сохранённые данные заявки. Предыдущие версии полей не передаются сервером.</p>
+            <Typography.Text tag="p" view="primary-small" className="hint">
+              Сохранённые данные заявки. Предыдущие версии полей не передаются сервером.
+            </Typography.Text>
           </section>
         )}
         {step === 1 && (
           <section className="archive-panel">
-            <h3>Рассмотрение заявки</h3>
+            <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+              Рассмотрение заявки
+            </Typography.Title>
             {card.submitted_at ? (
-              <p>Отправлена в банк: {date(card.submitted_at)}</p>
+              <Typography.Text tag="p" view="primary-small">
+                Отправлена в банк: {date(card.submitted_at)}
+              </Typography.Text>
             ) : (
-              <p>Дата отправки не сохранена.</p>
+              <Typography.Text tag="p" view="primary-small">
+                Дата отправки не сохранена.
+              </Typography.Text>
             )}
-            {historyState === 'loading' && <p role="status">Загружаем историю…</p>}
-            {historyState === 'error' && <p role="alert">История временно недоступна.</p>}
+            {historyState === 'loading' && (
+              <Typography.Text tag="p" view="primary-small" role="status">
+                Загружаем историю…
+              </Typography.Text>
+            )}
+            {historyState === 'error' && <InlineNotice>История временно недоступна.</InlineNotice>}
             {historyState === 'ready' &&
               (history.length ? (
                 <ol className="archive-timeline">
@@ -121,13 +173,22 @@ export function CompletedJourney({ card }: { card: App }) {
                     ))}
                 </ol>
               ) : (
-                <p>История этапов не сохранена.</p>
+                <Typography.Text tag="p" view="primary-small">
+                  История этапов не сохранена.
+                </Typography.Text>
               ))}
           </section>
         )}
         {step === 2 && (
-          <section className="archive-panel">
-            <h3>Предложение банка</h3>
+          <section className={`archive-panel${card.status === 'expired' ? ' expired-offer' : ''}`}>
+            <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+              Предложение банка
+            </Typography.Title>
+            {card.status === 'expired' && card.offer && (
+              <Typography.Text tag="p" view="primary-small">
+                Сохранённые условия. Предложение больше не действует.
+              </Typography.Text>
+            )}
             {card.offer ? (
               <>
                 <dl className="archive-fields">
@@ -142,36 +203,78 @@ export function CompletedJourney({ card }: { card: App }) {
                   </Field>
                   {card.offer.msp_guarantee && <Field title="Поручительство МСП">Предусмотрено</Field>}
                 </dl>
-                {issued && <p>Условия приняты, финансирование оформлено.</p>}
+                {issued && (
+                  <Typography.Text tag="p" view="primary-small">
+                    Условия приняты, финансирование оформлено.
+                  </Typography.Text>
+                )}
               </>
             ) : (
-              <p>По этой заявке предложение банка не сформировано.</p>
+              <Typography.Text tag="p" view="primary-small">
+                По этой заявке предложение банка не сформировано.
+              </Typography.Text>
             )}
           </section>
         )}
         {step === 3 && (
           <section className="archive-panel">
-            <h3>Документы и подпись</h3>
-            {card.documents.length ? (
-              <ul className="archive-documents">
-                {card.documents.map((document) => (
-                  <li key={document.id}>
-                    <span>{kinds[document.kind]}</span>
-                    <a href={`/api/documents/${encodeURIComponent(document.id)}/file`} target="_blank" rel="noreferrer">
-                      {document.file_name}
-                    </a>
-                    <small>{document.status === 'confirmed' ? 'Данные подтверждены' : 'Сохранённый документ'}</small>
-                    {['statement', 'financials'].includes(document.kind) && <SavedDocumentValues id={document.id} />}
-                  </li>
-                ))}
-              </ul>
+            <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+              Документы и подпись
+            </Typography.Title>
+            <SavedDocuments documents={card.documents} />
+            {issued ? (
+              <Typography.Text tag="p" view="primary-small" className="archive-signature">
+                Документы подписаны.
+              </Typography.Text>
             ) : (
-              <p>Прикреплённых документов нет.</p>
+              <Typography.Text tag="p" view="primary-small">
+                Подписание не завершено.
+              </Typography.Text>
             )}
-            {issued ? <p className="archive-signature">Документы подписаны.</p> : <p>Подписание не завершено.</p>}
           </section>
         )}
-        {step === 4 && <Decision card={{ ...card, allowed_next: [] }} refresh={() => undefined} />}
+        {step === 4 && (
+          <>
+            <Decision card={{ ...card, allowed_next: [] }} refresh={() => undefined} />
+            {issued && (
+              <section className="archive-panel repayment-summary">
+                <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                  {(card.offer?.product ?? card.product) === 'overdraft' ? 'Погашение овердрафта' : 'Первый платёж'}
+                </Typography.Title>
+                {(card.offer?.product ?? card.product) === 'overdraft' ? (
+                  <Typography.Text tag="p" view="primary-small">
+                    Задолженность погашается поступлениями на расчётный счёт. Фиксированного ежемесячного платежа нет.
+                  </Typography.Text>
+                ) : (
+                  <>
+                    {card.offer && card.offer.monthly_payment_kop > 0 ? (
+                      <strong className="repayment-amount">{money(card.offer.monthly_payment_kop)}</strong>
+                    ) : (
+                      <Typography.Text tag="p" view="primary-small">
+                        Сумма платежа пока не передана банком.
+                      </Typography.Text>
+                    )}
+                    <Typography.Text tag="p" view="primary-small" className="hint">
+                      Дата первого платежа пока не передана банком.
+                    </Typography.Text>
+                  </>
+                )}
+              </section>
+            )}
+            {issued && (
+              <section className="archive-panel" aria-label="Документы заявки">
+                <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                  Документы заявки
+                </Typography.Title>
+                <SavedDocuments
+                  documents={[...card.documents].sort(
+                    (a, b) => Number(b.kind === 'loan_agreement') - Number(a.kind === 'loan_agreement'),
+                  )}
+                />
+              </section>
+            )}
+          </>
+        )}
       </div>
     </>
   );
