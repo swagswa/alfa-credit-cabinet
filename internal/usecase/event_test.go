@@ -16,15 +16,14 @@ import (
 	"github.com/swagswa/alfa-credit-cabinet/pkg/postgres"
 )
 
-func TestEvents(t *testing.T) {
-	e := newAppEnv(t)
+// listen запускает слушателя LISTEN и ждёт подписки: уведомление до неё никому не придёт
+func listen(t *testing.T, e *appEnv) usecase.EventUseCase {
 	events := repo.NewEvent(zap.NewNop(), &postgres.Client{Pool: e.pool})
 	ctx, stop := context.WithCancel(t.Context())
 	done := make(chan error)
 	go func() { done <- events.Run(ctx) }()
 	t.Cleanup(func() { stop(); <-done })
 
-	// уведомление до LISTEN никому не придёт, ждём, пока слушатель подпишется
 	require.Eventually(t, func() bool {
 		var n int
 		err := e.pool.QueryRow(t.Context(),
@@ -32,8 +31,12 @@ func TestEvents(t *testing.T) {
 			WHERE datname = current_database() AND query = 'LISTEN applications'`).Scan(&n)
 		return err == nil && n == 1
 	}, 10*time.Second, 50*time.Millisecond)
+	return usecase.NewEvent(events, repo.NewUser(db.New(e.pool)))
+}
 
-	uc := usecase.NewEvent(events, repo.NewUser(db.New(e.pool)))
+func TestEvents(t *testing.T) {
+	e := newAppEnv(t)
+	uc := listen(t, e)
 	id, draft := e.app(domain.StatusSubmitted), e.app(domain.StatusDraft)
 
 	tests := []struct {
@@ -90,5 +93,42 @@ func TestEvents(t *testing.T) {
 				require.False(t, tt.want, "событие не пришло")
 			}
 		})
+	}
+}
+
+// уведомление в кабинете уходит в поток только адресату, даже другим клиентам компании нет
+func TestEventsNotification(t *testing.T) {
+	e := newAppEnv(t)
+	uc := listen(t, e)
+	id := e.app(domain.StatusSigning)
+	// logistics на этот раз тоже представитель кофейни, но адресат только coffee
+	_, err := e.pool.Exec(t.Context(), `INSERT INTO company_members (user_id, company_id, representative_role)
+		SELECT u.id, m.company_id, 'proxy' FROM users u, company_members m
+		WHERE u.login = 'logistics' AND m.user_id = $1`, e.client.ID)
+	require.NoError(t, err)
+	subs := map[string]<-chan domain.Event{}
+	for _, login := range []string{"coffee", "logistics", "manager"} {
+		a := e.user(login)
+		ch, cancel, subErr := uc.Subscribe(t.Context(), domain.Session{ID: "s", UserID: a.ID, Role: a.Role}, uuid.Nil)
+		require.NoError(t, subErr)
+		t.Cleanup(cancel)
+		subs[login] = ch
+	}
+	_, err = e.pool.Exec(t.Context(), `INSERT INTO notifications (user_id, application_id, kind, title, body)
+		VALUES ($1, $2, 'signing_code', 'Код', 'Код 123456')`, e.client.ID, id)
+	require.NoError(t, err)
+
+	select {
+	case ev := <-subs["coffee"]:
+		require.Equal(t, []any{id, e.client.ID}, []any{ev.ApplicationID, ev.NotificationUser})
+	case <-time.After(time.Second):
+		require.Fail(t, "уведомление не пришло")
+	}
+	for _, login := range []string{"logistics", "manager"} {
+		select {
+		case ev := <-subs[login]:
+			require.Fail(t, "чужое уведомление", "%s: %+v", login, ev)
+		case <-time.After(200 * time.Millisecond):
+		}
 	}
 }

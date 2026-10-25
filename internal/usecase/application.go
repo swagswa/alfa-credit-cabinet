@@ -72,6 +72,7 @@ type Answer struct {
 type applicationUseCase struct {
 	db        *postgres.Client
 	apps      repo.ApplicationRepository
+	notifier  *Notifier
 	companies CompanyUseCase
 	workflows Workflows
 	catalog   domain.Catalog
@@ -80,10 +81,12 @@ type applicationUseCase struct {
 // NewApplication собирает usecase заявок. companies и catalog нужны только черновику и подаче,
 // воркеру можно nil и пустой каталог.
 func NewApplication(
-	db *postgres.Client, apps repo.ApplicationRepository, companies CompanyUseCase, workflows Workflows,
-	catalog domain.Catalog,
+	db *postgres.Client, apps repo.ApplicationRepository, notifier *Notifier, companies CompanyUseCase,
+	workflows Workflows, catalog domain.Catalog,
 ) ApplicationUseCase {
-	return &applicationUseCase{db: db, apps: apps, companies: companies, workflows: workflows, catalog: catalog}
+	return &applicationUseCase{
+		db: db, apps: apps, notifier: notifier, companies: companies, workflows: workflows, catalog: catalog,
+	}
 }
 
 func (u *applicationUseCase) StartProcess(ctx context.Context, id uuid.UUID) error {
@@ -132,17 +135,27 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		if err := apps.Move(ctx, app, m); err != nil {
 			return err
 		}
-		switch {
-		case m.To == domain.StatusSubmitted:
-			return apps.AddBKIConsent(ctx, id)
-		case m.To == domain.StatusNeedInfo:
-			return apps.AddInfoRequest(ctx, id, m.Actor.ID, m.InfoRequest())
-		case app.Status == domain.StatusNeedInfo:
-			// ответил клиент, вышел срок или отменили: запрос больше не висит
-			return apps.CloseInfoRequest(ctx, id)
+		if err := afterMove(ctx, apps, id, app.Status, &m); err != nil {
+			return err
 		}
-		return nil
+		return u.notifier.Status(ctx, tx, id, m.To)
 	})
+}
+
+// afterMove: что ещё меняется вместе с переходом, в той же транзакции
+func afterMove(
+	ctx context.Context, apps repo.ApplicationRepository, id uuid.UUID, from domain.Status, m *domain.Move,
+) error {
+	switch {
+	case m.To == domain.StatusSubmitted:
+		return apps.AddBKIConsent(ctx, id)
+	case m.To == domain.StatusNeedInfo:
+		return apps.AddInfoRequest(ctx, id, m.Actor.ID, m.InfoRequest())
+	case from == domain.StatusNeedInfo:
+		// ответил клиент, вышел срок или отменили: запрос больше не висит
+		return apps.CloseInfoRequest(ctx, id)
+	}
+	return nil
 }
 
 func (u *applicationUseCase) Create(

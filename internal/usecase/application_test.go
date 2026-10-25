@@ -33,6 +33,7 @@ type appEnv struct {
 	pool   *pgxpool.Pool
 	egrul  *fakeEGRUL
 	wf     *fakeWorkflows
+	notes  *usecase.Notifier
 	uc     usecase.ApplicationUseCase
 	client domain.Actor
 }
@@ -42,9 +43,12 @@ func newAppEnv(t *testing.T) *appEnv {
 	require.NoError(t, postgres.Exec(migrations.SeedDemo)(t.Context(), pool))
 	catalog, err := rules.Products("../../rules/products.yaml")
 	require.NoError(t, err)
+	notices, err := rules.Notices("../../rules/notifications.yaml")
+	require.NoError(t, err)
 	e := &appEnv{t: t, pool: pool, egrul: &fakeEGRUL{}, wf: &fakeWorkflows{}}
+	e.notes = usecase.NewNotifier(repo.NewNotification(pool), notices)
 	e.uc = usecase.NewApplication(&postgres.Client{Pool: pool}, repo.NewApplication(db.New(pool)),
-		usecase.NewCompany(e.egrul), e.wf, catalog)
+		e.notes, usecase.NewCompany(e.egrul), e.wf, catalog)
 	e.client = e.user("coffee")
 	return e
 }
@@ -170,6 +174,46 @@ func TestTransitionRepeat(t *testing.T) {
 
 	err := e.uc.Transition(t.Context(), uuid.New(), m)
 	require.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestTransitionNotifies(t *testing.T) {
+	e := newAppEnv(t)
+	underwriter := e.user("underwriter")
+	notices := func(id uuid.UUID) (out []string) {
+		rows, err := e.pool.Query(t.Context(), `SELECT u.login || ': ' || n.title || ' / ' || n.body
+			FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.application_id = $1`, id)
+		require.NoError(t, err)
+		for rows.Next() {
+			var s string
+			require.NoError(t, rows.Scan(&s))
+			out = append(out, s)
+		}
+		return out
+	}
+
+	// шаг банка без фразы: клиента не дёргаем
+	id := e.app(domain.StatusChecking)
+	require.NoError(t, e.uc.Transition(t.Context(), id, domain.Move{To: domain.StatusScoring, Actor: system}))
+	require.Empty(t, notices(id))
+
+	id = e.app(domain.StatusManualReview)
+	var number int64
+	require.NoError(t, e.pool.QueryRow(t.Context(), "SELECT number FROM applications WHERE id = $1", id).Scan(&number))
+	m := domain.Move{
+		To: domain.StatusCounterOffer, Actor: underwriter, Codes: []string{"R_AMOUNT_REDUCED"}, Comment: "оборот",
+	}
+	require.NoError(t, e.uc.Transition(t.Context(), id, m))
+	require.NoError(t, e.uc.Transition(t.Context(), id, m), "повтор activity")
+	require.Equal(t, []string{fmt.Sprintf(
+		"coffee: Банк предложил другие условия по заявке №%d / Банк готов выдать 1 000 000 ₽. "+
+			"Сравните предложение с запросом в карточке заявки", number,
+	)}, notices(id))
+
+	// не случившийся переход уведомления не оставляет
+	id = e.app(domain.StatusApproved)
+	err := e.uc.Transition(t.Context(), id, domain.Move{To: domain.StatusAccepted, Actor: e.client, Version: 7})
+	require.ErrorIs(t, err, domain.ErrConflict)
+	require.Empty(t, notices(id))
 }
 
 func TestTransitionRace(t *testing.T) {
@@ -350,7 +394,7 @@ func TestStartProcess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wf := &fakeWorkflows{err: tt.err}
-			err := usecase.NewApplication(nil, nil, nil, wf, domain.Catalog{}).StartProcess(t.Context(), id)
+			err := usecase.NewApplication(nil, nil, nil, nil, wf, domain.Catalog{}).StartProcess(t.Context(), id)
 			require.ErrorIs(t, err, tt.want)
 			require.Equal(t, []any{"credit", id.String(), "ApplicationWorkflow", id}, wf.args)
 		})
@@ -400,7 +444,7 @@ func TestAct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wf := &fakeWorkflows{err: tt.procErr}
-			uc := usecase.NewApplication(nil, fakeCards{err: tt.cardErr}, nil, wf, domain.Catalog{})
+			uc := usecase.NewApplication(nil, fakeCards{err: tt.cardErr}, nil, nil, wf, domain.Catalog{})
 			a := domain.Action{Actor: tt.actor, Version: 3}
 
 			err := uc.Act(t.Context(), id, usecase.UpdateProvideInfo, a)
@@ -450,7 +494,7 @@ func TestProvideInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wf := &fakeWorkflows{err: tt.procErr}
-			uc := usecase.NewApplication(nil, fakeCards{app: app, err: tt.cardErr}, nil, wf, domain.Catalog{})
+			uc := usecase.NewApplication(nil, fakeCards{app: app, err: tt.cardErr}, nil, nil, wf, domain.Catalog{})
 
 			err := uc.ProvideInfo(t.Context(), client, id, usecase.Answer{Documents: tt.docs, Comment: "выписка"})
 			require.ErrorIs(t, err, tt.want)
@@ -522,7 +566,7 @@ func TestDecide(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wf := &fakeWorkflows{}
-			uc := usecase.NewApplication(nil, fakeCards{}, nil, wf, catalog)
+			uc := usecase.NewApplication(nil, fakeCards{}, nil, nil, wf, catalog)
 			tt.a.Actor = uw
 
 			err := uc.Decide(t.Context(), id, tt.a)

@@ -36,8 +36,9 @@ type IssueUseCase interface {
 	// PrepareContract кладёт договор с графиком в документы заявки. date приходит
 	// из процесса, поэтому повтор шага даёт тот же файл, а второй договор не появится.
 	PrepareContract(ctx context.Context, id uuid.UUID, date time.Time) error
-	// RequestCode выдаёт новый код подписи вместо старого. Только в signing.
-	RequestCode(ctx context.Context, actor domain.Actor, id uuid.UUID) (string, domain.SigningCode, error)
+	// RequestCode выдаёт новый код подписи вместо старого. Только в signing. Сам код
+	// уходит клиенту уведомлением, как push в приложении банка, в ответе его нет.
+	RequestCode(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.SigningCode, error)
 	// Sign сверяет код и только верный передаёт процессу, без самого кода: аргументы
 	// Update остаются в истории Temporal. Неверный код: FieldErrors по полю code и минус попытка.
 	Sign(ctx context.Context, actor domain.Actor, id uuid.UUID, code string) error
@@ -51,6 +52,7 @@ type issueUseCase struct {
 	repo    repo.ApplicationRepository
 	docs    repo.DocumentRepository
 	signing repo.SigningRepository
+	notes   *Notifier
 	catalog domain.Catalog
 	codeTTL time.Duration
 }
@@ -61,11 +63,13 @@ func NewIssue(
 	appRepo repo.ApplicationRepository,
 	docs repo.DocumentRepository,
 	signing repo.SigningRepository,
+	notes *Notifier,
 	catalog domain.Catalog,
 	codeTTL time.Duration,
 ) IssueUseCase {
 	return &issueUseCase{
-		db: db, apps: apps, repo: appRepo, docs: docs, signing: signing, catalog: catalog, codeTTL: codeTTL,
+		db: db, apps: apps, repo: appRepo, docs: docs, signing: signing, notes: notes, catalog: catalog,
+		codeTTL: codeTTL,
 	}
 }
 
@@ -96,17 +100,17 @@ func (u *issueUseCase) PrepareContract(ctx context.Context, id uuid.UUID, date t
 
 func (u *issueUseCase) RequestCode(
 	ctx context.Context, actor domain.Actor, id uuid.UUID,
-) (string, domain.SigningCode, error) {
+) (domain.SigningCode, error) {
 	app, err := u.repo.Card(ctx, id, owner(actor))
 	if err != nil {
-		return "", domain.SigningCode{}, err
+		return domain.SigningCode{}, err
 	}
 	if app.Status != domain.StatusSigning {
-		return "", domain.SigningCode{}, fmt.Errorf("%w: код нужен только на подписании", domain.ErrIllegalTransition)
+		return domain.SigningCode{}, fmt.Errorf("%w: код нужен только на подписании", domain.ErrIllegalTransition)
 	}
 	n, err := rand.Int(rand.Reader, big.NewInt(codeSpace))
 	if err != nil {
-		return "", domain.SigningCode{}, fmt.Errorf("signing code: %w", err)
+		return domain.SigningCode{}, fmt.Errorf("signing code: %w", err)
 	}
 	code := fmt.Sprintf("%06d", n.Int64())
 	sum := sha256.Sum256([]byte(code))
@@ -115,12 +119,15 @@ func (u *issueUseCase) RequestCode(
 		if saveErr := u.signing.WithTx(tx).SaveCode(ctx, id, c); saveErr != nil {
 			return saveErr
 		}
-		return u.repo.WithTx(tx).Note(ctx, id, actor, "запрошен код подписи")
+		if noteErr := u.repo.WithTx(tx).Note(ctx, id, actor, "запрошен код подписи"); noteErr != nil {
+			return noteErr
+		}
+		return u.notes.SigningCode(ctx, tx, id, code)
 	})
 	if err != nil {
-		return "", domain.SigningCode{}, err
+		return domain.SigningCode{}, err
 	}
-	return code, c, nil
+	return c, nil
 }
 
 func (u *issueUseCase) Sign(ctx context.Context, actor domain.Actor, id uuid.UUID, code string) error {

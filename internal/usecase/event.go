@@ -44,6 +44,9 @@ func (u *eventUseCase) Subscribe(
 		}
 	}
 	events, cancel = u.events.Subscribe(func(ev domain.Event) bool {
+		if ev.NotificationUser != uuid.Nil {
+			return ev.NotificationUser == s.UserID
+		}
 		// банку черновики не шлём, как и в очереди: до подачи это дело клиента, отмена тоже
 		return (appID == uuid.Nil || ev.ApplicationID == appID) &&
 			(own[ev.CompanyID] || own == nil && ev.Submitted)

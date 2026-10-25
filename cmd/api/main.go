@@ -64,17 +64,24 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
+	notices, err := rules.Notices(filepath.Join(cfg.RulesDir, "notifications.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("rules", zap.Error(err))
+	}
+	notifications := repo.NewNotification(db)
+	notifier := usecase.NewNotifier(notifications, notices)
 	companies := usecase.NewCompany(egrul.New(cfg.EGRULURL, cfg.Timeout))
-	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), companies, tc, catalog)
+	apps := usecase.NewApplication(db, repo.NewApplication(dbq.New(db)), notifier, companies, tc, catalog)
 	events := repo.NewEvent(lg.Zap, db)
 	issue := usecase.NewIssue(db, apps, repo.NewApplication(dbq.New(db)), repo.NewDocument(db), repo.NewSigning(db),
-		catalog, cfg.SigningCodeTTL)
+		notifier, catalog, cfg.SigningCodeTTL)
 	docs := usecase.NewDocument(repo.NewDocument(db), repo.NewApplication(dbq.New(db)), tc, nil, nil, cfg.AIEnabled)
 
 	e, err := newServer(&cfg, lg.Zap, health, auth, usecase.NewProduct(catalog), companies, apps,
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
 		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)),
-		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)))
+		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)),
+		usecase.NewNotification(notifications))
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -101,6 +108,7 @@ func newServer(
 	stats usecase.StatsUseCase,
 	faultPanel usecase.FaultUseCase,
 	profile usecase.ProfileUseCase,
+	notifications usecase.NotificationUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -109,20 +117,21 @@ func newServer(
 	return server.New(server.Deps{
 		Log: lg,
 		Handler: handler.New(handler.Deps{
-			Health:       health,
-			Products:     products,
-			Companies:    companies,
-			Applications: apps,
-			Auth:         auth,
-			Events:       events,
-			Documents:    docs,
-			Feed:         feed,
-			Issue:        issue,
-			Stats:        stats,
-			Faults:       faultPanel,
-			Profile:      profile,
-			SessionTTL:   cfg.TTL,
-			CookieSecure: cfg.CookieSecure,
+			Health:        health,
+			Products:      products,
+			Companies:     companies,
+			Applications:  apps,
+			Auth:          auth,
+			Events:        events,
+			Documents:     docs,
+			Feed:          feed,
+			Issue:         issue,
+			Stats:         stats,
+			Faults:        faultPanel,
+			Profile:       profile,
+			Notifications: notifications,
+			SessionTTL:    cfg.TTL,
+			CookieSecure:  cfg.CookieSecure,
 		}),
 		Auth:       auth,
 		RBAC:       enf,

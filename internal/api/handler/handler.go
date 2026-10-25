@@ -11,18 +11,19 @@ import (
 )
 
 type Handler struct {
-	health    usecase.HealthUseCase
-	products  usecase.ProductUseCase
-	companies usecase.CompanyUseCase
-	apps      usecase.ApplicationUseCase
-	auth      usecase.AuthUseCase
-	events    usecase.EventUseCase
-	docs      usecase.DocumentUseCase
-	feed      usecase.FeedUseCase
-	issue     usecase.IssueUseCase
-	stats     usecase.StatsUseCase
-	faults    usecase.FaultUseCase
-	profile   usecase.ProfileUseCase
+	health        usecase.HealthUseCase
+	products      usecase.ProductUseCase
+	companies     usecase.CompanyUseCase
+	apps          usecase.ApplicationUseCase
+	auth          usecase.AuthUseCase
+	events        usecase.EventUseCase
+	docs          usecase.DocumentUseCase
+	feed          usecase.FeedUseCase
+	issue         usecase.IssueUseCase
+	stats         usecase.StatsUseCase
+	faults        usecase.FaultUseCase
+	profile       usecase.ProfileUseCase
+	notifications usecase.NotificationUseCase
 
 	sessionTTL   time.Duration
 	cookieSecure bool
@@ -31,18 +32,19 @@ type Handler struct {
 var _ oapi.StrictServerInterface = (*Handler)(nil)
 
 type Deps struct {
-	Health       usecase.HealthUseCase
-	Products     usecase.ProductUseCase
-	Companies    usecase.CompanyUseCase
-	Applications usecase.ApplicationUseCase
-	Auth         usecase.AuthUseCase
-	Events       usecase.EventUseCase
-	Documents    usecase.DocumentUseCase
-	Feed         usecase.FeedUseCase
-	Issue        usecase.IssueUseCase
-	Stats        usecase.StatsUseCase
-	Faults       usecase.FaultUseCase
-	Profile      usecase.ProfileUseCase
+	Health        usecase.HealthUseCase
+	Products      usecase.ProductUseCase
+	Companies     usecase.CompanyUseCase
+	Applications  usecase.ApplicationUseCase
+	Auth          usecase.AuthUseCase
+	Events        usecase.EventUseCase
+	Documents     usecase.DocumentUseCase
+	Feed          usecase.FeedUseCase
+	Issue         usecase.IssueUseCase
+	Stats         usecase.StatsUseCase
+	Faults        usecase.FaultUseCase
+	Profile       usecase.ProfileUseCase
+	Notifications usecase.NotificationUseCase
 
 	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
 	SessionTTL   time.Duration
@@ -51,20 +53,21 @@ type Deps struct {
 
 func New(d Deps) *Handler {
 	return &Handler{
-		health:       d.Health,
-		products:     d.Products,
-		companies:    d.Companies,
-		apps:         d.Applications,
-		auth:         d.Auth,
-		events:       d.Events,
-		docs:         d.Documents,
-		feed:         d.Feed,
-		issue:        d.Issue,
-		stats:        d.Stats,
-		faults:       d.Faults,
-		profile:      d.Profile,
-		sessionTTL:   d.SessionTTL,
-		cookieSecure: d.CookieSecure,
+		health:        d.Health,
+		products:      d.Products,
+		companies:     d.Companies,
+		apps:          d.Applications,
+		auth:          d.Auth,
+		events:        d.Events,
+		docs:          d.Documents,
+		feed:          d.Feed,
+		issue:         d.Issue,
+		stats:         d.Stats,
+		faults:        d.Faults,
+		profile:       d.Profile,
+		notifications: d.Notifications,
+		sessionTTL:    d.SessionTTL,
+		cookieSecure:  d.CookieSecure,
 	}
 }
 

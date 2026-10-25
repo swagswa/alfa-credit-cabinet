@@ -214,11 +214,11 @@ func (h *Handler) RequestSigningCode(
 	if err != nil {
 		return nil, err
 	}
-	code, c, err := h.issue.RequestCode(ctx, a, req.Id)
+	c, err := h.issue.RequestCode(ctx, a, req.Id)
 	if err != nil {
 		return nil, err
 	}
-	return oapi.RequestSigningCode200JSONResponse{Code: code, ExpiresAt: c.ExpiresAt, AttemptsLeft: c.AttemptsLeft}, nil
+	return oapi.RequestSigningCode200JSONResponse{ExpiresAt: c.ExpiresAt, AttemptsLeft: c.AttemptsLeft}, nil
 }
 
 func (h *Handler) SignApplication(
