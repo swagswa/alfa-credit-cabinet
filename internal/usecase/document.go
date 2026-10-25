@@ -114,7 +114,8 @@ func (u *documentUseCase) Upload(
 	}
 	if f.Status == domain.DocRecognizing {
 		// заявка от распознавания не зависит: Temporal недоступен, клиент вводит итоги руками,
-		// а что Temporal лежит, видно в health
+		// а что Temporal лежит, видно в health. Повторный старт с тем же id Temporal отклонит,
+		// так что дважды один файл модель не читает
 		err = u.workflows.Start(ctx, QueueDocs, "doc-"+id.String(), RecognizeWorkflowName, id)
 		if err != nil {
 			err = u.docs.SetStatus(ctx, id, domain.DocFailed, "распознавание сейчас недоступно, введите итоги вручную")

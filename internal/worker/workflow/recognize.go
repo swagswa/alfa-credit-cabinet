@@ -12,16 +12,13 @@ import (
 )
 
 const (
-	// на CPU выписка идёт 1-2 минуты (docs/ai-eval.md), первый запрос ещё и
-	// грузит модель; OLLAMA_TIMEOUT в docs-worker должен быть меньше
-	recognizeTimeout  = 300 * time.Second
+	// на CPU выписка идёт 1-2 минуты (docs/ai-eval.md), первый запрос ещё и грузит модель.
+	// Худший случай по умолчаниям docs-worker: скан 5 страниц по OCR_TIMEOUT 30 с и OLLAMA_TIMEOUT 240 с,
+	// итого 390 с. Поднимаешь таймауты в конфиге, подними и этот
+	recognizeTimeout  = 7 * time.Minute
 	recognizeRetry    = 5 * time.Second
 	recognizeAttempts = 2
 )
-
-// RecognizeID это id workflow документа. Повторный старт с тем же id Temporal
-// отклонит, так что дважды один файл модель не читает.
-func RecognizeID(doc uuid.UUID) string { return "doc-" + doc.String() }
 
 // RecognizeWorkflow распознаёт документ на очереди docs. Заявка его не ждёт:
 // итог пишется в documents, клиент видит его в форме и может ввести всё сам.
