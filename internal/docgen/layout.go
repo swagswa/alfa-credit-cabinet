@@ -51,7 +51,7 @@ func statementA(c synth.Company) page {
 	p.add(20, 51, 10, "за период с "+from+" по "+to)
 	p.add(20, 62, 10, "Клиент: "+c.Name)
 	p.add(20, 68, 10, "ИНН: "+c.INN)
-	p.add(20, 74, 10, "Счёт: "+account(c))
+	p.add(20, 74, 10, "Счёт: "+c.Account())
 
 	p.bold(20, 88, 9.5, "Месяц")
 	p.bold(78, 88, 9.5, "Обороты по дебету")
@@ -94,7 +94,7 @@ func statementB(c synth.Company) page {
 	from, to := period(c)
 	p.texts = append(p.texts, text{x: 190, y: 20, size: 14, bold: true, right: true, s: "ООО «Банк Б»"})
 	p.num(190, 26, 8.5, "Генеральная лицензия № 0001")
-	p.bold(20, 42, 12, "ВЫПИСКА ОПЕРАЦИЙ ПО СЧЁТУ № "+account(c))
+	p.bold(20, 42, 12, "ВЫПИСКА ОПЕРАЦИЙ ПО СЧЁТУ № "+c.Account())
 	p.add(20, 50, 10, "Владелец счёта: "+c.Name+", ИНН "+c.INN)
 	p.add(20, 56, 10, "Период: "+from+" - "+to)
 
@@ -204,14 +204,6 @@ var monthNames = [...]string{
 func period(c synth.Company) (from, to string) {
 	last := c.Months[len(c.Months)-1].Start.AddDate(0, 1, -1)
 	return c.Months[0].Start.Format("02.01.2006"), last.Format("02.01.2006")
-}
-
-func account(c synth.Company) string {
-	prefix := "40702810" // счёт юрлица
-	if c.IsIP() {
-		prefix = "40802810"
-	}
-	return prefix + "0000" + c.INN[len(c.INN)-8:]
 }
 
 // суммы на странице: A 1 234 567,89, B 1234567.89, в отчётности целые рубли

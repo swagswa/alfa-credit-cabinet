@@ -198,7 +198,8 @@ func (s *sim) listFaults(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-// withMoney дописывает в копию ответа выручку и обороты из synth, в рублях, как у источников.
+// withMoney дописывает в копию ответа выручку и обороты из synth, в рублях, как у источников,
+// данным банка ещё и номер счёта.
 func withMoney(src domain.Source, inn string, body map[string]any) (map[string]any, error) {
 	if src != domain.SourceFNS && src != domain.SourceInternal {
 		return body, nil
@@ -228,6 +229,7 @@ func withMoney(src domain.Source, inn string, body map[string]any) (map[string]a
 		}
 	}
 	body["turnover_12m"] = turnover
+	body["account"] = c.Account()
 	// средний остаток считаем по концам месяцев, точнее синтетике и не надо
 	body["avg_balance_6m"] = last6 / 6 / domain.KopInRub
 	return body, nil

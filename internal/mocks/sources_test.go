@@ -179,6 +179,7 @@ func TestSourcesMatchSynth(t *testing.T) {
 				credit += m.(map[string]any)["credit"].(float64)
 			}
 			require.InDelta(t, float64(in/domain.KopInRub), credit, 12, "копейки отбрасываем помесячно")
+			require.Regexp(t, `^40[78]02810\d{12}$`, bank["account"], "счёт тот же, что в выписке")
 		})
 	}
 }
