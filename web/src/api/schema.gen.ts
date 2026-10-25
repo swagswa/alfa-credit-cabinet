@@ -62,6 +62,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Уведомления клиента
+         * @description Только для клиента, свои, новые сверху. Пишутся вместе со сменой статуса заявки по фразам
+         *     `rules/notifications.yaml` и при выдаче кода подписи. Почты и SMS в сценарии нет, это единственный канал.
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отметить прочитанным
+         * @description Повтор ничего не меняет. Чужое уведомление 404, как несуществующее.
+         */
+        post: operations["readNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметить все прочитанными */
+        post: operations["readAllNotifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -300,7 +358,8 @@ export interface paths {
         put?: never;
         /**
          * Получить код подписания
-         * @description Только в `signing`. SMS в сценарии нет, код показываем в интерфейсе. Новый код сбрасывает счётчик попыток.
+         * @description Только в `signing`. SMS в сценарии нет: код приходит клиенту уведомлением в кабинете (`GET /notifications`,
+         *     вид `signing_code`), в ответе его нет. Новый код сбрасывает счётчик попыток.
          */
         post: operations["requestSigningCode"];
         delete?: never;
@@ -624,8 +683,9 @@ export interface paths {
          * @description `EventSource`, cookie уходит сама. Обычный хендлер echo, из генерации strict server исключён
          *     через `exclude-operation-ids`. События из `LISTEN/NOTIFY`, приходят после коммита.
          *
-         *     Формат: `event: status`, `event: document` или `event: check`, в `data` JSON `StreamEvent`. Клиент
-         *     получает события своих заявок, сотрудник банка все поданные. После переподключения фронт перечитывает
+         *     Формат: `event: status`, `event: document`, `event: check` или `event: notification`, в `data` JSON
+         *     `StreamEvent`. Клиент получает события своих заявок, сотрудник банка все поданные. `notification` приходит
+         *     только адресату: у него новое уведомление по заявке, саму ленту фронт перечитывает `GET /notifications`. После переподключения фронт перечитывает
          *     карточку или список.
          *
          *     `check` это ход проверок: источник ответил (`check_status` есть) или попытка не удалась и будет
@@ -829,6 +889,31 @@ export interface components {
              * @example false
              */
             simulated: boolean;
+        };
+        Notification: {
+            /**
+             * Format: int64
+             * @example 42
+             */
+            id: number;
+            /** Format: uuid */
+            application_id: string;
+            /**
+             * @description Статус заявки, на который пришло уведомление, или `signing_code`
+             * @example approved
+             */
+            kind: string;
+            /** @example Банк одобрил заявку №1024 */
+            title: string;
+            /** @example Кредит 2 500 000 ₽. Примите условия в карточке заявки */
+            text: string;
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Нет, пока не прочитано
+             */
+            read_at?: string;
         };
         Profile: {
             user: components["schemas"]["ProfileUser"];
@@ -1166,11 +1251,6 @@ export interface components {
             code: string;
         };
         SigningCode: {
-            /**
-             * @description На стенде код показываем прямо в интерфейсе, SMS в сценарии нет
-             * @example 482913
-             */
-            code: string;
             /**
              * Format: date-time
              * @example 2026-10-21T10:20:00Z
@@ -1859,6 +1939,75 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                unread?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Уведомления */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"][];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    readNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отмечено */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    readAllNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отмечено */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
     getProfile: {

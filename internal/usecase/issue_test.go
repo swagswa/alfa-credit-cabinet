@@ -2,6 +2,7 @@ package usecase_test
 
 import (
 	"crypto/sha256"
+	"regexp"
 	"testing"
 	"time"
 
@@ -20,7 +21,17 @@ func (e *appEnv) issue() usecase.IssueUseCase {
 	catalog, err := rules.Products("../../rules/products.yaml")
 	require.NoError(e.t, err)
 	return usecase.NewIssue(&postgres.Client{Pool: e.pool}, e.uc, repo.NewApplication(db.New(e.pool)),
-		repo.NewDocument(e.pool), repo.NewSigning(e.pool), catalog, 5*time.Minute)
+		repo.NewDocument(e.pool), repo.NewSigning(e.pool), e.notes, catalog, 5*time.Minute)
+}
+
+// sentCode: код из последнего уведомления клиенту, как его увидит человек в колокольчике
+func (e *appEnv) sentCode(id uuid.UUID) string {
+	var body string
+	require.NoError(e.t, e.pool.QueryRow(e.t.Context(), `SELECT body FROM notifications
+		WHERE application_id = $1 AND kind = 'signing_code' ORDER BY id DESC LIMIT 1`, id).Scan(&body))
+	m := regexp.MustCompile(`Код (\d{6}) `).FindStringSubmatch(body)
+	require.Len(e.t, m, 2, body)
+	return m[1]
 }
 
 // offer ведёт заявку кофейни через одобрение до status, как это сделал бы процесс
@@ -67,15 +78,16 @@ func TestRequestCode(t *testing.T) {
 	uc := e.issue()
 	ctx := t.Context()
 
-	_, _, err := uc.RequestCode(ctx, e.client, e.offer(domain.StatusApproved))
+	_, err := uc.RequestCode(ctx, e.client, e.offer(domain.StatusApproved))
 	require.ErrorIs(t, err, domain.ErrIllegalTransition)
 
 	id := e.offer(domain.StatusSigning)
-	_, _, err = uc.RequestCode(ctx, e.user("logistics"), id)
+	_, err = uc.RequestCode(ctx, e.user("logistics"), id)
 	require.ErrorIs(t, err, domain.ErrNotFound)
 
-	code, c, err := uc.RequestCode(ctx, e.client, id)
+	c, err := uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
+	code := e.sentCode(id)
 	require.Regexp(t, `^\d{6}$`, code)
 	hash, attempts, expires := e.code(id)
 	sum := sha256.Sum256([]byte(code))
@@ -100,8 +112,9 @@ func TestSign(t *testing.T) {
 	wrongCode(t, uc.Sign(ctx, e.client, id, "123456"), "запросите новый") // кода ещё не просили
 	require.ErrorIs(t, uc.Sign(ctx, e.client, e.offer(domain.StatusAccepted), "123456"), domain.ErrIllegalTransition)
 
-	code, _, err := uc.RequestCode(ctx, e.client, id)
+	_, err := uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
+	code := e.sentCode(id)
 	wrong := "000000"
 	if code == wrong {
 		wrong = "111111"
@@ -112,8 +125,9 @@ func TestSign(t *testing.T) {
 	wrongCode(t, uc.Sign(ctx, e.client, id, code), "запросите новый") // три ошибки сожгли код
 	require.Nil(t, e.wf.args, "до процесса неверный код не доходит")
 
-	code, _, err = uc.RequestCode(ctx, e.client, id)
+	_, err = uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
+	code = e.sentCode(id)
 	require.ErrorIs(t, uc.Sign(ctx, e.user("logistics"), id, code), domain.ErrNotFound)
 	require.NoError(t, uc.Sign(ctx, e.client, id, code))
 	require.Equal(t, []any{id.String(), usecase.UpdateSign, domain.Action{Actor: e.client}}, e.wf.args)
@@ -123,8 +137,9 @@ func TestSign(t *testing.T) {
 	wrongCode(t, uc.Sign(ctx, e.client, id, code), "запросите новый")
 	require.Nil(t, e.wf.args)
 
-	code, _, err = uc.RequestCode(ctx, e.client, id)
+	_, err = uc.RequestCode(ctx, e.client, id)
 	require.NoError(t, err)
+	code = e.sentCode(id)
 	// срок ставим по часам приложения: у контейнера с базой на винде часы убегают на секунды
 	_, err = e.pool.Exec(ctx, "UPDATE signing_codes SET expires_at = $1", time.Now().Add(-time.Second))
 	require.NoError(t, err)

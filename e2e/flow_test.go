@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"net/http"
+	"regexp"
 	"testing"
 	"time"
 
@@ -70,6 +71,19 @@ func TestApproveSignIssue(t *testing.T) {
 	evs := history(t, c, v.Id)
 	require.True(t, hasEvent(evs, oapi.ApplicationEventKindTransition, oapi.ApplicationStatusIssued))
 	require.True(t, hasEvent(evs, oapi.ApplicationEventKindSigning, ""))
+
+	// AC21: весь путь виден в колокольчике, выдача со счётом из данных банка
+	list, err := c.ListNotificationsWithResponse(t.Context(), nil)
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, n := range *list.JSON200 {
+		if n.ApplicationId == v.Id {
+			got[n.Kind] = n.Text
+		}
+	}
+	require.Contains(t, got, "approved")
+	require.Contains(t, got, "signing_code")
+	require.Equal(t, "2 500 000 ₽ зачислены на счёт •• 0012", got["issued"])
 }
 
 func sign(t *testing.T, c *user, app uuid.UUID, code string) int {
@@ -85,7 +99,18 @@ func signingCode(t *testing.T, c *user, app uuid.UUID) string {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, res.StatusCode(), string(res.Body))
 	require.Equal(t, 3, res.JSON200.AttemptsLeft)
-	return res.JSON200.Code
+
+	// код приходит уведомлением в кабинете, как пришёл бы push
+	list, err := c.ListNotificationsWithResponse(t.Context(), &oapi.ListNotificationsParams{Unread: new(true)})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, list.StatusCode(), string(list.Body))
+	for _, n := range *list.JSON200 {
+		if n.ApplicationId == app && n.Kind == "signing_code" {
+			return regexp.MustCompile(`\d{6}`).FindString(n.Text)
+		}
+	}
+	require.Fail(t, "нет уведомления с кодом")
+	return ""
 }
 
 // AC02: оборудование логистики дают меньше и дольше, с залогом

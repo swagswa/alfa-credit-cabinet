@@ -14,8 +14,13 @@ UPDATE signing_codes SET attempts_left = @attempts_left WHERE application_id = @
 -- name: DeleteSigningCode :exec
 DELETE FROM signing_codes WHERE application_id = @application_id;
 
--- счёт один на всех, деньги всё равно никуда не идут
+-- счёт из последнего ответа данных банка по заявке; не наш клиент, условный счёт.
+-- Деньги всё равно никуда не идут
 -- name: AddPayout :exec
 INSERT INTO payouts (application_id, amount_kop, account)
-VALUES (@application_id, @amount_kop, 'расчётный счёт в банке')
+VALUES (@application_id, @amount_kop, coalesce(
+    (SELECT r.payload ->> 'account' FROM check_results r
+     WHERE r.application_id = @application_id AND r.source = 'internal' AND r.status = 'ok'
+     ORDER BY r.id DESC LIMIT 1),
+    'расчётный счёт в банке'))
 ON CONFLICT (application_id) DO NOTHING;

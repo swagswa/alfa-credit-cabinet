@@ -365,9 +365,9 @@ type fakeIssue struct {
 	usecase.IssueUseCase
 }
 
-func (fakeIssue) RequestCode(context.Context, domain.Actor, uuid.UUID) (string, domain.SigningCode, error) {
+func (fakeIssue) RequestCode(context.Context, domain.Actor, uuid.UUID) (domain.SigningCode, error) {
 	at := time.Date(2026, time.October, 24, 10, 5, 0, 0, time.UTC)
-	return "482913", domain.SigningCode{AttemptsLeft: 3, ExpiresAt: at}, nil
+	return domain.SigningCode{AttemptsLeft: 3, ExpiresAt: at}, nil
 }
 
 func (fakeIssue) Sign(_ context.Context, _ domain.Actor, _ uuid.UUID, code string) error {
@@ -386,7 +386,8 @@ func TestSigningHTTP(t *testing.T) {
 
 	rec := call(t, h, "POST", app+"/signing-code", "", client)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.JSONEq(t, `{"code":"482913","expires_at":"2026-10-24T10:05:00Z","attempts_left":3}`, rec.Body.String())
+	// сам код только в уведомлении, ответ его не отдаёт
+	require.JSONEq(t, `{"expires_at":"2026-10-24T10:05:00Z","attempts_left":3}`, rec.Body.String())
 
 	rec = call(t, h, "POST", app+"/sign", `{"code":"000000"}`, client)
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())

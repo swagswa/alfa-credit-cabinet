@@ -14,7 +14,11 @@ import (
 
 const addPayout = `-- name: AddPayout :exec
 INSERT INTO payouts (application_id, amount_kop, account)
-VALUES ($1, $2, 'расчётный счёт в банке')
+VALUES ($1, $2, coalesce(
+    (SELECT r.payload ->> 'account' FROM check_results r
+     WHERE r.application_id = $1 AND r.source = 'internal' AND r.status = 'ok'
+     ORDER BY r.id DESC LIMIT 1),
+    'расчётный счёт в банке'))
 ON CONFLICT (application_id) DO NOTHING
 `
 
@@ -23,7 +27,8 @@ type AddPayoutParams struct {
 	AmountKop     int64
 }
 
-// счёт один на всех, деньги всё равно никуда не идут
+// счёт из последнего ответа данных банка по заявке; не наш клиент, условный счёт.
+// Деньги всё равно никуда не идут
 func (q *Queries) AddPayout(ctx context.Context, arg AddPayoutParams) error {
 	_, err := q.db.Exec(ctx, addPayout, arg.ApplicationID, arg.AmountKop)
 	return err

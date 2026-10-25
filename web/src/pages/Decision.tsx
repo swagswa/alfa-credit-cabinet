@@ -4,6 +4,7 @@ import { Value } from '../motion/Value';
 import { Button, MotionDetails, motion, useMotionDisabled } from '../motion';
 import { OutcomePanel } from '../motion/OutcomePanel';
 import { BottomNotice, notify } from '../BottomNotice';
+import { openNotifications } from '../Notifications';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { Input } from '@alfalab/core-components/input';
@@ -40,9 +41,10 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
             })
           : await api.POST('/applications/{id}/signing-code', { params: { path: { id: card.id } } });
       if (result.data) {
-        if ('code' in result.data) {
+        if ('attempts_left' in result.data) {
           setIssued(result.data);
           setCode('');
+          openNotifications();
         } else {
           notify('Условия приняты.');
           refresh();
@@ -240,7 +242,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
               </a>
             </p>
           )}
-          <p>Учебное подписание: код показывается здесь, отправки SMS нет.</p>
+          <p>Код подписания придёт в уведомления кабинета, как push в приложении банка. SMS в прототипе нет.</p>
           <Button loading={busy} onClick={() => action('signing-code')}>
             {issued ? 'Получить новый код' : 'Получить код'}
           </Button>
@@ -248,8 +250,8 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
           {issued && !codeExpired && (
             <form onSubmit={sign}>
               <p>
-                Код: {issued.code}. Действует до {new Date(issued.expires_at).toLocaleTimeString('ru-RU')}. Попыток:{' '}
-                {issued.attempts_left}.
+                Код пришёл в уведомления. Действует до {new Date(issued.expires_at).toLocaleTimeString('ru-RU')}.
+                Попыток: {issued.attempts_left}.
               </p>
               <Input
                 block
@@ -258,7 +260,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={6}
-                hint="6 цифр из кода выше"
+                hint="6 цифр из уведомления"
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
                 disabled={busy}
               />

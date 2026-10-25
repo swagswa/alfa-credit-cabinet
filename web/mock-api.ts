@@ -40,7 +40,9 @@ export function mockApi(): Plugin {
     string,
     { owner: string; document: components['schemas']['Document']; bytes: Uint8Array }
   >();
-  const signing = new Map<string, components['schemas']['SigningCode']>();
+  const signing = new Map<string, components['schemas']['SigningCode'] & { code: string }>();
+  // уведомления по логину клиента; в моке только код подписи
+  const notices = new Map<string, components['schemas']['Notification'][]>();
   const streams = new Set<{ login: string; role: string; session: string; id: string | null; res: ServerResponse }>();
   const histories = new Map<string, components['schemas']['ApplicationEvent'][]>();
   const previousStatus = new Map<string, App['status']>();
@@ -337,6 +339,15 @@ export function mockApi(): Plugin {
             }
           }
           return problem(501, 'Действие документа пока не реализовано');
+        }
+        if (actor && pathname.startsWith('/api/notifications')) {
+          if (actor.user.role !== 'client') return problem(403, 'Уведомления доступны клиенту');
+          const list = notices.get(actor.user.login) ?? [];
+          if (req.method === 'GET') return json(200, list);
+          const at = new Date().toISOString();
+          for (const n of list) if (pathname.endsWith('read-all') || pathname.includes(`/${n.id}/`)) n.read_at ??= at;
+          res.writeHead(204).end();
+          return;
         }
         if (actor && pathname === '/api/feed' && req.method === 'GET') {
           if (actor.user.role !== 'client') return problem(403, 'Лента доступна клиенту');
@@ -701,7 +712,17 @@ export function mockApi(): Plugin {
                     attempts_left: 3,
                   };
                   signing.set(app.id, code);
-                  return json(200, code);
+                  const list = notices.get(entry.owner) ?? [];
+                  list.unshift({
+                    id: list.length + 1,
+                    application_id: app.id,
+                    kind: 'signing_code',
+                    title: 'Код подписания',
+                    text: `Код ${code.code} для подписания договора по заявке №${app.number}`,
+                    created_at: new Date().toISOString(),
+                  });
+                  notices.set(entry.owner, list);
+                  return json(200, { expires_at: code.expires_at, attempts_left: code.attempts_left });
                 }
                 const issued = signing.get(app.id);
                 if (!issued || issued.attempts_left === 0 || Date.parse(issued.expires_at) <= Date.now())

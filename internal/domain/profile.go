@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,11 +30,17 @@ type BankAccount struct {
 	Products    []string
 }
 
+func (b *BankAccount) Mask() string { return MaskAccount(b.Number) }
+
 const maskTail = 4
 
-// Mask оставляет от номера счёта последние четыре цифры.
-func (b *BankAccount) Mask() string {
-	return "•• " + b.Number[max(0, len(b.Number)-maskTail):]
+// MaskAccount оставляет от номера счёта последние четыре цифры. Не номер (условный
+// счёт выдачи не нашему клиенту) отдаёт как есть.
+func MaskAccount(n string) string {
+	if n == "" || strings.Trim(n, "0123456789") != "" {
+		return n
+	}
+	return "•• " + n[max(0, len(n)-maskTail):]
 }
 
 // Loan: заявка, по которой банк выдал деньги, с условиями выдачи.

@@ -119,13 +119,13 @@ sequenceDiagram
     W->>P: PrepareContract: договор с графиком в documents
     W->>P: Transition в signing, таймер SIGNING_TTL
     C->>A: POST /applications/{id}/signing-code
-    A->>P: sha256 кода, 3 попытки, срок SIGNING_CODE_TTL
-    A-->>C: код в ответе, вместо SMS
+    A->>P: sha256 кода, 3 попытки, срок SIGNING_CODE_TTL, код в notifications
+    A-->>C: срок и попытки; сам код в колокольчике, вместо SMS
     C->>A: POST /applications/{id}/sign
     A->>P: сверка под FOR UPDATE, неверный код минус попытка, 422
     A->>T: Update Sign без кода
-    W->>P: Payout: строка в payouts
-    W->>P: Transition в issued
+    W->>P: Payout: строка в payouts, счёт из данных банка
+    W->>P: Transition в issued и уведомление «зачислены на счёт»
     Note over W: через CLOSE_AFTER Transition в closed
 ```
 

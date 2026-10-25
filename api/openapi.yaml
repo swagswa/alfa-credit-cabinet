@@ -22,6 +22,8 @@ tags:
     description: Вход по тестовым учёткам
   - name: profile
     description: Профиль клиента
+  - name: notifications
+    description: Уведомления клиента в кабинете
   - name: products
     description: Продукты и подбор по цели
   - name: companies
@@ -105,6 +107,79 @@ paths:
                 $ref: '#/components/schemas/Me'
         '204':
           description: Входа нет
+
+  /notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: Уведомления клиента
+      description: |
+        Только для клиента, свои, новые сверху. Пишутся вместе со сменой статуса заявки по фразам
+        `rules/notifications.yaml` и при выдаче кода подписи. Почты и SMS в сценарии нет, это единственный канал.
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Уведомления
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+
+  /notifications/{id}/read:
+    post:
+      tags: [notifications]
+      operationId: readNotification
+      summary: Отметить прочитанным
+      description: Повтор ничего не меняет. Чужое уведомление 404, как несуществующее.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Отмечено
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      operationId: readAllNotifications
+      summary: Отметить все прочитанными
+      responses:
+        '204':
+          description: Отмечено
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
 
   /profile:
     get:
@@ -483,7 +558,8 @@ paths:
       operationId: requestSigningCode
       summary: Получить код подписания
       description: |
-        Только в `signing`. SMS в сценарии нет, код показываем в интерфейсе. Новый код сбрасывает счётчик попыток.
+        Только в `signing`. SMS в сценарии нет: код приходит клиенту уведомлением в кабинете (`GET /notifications`,
+        вид `signing_code`), в ответе его нет. Новый код сбрасывает счётчик попыток.
       responses:
         '200':
           description: Код выдан
@@ -953,8 +1029,9 @@ paths:
         `EventSource`, cookie уходит сама. Обычный хендлер echo, из генерации strict server исключён
         через `exclude-operation-ids`. События из `LISTEN/NOTIFY`, приходят после коммита.
 
-        Формат: `event: status`, `event: document` или `event: check`, в `data` JSON `StreamEvent`. Клиент
-        получает события своих заявок, сотрудник банка все поданные. После переподключения фронт перечитывает
+        Формат: `event: status`, `event: document`, `event: check` или `event: notification`, в `data` JSON
+        `StreamEvent`. Клиент получает события своих заявок, сотрудник банка все поданные. `notification` приходит
+        только адресату: у него новое уведомление по заявке, саму ленту фронт перечитывает `GET /notifications`. После переподключения фронт перечитывает
         карточку или список.
 
         `check` это ход проверок: источник ответил (`check_status` есть) или попытка не удалась и будет
@@ -1337,6 +1414,35 @@ components:
           type: boolean
           description: Компания из генератора симулятора, плашка «данные сгенерированы»
           example: false
+
+    Notification:
+      type: object
+      required: [id, application_id, kind, title, text, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 42
+        application_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: Статус заявки, на который пришло уведомление, или `signing_code`
+          example: approved
+        title:
+          type: string
+          example: Банк одобрил заявку №1024
+        text:
+          type: string
+          example: Кредит 2 500 000 ₽. Примите условия в карточке заявки
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: string
+          format: date-time
+          description: Нет, пока не прочитано
 
     Profile:
       type: object
@@ -1789,12 +1895,8 @@ components:
 
     SigningCode:
       type: object
-      required: [code, expires_at, attempts_left]
+      required: [expires_at, attempts_left]
       properties:
-        code:
-          type: string
-          description: На стенде код показываем прямо в интерфейсе, SMS в сценарии нет
-          example: '482913'
         expires_at:
           type: string
           format: date-time

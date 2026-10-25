@@ -1,0 +1,37 @@
+meta {
+  name: 32 Уведомления клиента
+  type: http
+  seq: 32
+}
+
+get {
+  url: {{baseUrl}}/notifications?unread=true
+  body: none
+  auth: none
+}
+
+params:query {
+  unread: true
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("код подписи пришёл уведомлением", function () {
+    const n = res.body.find((i) => i.kind === "signing_code" && i.application_id === bru.getVar("northId"));
+    expect(n).to.be.an("object");
+    bru.setVar("signCode", n.text.match(/\d{6}/)[0]);
+    bru.setVar("notificationId", n.id);
+  });
+}
+
+docs {
+  Свои уведомления, новые сверху. Пишутся вместе со сменой статуса и при выдаче кода подписи.
+  Прочитать: POST /notifications/{id}/read (чужое 404), все сразу: POST /notifications/read-all. Сотруднику банка 403.
+}
