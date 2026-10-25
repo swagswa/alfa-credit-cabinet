@@ -81,6 +81,8 @@ const (
 	accountNewMonths  = 3
 	accountYearMonths = 12
 	halfYear          = 6
+	// попадает в средний бин F3 в rules/scoring.yaml
+	neutralCV = 0.4
 )
 
 // уровни истории с банком, вход F8, описаны в rules/scoring.yaml
@@ -214,7 +216,7 @@ func (b *bankReply) history(now time.Time) (int, error) {
 }
 
 // revenue считает выручку и обороты. Помесячный ряд берём с нашего счёта, без него
-// из подтверждённой выписки. M консервативно: меньшее из ФНС / 12 и оборота (4.4).
+// из подтверждённой выписки. M консервативно: меньшее из ФНС / 12 и оборота.
 func (u *decisionUseCase) revenue(
 	f *domain.Facts,
 	app *domain.Application,
@@ -228,6 +230,8 @@ func (u *decisionUseCase) revenue(
 	t := mean(series)
 	f.MonthlyTurnoverKop = t
 	f.RevenueTrend = 1 // по ряду короче года тренд не видно, ставим нейтральный
+	// без ряда тоже нейтрально: средний бин F3, а не "стабильные обороты" за пустоту
+	f.TurnoverCV = neutralCV
 	if n := len(series); n >= 2*halfYear {
 		f.RevenueTrend = float64(sum(series[n-halfYear:])) / float64(sum(series[n-2*halfYear:n-halfYear]))
 	}

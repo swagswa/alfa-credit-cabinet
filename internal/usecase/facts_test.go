@@ -148,6 +148,7 @@ func TestFactsWithoutSources(t *testing.T) {
 	require.False(t, f.EGRULFound)
 	// сверить не с чем, остаётся заявленная выручка
 	require.Equal(t, int64(500_000_00), f.MonthlyRevenueKop)
+	require.GreaterOrEqual(t, f.TurnoverCV, 0.3, "без оборотов стабильность не засчитываем")
 	require.Equal(t, []string{"passport", "statement", "power_of_attorney"}, f.MissingDocuments)
 }
 
