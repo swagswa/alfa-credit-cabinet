@@ -67,22 +67,11 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 	if !share(f.SwitchAgeMinShare) || f.LimitRoundRub <= 0 || f.ReapplyMonths <= 0 {
 		return p, errors.New("switch_age_min_share должен быть в (0, 1], limit_round_rub и reapply_months больше 0")
 	}
-	for g, v := range f.DSRMax {
-		if !share(v) {
-			return p, fmt.Errorf("dsr_max %s вне (0, 1]", g)
-		}
-	}
-	for g, pp := range f.RatePremiumPP {
-		p.RatePremiumBP[g] = bp(pp)
-	}
 	for code, py := range f.Products {
 		if !known(code) {
 			return p, fmt.Errorf("неизвестный продукт %q", code)
 		}
 		pp, err := py.policy()
-		if err == nil {
-			err = f.priced(pp)
-		}
 		if err != nil {
 			return p, fmt.Errorf("%s: %w", code, err)
 		}
@@ -90,6 +79,9 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 	}
 	if len(p.Products) != len(domain.ProductCodes) {
 		return p, errors.New("нужна политика для каждого продукта")
+	}
+	if err := f.priced(&p); err != nil {
+		return p, err
 	}
 	for _, s := range f.StopFactors {
 		r, err := s.rule()
@@ -101,13 +93,25 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 	return p, nil
 }
 
-// priced: без dsr_max и надбавки лимит и ставка класса тихо посчитались бы от нуля
-func (f *policyFile) priced(pp domain.ProductPolicy) error {
-	for g, gt := range pp.Grades {
-		_, dsr := f.DSRMax[g]
-		_, rate := f.RatePremiumPP[g]
-		if gt.Action != domain.GradeReject && (!dsr || !rate) {
-			return fmt.Errorf("для класса %s нужны dsr_max и rate_premium_pp", g)
+// priced переводит надбавки в б.п. и проверяет нагрузку. Без dsr_max и надбавки
+// лимит и ставка класса тихо посчитались бы от нуля, поэтому они нужны каждому
+// классу, по которому хоть один продукт выдаёт.
+func (f *policyFile) priced(p *domain.PolicyRules) error {
+	for g, v := range f.DSRMax {
+		if !share(v) {
+			return fmt.Errorf("dsr_max %s вне (0, 1]", g)
+		}
+	}
+	for g, pp := range f.RatePremiumPP {
+		p.RatePremiumBP[g] = bp(pp)
+	}
+	for code, pp := range p.Products {
+		for g, gt := range pp.Grades {
+			_, dsr := f.DSRMax[g]
+			_, rate := f.RatePremiumPP[g]
+			if gt.Action != domain.GradeReject && (!dsr || !rate) {
+				return fmt.Errorf("%s: для класса %s нужны dsr_max и rate_premium_pp", code, g)
+			}
 		}
 	}
 	return nil
