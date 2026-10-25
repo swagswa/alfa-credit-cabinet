@@ -2,12 +2,21 @@ import type { components } from './schema.gen';
 
 type Status = components['schemas']['ApplicationStatus'];
 export const applicationGroups = {
-  response: { label: 'Нужен ваш ответ', statuses: ['need_info', 'accepted', 'signing'] },
-  offers: { label: 'Есть предложение', statuses: ['approved', 'counter_offer'] },
-  review: { label: 'На рассмотрении', statuses: ['submitted', 'checking', 'scoring', 'manual_review'] },
-  drafts: { label: 'Черновики', statuses: ['draft'] },
-  completed: { label: 'Завершены', statuses: ['issued', 'closed', 'rejected', 'expired', 'cancelled_by_client'] },
-} satisfies Record<string, { label: string; statuses: Status[] }>;
+  response: { label: 'Нужен ваш ответ', bank: 'Ждём клиента', statuses: ['need_info', 'accepted', 'signing'] },
+  offers: { label: 'Есть предложение', bank: 'Предложено клиенту', statuses: ['approved', 'counter_offer'] },
+  review: {
+    label: 'На рассмотрении',
+    bank: 'В работе у банка',
+    statuses: ['submitted', 'checking', 'scoring', 'manual_review'],
+  },
+  // черновиков банк не видит
+  drafts: { label: 'Черновики', bank: '', statuses: ['draft'] },
+  completed: {
+    label: 'Завершены',
+    bank: 'Все завершённые',
+    statuses: ['issued', 'closed', 'rejected', 'expired', 'cancelled_by_client'],
+  },
+} satisfies Record<string, { label: string; bank: string; statuses: Status[] }>;
 export type ApplicationGroup = keyof typeof applicationGroups;
 export const isApplicationGroup = (value: string | null): value is ApplicationGroup =>
   !!value && value in applicationGroups;

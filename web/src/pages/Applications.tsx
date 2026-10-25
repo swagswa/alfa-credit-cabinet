@@ -50,6 +50,7 @@ const sorts = [
   { key: 'amount_kop', content: 'Сначала меньшая сумма' },
   { key: 'due_at', content: 'По ближайшему сроку' },
 ];
+const bankSorts = [...sorts, { key: 'score', content: 'Сначала рискованные' }];
 
 export function Applications({
   bank = false,
@@ -451,7 +452,9 @@ export function Applications({
     }
   }
   const [title, description] = bank
-    ? ['Очередь банка', 'Заявки клиентов, проверки и решения']
+    ? id
+      ? ['Заявка клиента', card?.company.short_name ?? '']
+      : ['Очередь банка', 'Заявки клиентов, проверки и решения']
     : createOnly
       ? ['Новая заявка', 'Заполните анкету и подберите финансирование']
       : ['Мои заявки', 'Заявки, документы и решения банка'];
@@ -490,7 +493,7 @@ export function Applications({
                   <CompletedJourney key={card.id} card={card} />
                 ) : (
                   <>
-                    <Progress card={card} />
+                    <Progress card={card} bank={bank} />
                     <Typography.Title tag="h2" view="small" font="system" defaultMargins>
                       Заявка № {card.number}
                     </Typography.Title>
@@ -580,11 +583,13 @@ export function Applications({
                     label="Статус заявки"
                     options={[
                       { key: 'all', content: 'Все статусы' },
-                      ...Object.entries(applicationGroups).map(([key, value]) => ({
-                        key: `group:${key}`,
-                        content: value.label,
-                      })),
-                      ...options(labels),
+                      ...Object.entries(applicationGroups)
+                        .filter(([, value]) => !bank || value.bank)
+                        .map(([key, value]) => ({
+                          key: `group:${key}`,
+                          content: bank ? value.bank : value.label,
+                        })),
+                      ...options(labels).filter((option) => !bank || option.key !== 'draft'),
                     ]}
                     selected={status ?? (group ? `group:${group}` : 'all')}
                     onChange={({ selected }) => {
@@ -635,7 +640,7 @@ export function Applications({
                   <Select
                     block
                     label="Порядок заявок"
-                    options={sorts}
+                    options={bank ? bankSorts : sorts}
                     selected={sort}
                     onChange={({ selected }) => {
                       setOffset(0);

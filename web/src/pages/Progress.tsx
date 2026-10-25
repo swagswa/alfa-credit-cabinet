@@ -23,8 +23,10 @@ export function Progress({
   card,
   selected,
   onSelect,
+  bank = false,
 }: {
   card: components['schemas']['ApplicationView'];
+  bank?: boolean;
   selected?: number;
   onSelect?: (step: number) => void;
 }) {
@@ -67,7 +69,7 @@ export function Progress({
           </li>
         ))}
       </ol>
-      {!onSelect && (
+      {!onSelect && !bank && (
         <Typography.Text tag="p" view="primary-small" className="hint">
           {hints[card.status] ?? 'Текущий этап выделен. Следующее действие показано в карточке.'}
         </Typography.Text>
