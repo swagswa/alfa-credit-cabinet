@@ -262,7 +262,8 @@ func (u *decisionUseCase) revenue(
 		}
 	}
 	fy := &domain.FNSIncome{Year: now.Year() - 1, Kop: fnsKop}
-	f.DocRevenueMismatch = domain.CheckRevenue(app.Documents, fy, limit).Mismatch
+	rc := domain.CheckRevenue(app.Documents, fy, limit)
+	f.DocRevenueMismatch, f.DocRevenueKop, f.FNSRevenueKop = rc.Mismatch, rc.DocKop, rc.FNSKop
 }
 
 // missingDocs по правилам продукта. Выписку засчитываем только подтверждённой: из неё берём

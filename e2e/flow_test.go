@@ -188,6 +188,37 @@ func TestUnderwriter(t *testing.T) {
 	require.Equal(t, http.StatusOK, acc.StatusCode(), string(acc.Body))
 }
 
+// AC13 ручным вводом: приход в выписке завышен в 1,5 раза, специалист видит обе цифры
+func TestDocMismatch(t *testing.T) {
+	t.Parallel()
+	c := as(t, "it")
+	app := create(t, c, application("0000300011", 8*mln, 12, 35*mln/10))
+	upload(t, c, app.Id, oapi.DocumentKindPassport, "0000300011_financials_a.pdf")
+	submit(t, c, app.Id)
+	wait(t, c, app.Id, oapi.ApplicationStatusNeedInfo)
+
+	st := upload(t, c, app.Id, oapi.DocumentKindStatement, "0000300011_statement_a_trap.pdf")
+	confirm(t, c, st, "0000300011_statement_a_trap.pdf")
+	fin := upload(t, c, app.Id, oapi.DocumentKindFinancials, "0000300011_financials_a.pdf")
+	confirm(t, c, fin, "0000300011_financials_a.pdf")
+	res, err := c.ProvideInfoWithResponse(
+		t.Context(),
+		app.Id,
+		oapi.ProvideInfoRequest{DocumentIds: &[]uuid.UUID{st.Id, fin.Id}},
+	)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode(), string(res.Body))
+	wait(t, c, app.Id, oapi.ApplicationStatusManualReview)
+
+	for _, r := range card(t, as(t, "manager"), app.Id).Reasons {
+		if r.Code == "SF_DOC_MISMATCH" {
+			require.Contains(t, r.Text, "по документу 62 999 998 ₽")
+			return
+		}
+	}
+	t.Fatal("нет SF_DOC_MISMATCH")
+}
+
 // AC05: реестр всегда 503, после ретраев ручное рассмотрение; повтор проверок
 // при том же сбое возвращает заявку туда же
 func TestSourceUnavailable(t *testing.T) {

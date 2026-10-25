@@ -55,6 +55,8 @@ type Facts struct {
 	RevenueMismatch    float64  // заявленная выручка против ФНС или выписки, доля
 	MissingDocuments   []string // виды документов, которых не хватает
 	DocRevenueMismatch float64  // из CheckRevenue
+	DocRevenueKop      int64    // обе цифры сверки, для текста SF_DOC_MISMATCH
+	FNSRevenueKop      int64
 	SourcesUnavailable int
 }
 

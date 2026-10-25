@@ -3,7 +3,7 @@ import { Button, MotionDetails } from '../motion';
 import { BankActions } from './BankActions';
 import { useHistory } from '../api/client';
 import { isCompleted } from '../api/dashboard';
-import { actors, labels, money, rate, products, sources } from '../api/presentation';
+import { actors, bankReasons, factorValue, labels, money, rate, products, sources } from '../api/presentation';
 import type { components } from '../api/schema.gen';
 export function BankDetails({
   card,
@@ -16,6 +16,13 @@ export function BankDetails({
   const { history, state } = useHistory(card.id, card.version, revision);
   const finished = isCompleted(card.status);
   const lastDecision = [...history].reverse().find((event) => event.to_status === card.status);
+  const texts = new Map(card.reasons.map((r) => [r.code, r.text]));
+  const reasonText = (code: components['schemas']['ReasonCode']) => texts.get(code) || bankReasons[code] || code;
+  const reasonList = card.reasons.map((reason, index) => (
+    <li key={`${reason.code}-${index}`}>
+      {reasonText(reason.code)} <span className="hint">{reason.code}</span>
+    </li>
+  ));
   return (
     <section>
       {finished && (
@@ -27,11 +34,7 @@ export function BankDetails({
               ? 'Заявка завершена отказом. Повторное решение и запрос документов недоступны.'
               : 'Работа по текущему этапу завершена. Ниже доступны материалы и история заявки.'}
           </p>
-          {card.reasons.map((reason, index) => (
-            <p key={`${reason.code}-${index}`}>
-              <strong>{reason.code}</strong>: {reason.text}
-            </p>
-          ))}
+          <ul>{reasonList}</ul>
           {lastDecision && (
             <p className="hint">
               {lastDecision.actor_name ?? actors[lastDecision.actor_role]} ·{' '}
@@ -55,6 +58,20 @@ export function BankDetails({
           }}
         />
       )}
+      {card.offer && (
+        <>
+          <h2>Предложено клиенту</h2>
+          <p>
+            {products[card.offer.product]}: {money(card.offer.amount_kop)}, {card.offer.term_months} мес.,{' '}
+            {rate(card.offer.rate_bp)} годовых, платёж {money(card.offer.monthly_payment_kop)} в месяц.{' '}
+            {card.offer.guarantor_required ? 'Нужно поручительство.' : ''}{' '}
+            {card.offer.pledge_required ? 'Нужен залог.' : ''}
+          </p>
+          {(card.status === 'approved' || card.status === 'counter_offer') && (
+            <p className="hint">Клиент может принять до {new Date(card.offer.expires_at).toLocaleString('ru-RU')}.</p>
+          )}
+        </>
+      )}
       <h2>Проверки источников</h2>
       {!card.checks?.length && <p>Результаты проверок ещё не поступили.</p>}
       {card.checks?.map((check, index) => (
@@ -70,7 +87,12 @@ export function BankDetails({
             )[check.status] ?? check.status}
             . Проверено: {new Date(check.checked_at).toLocaleString('ru-RU')}.
           </p>
-          {check.error && <p role="alert">{check.error}</p>}
+          {check.status === 'unavailable' && (
+            <p role="alert">
+              Источник не ответил и после повторных попыток. Когда он заработает, нажмите «Повторить проверки».
+            </p>
+          )}
+          {check.error && <p className="hint">Ответ системы: {check.error}</p>}
           {check.payload && (
             <MotionDetails>
               <summary>Ответ источника</summary>
@@ -116,18 +138,22 @@ export function BankDetails({
                   <th>Фактор</th>
                   <th>Значение</th>
                   <th>Баллы</th>
-                  <th>Код причины</th>
+                  <th>Влияние</th>
                 </tr>
               </thead>
               <tbody>
                 {card.scoring.factors.map((factor, index) => (
                   <tr key={`${factor.code}-${index}`}>
                     <th>{factor.name}</th>
-                    <td>{factor.value.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
+                    <td>{factorValue(factor.code, factor.value)}</td>
                     <td>
                       {factor.points} / {factor.max_points}
                     </td>
-                    <td>{factor.reason ?? 'Нет'}</td>
+                    <td>
+                      {factor.points === factor.max_points
+                        ? 'лучшее значение'
+                        : `минус ${factor.max_points - factor.points} от максимума`}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -135,18 +161,16 @@ export function BankDetails({
           </div>
         </>
       ) : (
-        <p>Оценка риска ещё не рассчитана. При отказе по стоп-фактору расчёт может не выполняться.</p>
+        <p>
+          {card.status === 'submitted' || card.status === 'checking'
+            ? 'Оценка появится после проверок источников.'
+            : 'Оценку не считали: решение принято по стоп-факторам или не хватило данных источников.'}
+        </p>
       )}
       {!!card.reasons.length && (
         <>
           <h3>Причины решения и стоп-факторы</h3>
-          <ul>
-            {card.reasons.map((reason, index) => (
-              <li key={`${reason.code}-${index}`}>
-                {reason.code}: {reason.text}
-              </li>
-            ))}
-          </ul>
+          <ul>{reasonList}</ul>
         </>
       )}
       <h2 id="bank-audit">История заявки</h2>
@@ -171,7 +195,7 @@ export function BankDetails({
             {event.from_status && <>: {labels[event.from_status]}</>}
             {event.to_status && <> → {labels[event.to_status]}</>}
             {event.comment && <p>{event.comment}</p>}
-            {!!event.reason_codes?.length && <p>Причины: {event.reason_codes.join(', ')}</p>}
+            {!!event.reason_codes?.length && <p>Причины: {event.reason_codes.map(reasonText).join('; ')}</p>}
           </li>
         ))}
       </ol>
