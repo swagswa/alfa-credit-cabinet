@@ -5,6 +5,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 var (
@@ -36,3 +37,8 @@ func (e *FieldErrors) add(field, format string, args ...any) {
 func (e FieldErrors) Error() string { return fmt.Sprintf("%s: %v", ErrIncomplete, []FieldError(e)) }
 
 func (FieldErrors) Unwrap() error { return ErrIncomplete }
+
+// Human: причина для человека без «неверные данные: » в начале, оно ему ничего не говорит
+func Human(err error) string {
+	return strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": ")
+}

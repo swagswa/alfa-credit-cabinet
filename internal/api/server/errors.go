@@ -69,9 +69,7 @@ func problem(err error) oapi.Problem {
 	case errors.Is(err, domain.ErrTooLarge):
 		return newProblem(http.StatusRequestEntityTooLarge, oapi.ProblemCodeTooLarge, err.Error())
 	case errors.Is(err, domain.ErrInvalid):
-		// «неверные данные: » клиенту ничего не говорит, оставляем саму причину
-		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation,
-			strings.TrimPrefix(err.Error(), domain.ErrInvalid.Error()+": "))
+		return newProblem(http.StatusBadRequest, oapi.ProblemCodeValidation, domain.Human(err))
 	case errors.Is(err, domain.ErrUnauthorized):
 		return newProblem(http.StatusUnauthorized, oapi.ProblemCodeUnauthorized, "")
 	case errors.Is(err, domain.ErrTooManyRequests):

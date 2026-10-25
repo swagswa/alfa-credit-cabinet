@@ -3,6 +3,7 @@ package domain
 import (
 	"encoding/json"
 	"maps"
+	"math/bits"
 	"reflect"
 	"slices"
 	"time"
@@ -141,6 +142,50 @@ func (v DocValues) Edited(from *DocValues) []string {
 			out = append(out, k)
 		}
 	}
+	return out
+}
+
+// Reconcile сводит два прочтения одного документа. OCR чаще всего путает одну
+// цифру в одной сумме, а другой режим разметки ошибается в другом месте:
+// берём из alt как можно меньше полей, чтобы сошлись остатки и месяцы.
+// Ни одна комбинация не прошла проверки: ok false и первое прочтение как было.
+func (v DocValues) Reconcile(alt DocValues, inn string, today time.Time) (DocValues, bool) {
+	a, b := v.fields(), alt.fields()
+	var diff []string
+	for _, k := range slices.Sorted(maps.Keys(a)) {
+		if !reflect.DeepEqual(a[k], b[k]) {
+			diff = append(diff, k)
+		}
+	}
+	masks := make([]int, 1<<len(diff))
+	for i := range masks {
+		masks[i] = i
+	}
+	slices.SortStableFunc(masks, func(x, y int) int { return bits.OnesCount(uint(x)) - bits.OnesCount(uint(y)) })
+	for _, m := range masks {
+		mixed := maps.Clone(a)
+		for i, k := range diff {
+			if m&(1<<i) != 0 {
+				mixed[k] = b[k]
+			}
+		}
+		if c := v.with(mixed); len(c.Check(inn, today)) == 0 {
+			return c, true
+		}
+	}
+	return v, false
+}
+
+// with собирает блок того же вида из полей. Поля пришли из fields тех же
+// типов, обратно они разбираются всегда
+func (v DocValues) with(f map[string]any) DocValues {
+	key := "financials"
+	if v.Statement != nil {
+		key = "statement"
+	}
+	var out DocValues
+	b, _ := json.Marshal(map[string]any{key: f})
+	_ = json.Unmarshal(b, &out)
 	return out
 }
 

@@ -40,21 +40,37 @@ func (f *fakeDocs) SaveRecognition(
 
 type fakeText struct {
 	calls int
+	scan  bool
 	err   error
 }
 
 func (f *fakeText) Text(context.Context, string, []byte) (string, domain.TextSource, error) {
 	f.calls++
+	if f.scan {
+		return "Выписка", domain.TextOCR, f.err
+	}
 	return "Выписка", domain.TextPDF, f.err
 }
 
+func (f *fakeText) Reread(context.Context, string, []byte) (string, error) {
+	f.calls++
+	return "Выписка", nil
+}
+
+// второе прочтение отдаёт reread, если он задан
 type fakeLLM struct {
 	values domain.DocValues
+	reread *domain.DocValues
 	err    error
+	calls  int
 }
 
 func (f *fakeLLM) Extract(context.Context, domain.DocKind, string) ([]byte, domain.DocValues, error) {
-	return []byte(`{}`), f.values, f.err
+	f.calls++
+	if f.calls > 1 && f.reread != nil {
+		return []byte(`{"n":2}`), *f.reread, f.err
+	}
+	return []byte(`{"n":1}`), f.values, f.err
 }
 
 func (f *fakeLLM) Model() string                          { return "qwen3:4b-instruct-2507-q4_K_M" }
@@ -65,6 +81,10 @@ func TestRecognize(t *testing.T) {
 		INN: "0000100012", Year: 2025, Revenue: 1000_00, BalanceTotal: 1000_00,
 	}}
 	wrongINN := domain.DocValues{Financials: &domain.Financials{INN: "0000300011", Year: 2025}}
+	// OCR прочитал валюту баланса меньше выручки, второе прочтение верное
+	misread := domain.DocValues{Financials: &domain.Financials{
+		INN: "0000100012", Year: 2025, Revenue: 1000_00, BalanceTotal: 1000_00, LiabilitiesShort: 2000_00,
+	}}
 	down := errors.New("connection refused")
 	tests := []struct {
 		name     string
@@ -72,6 +92,7 @@ func TestRecognize(t *testing.T) {
 		kind     domain.DocKind
 		disabled bool
 		textErr  error
+		scan     bool
 		llm      fakeLLM
 		want     []domain.DocStatus
 		wantErr  error
@@ -84,6 +105,10 @@ func TestRecognize(t *testing.T) {
 		{name: "паспорт не распознаём", kind: "passport"},
 		{name: "чужой ИНН", llm: fakeLLM{values: wrongINN},
 			want: []domain.DocStatus{domain.DocRecognizing, domain.DocFailed}, wantOCR: 1},
+		{name: "скан сошёлся со второго прочтения", scan: true, llm: fakeLLM{values: misread, reread: &good},
+			want: []domain.DocStatus{domain.DocRecognizing, domain.DocRecognized}, wantOCR: 2},
+		{name: "скан не сошёлся и со второго", scan: true, llm: fakeLLM{values: wrongINN, reread: &wrongINN},
+			want: []domain.DocStatus{domain.DocRecognizing, domain.DocFailed}, wantOCR: 2},
 		{name: "битый файл", textErr: domain.ErrInvalid,
 			want: []domain.DocStatus{domain.DocRecognizing, domain.DocFailed}, wantOCR: 1},
 		{name: "модель ответила не по схеме", llm: fakeLLM{err: domain.ErrInvalid},
@@ -97,7 +122,7 @@ func TestRecognize(t *testing.T) {
 				Kind: cmp.Or(tt.kind, domain.DocFinancials), Status: cmp.Or(tt.status, domain.DocUploaded),
 				INN: "0000100012",
 			}}
-			text := &fakeText{err: tt.textErr}
+			text := &fakeText{err: tt.textErr, scan: tt.scan}
 			uc := usecase.NewDocument(docs, nil, nil, text, &tt.llm, !tt.disabled)
 
 			require.ErrorIs(t, uc.Recognize(t.Context(), uuid.New()), tt.wantErr)
@@ -106,6 +131,9 @@ func TestRecognize(t *testing.T) {
 			if last := len(tt.want) - 1; last > 0 && tt.want[last] == domain.DocFailed {
 				require.NotEmpty(t, docs.reason, "клиенту нужно объяснить, почему вводить руками")
 				require.Equal(t, "qwen3:4b-instruct-2507-q4_K_M", docs.saved.Model)
+			}
+			if tt.wantOCR == 2 {
+				require.JSONEq(t, `[{"n":1},{"n":2}]`, string(docs.saved.Raw), "в аудите оба ответа модели")
 			}
 		})
 	}

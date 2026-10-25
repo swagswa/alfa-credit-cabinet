@@ -44,8 +44,29 @@ func New(bin string, timeout time.Duration) *Client {
 // Text отдаёт текст документа и откуда он взят. Битый файл, лишние страницы
 // и пустой результат это domain.ErrInvalid: повтор тут не поможет.
 func (c *Client) Text(ctx context.Context, contentType string, file []byte) (string, domain.TextSource, error) {
+	// psm 6: страница одним блоком, на таблицах выписки это лучше автоматической разметки
+	return c.read(ctx, contentType, file, "6")
+}
+
+// Reread читает скан ещё раз с разметкой по колонкам (psm 4). Она чаще 6-й
+// разрывает подпись и сумму, зато цифры в итогах путает в других местах.
+// У текстового PDF перечитывать нечего, там пустая строка.
+func (c *Client) Reread(ctx context.Context, contentType string, file []byte) (string, error) {
+	s, src, err := c.read(ctx, contentType, file, "4")
+	if src == domain.TextPDF {
+		return "", err
+	}
+	return s, err
+}
+
+func (c *Client) read(
+	ctx context.Context,
+	contentType string,
+	file []byte,
+	psm string,
+) (string, domain.TextSource, error) {
 	if contentType != "application/pdf" {
-		s, err := c.image(ctx, file)
+		s, err := c.image(ctx, file, psm)
 		return s, domain.TextOCR, err
 	}
 	s, err := pdfText(file)
@@ -61,7 +82,7 @@ func (c *Client) Text(ctx context.Context, contentType string, file []byte) (str
 	}
 	var b strings.Builder
 	for _, p := range pages {
-		s, err := c.image(ctx, p)
+		s, err := c.image(ctx, p, psm)
 		if err != nil {
 			return "", "", err
 		}
@@ -71,14 +92,13 @@ func (c *Client) Text(ctx context.Context, contentType string, file []byte) (str
 	return b.String(), domain.TextOCR, nil
 }
 
-func (c *Client) image(ctx context.Context, img []byte) (string, error) {
+func (c *Client) image(ctx context.Context, img []byte, psm string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	// psm 6: страница одним блоком, на таблицах выписки это лучше автоматической
-	// разметки. Без preserve_interword_spaces колонки и разряды внутри суммы
-	// разделены одинаковым пробелом, и модель режет «3586 208,56» не там.
-	args := []string{"stdin", "stdout", "-l", "rus+eng", "--psm", "6", "-c", "preserve_interword_spaces=1"}
+	// без preserve_interword_spaces колонки и разряды внутри суммы разделены
+	// одинаковым пробелом, и модель режет «3586 208,56» не там
+	args := []string{"stdin", "stdout", "-l", "rus+eng", "--psm", psm, "-c", "preserve_interword_spaces=1"}
 	cmd := exec.CommandContext(ctx, c.bin, args...) //nolint:gosec // путь из конфига, аргументы наши
 	cmd.Stdin = bytes.NewReader(img)
 	var stderr bytes.Buffer
