@@ -59,6 +59,8 @@ func TestPolicyBroken(t *testing.T) {
 		{"dsr больше 1", "C: 0.25, D", "C: 1.25, D"},
 		{"нулевой лимит авторешения", "auto_limit_rub: 5000000", "auto_limit_rub: 0"},
 		{"доля переключения 0", "switch_age_min_share: 0.3", "switch_age_min_share: 0"},
+		{"нет dsr у класса", "dsr_max: {A: 0.30, B: 0.30, C: 0.25, D: 0.25}", "dsr_max: {A: 0.30, B: 0.30, C: 0.25}"},
+		{"нет надбавки у класса", "rate_premium_pp: {A: 0, B: 1.5, C: 3.5, D: 6}", "rate_premium_pp: {A: 0, B: 1.5}"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

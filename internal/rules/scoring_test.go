@@ -58,6 +58,8 @@ func TestScoringBroken(t *testing.T) {
 		{"классы не по убыванию", "{grade: B, min: 65", "{grade: B, min: 85"},
 		{"последний класс не с нуля", "{grade: E, min: 0", "{grade: E, min: 10"},
 		{"top_reasons ноль", "top_reasons: 3", "top_reasons: 0"},
+		{"класс не из A-E", "{grade: D, min: 35", "{grade: F, min: 35"},
+		{"класс дважды", "{grade: D, min: 35", "{grade: C, min: 35"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -81,6 +81,14 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 		if err != nil {
 			return p, fmt.Errorf("%s: %w", code, err)
 		}
+		// без них лимит и ставка тихо посчитались бы от нуля
+		for g, gt := range pp.Grades {
+			_, dsr := f.DSRMax[g]
+			_, rate := f.RatePremiumPP[g]
+			if gt.Action != domain.GradeReject && (!dsr || !rate) {
+				return p, fmt.Errorf("%s: для класса %s нужны dsr_max и rate_premium_pp", code, g)
+			}
+		}
 		p.Products[domain.ProductCode(code)] = pp
 	}
 	if len(p.Products) != len(domain.ProductCodes) {
@@ -101,7 +109,6 @@ func (py *productPolicyYAML) policy() (domain.ProductPolicy, error) {
 	if py.AutoLimitRub <= 0 {
 		return pp, errors.New("auto_limit_rub должен быть больше 0")
 	}
-	grades := []string{"A", "B", "C", "D", "E"}
 	if len(py.Grades) != len(grades) {
 		return pp, errors.New("нужны ровно классы A, B, C, D, E")
 	}
@@ -172,6 +179,9 @@ func (s *stopYAML) rule() (domain.StopRule, error) {
 	}
 	return r, nil
 }
+
+// классы риска: их выдаёт скоринг, по ним расписана политика каждого продукта
+var grades = []string{"A", "B", "C", "D", "E"}
 
 func share(v float64) bool {
 	return v > 0 && v <= 1
