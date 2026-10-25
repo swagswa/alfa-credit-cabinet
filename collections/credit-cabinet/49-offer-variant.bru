@@ -1,0 +1,31 @@
+meta {
+  name: 49 Свои условия под встречным
+  type: http
+  seq: 49
+}
+
+get {
+  url: {{baseUrl}}/applications/{{northId}}/variant?amount_kop=50000000&term_months=12
+  body: none
+  auth: none
+}
+
+params:query {
+  amount_kop: 50000000
+  term_months: 12
+}
+
+headers {
+  Cookie: {{northCookie}}
+}
+
+assert {
+  res.status: eq 409
+}
+
+docs {
+  Подбор своих суммы и срока работает только во встречном, которое посчитала политика (offer.adjustable).
+  У северного пути встречное дал андеррайтер, а заявка уже выдана, поэтому 409. Живой путь с ответами
+  auto и limited у логистики: e2e TestCounterOffer и сценарий 19 в docs/test-scenarios.md.
+  Принять свои условия: POST /accept с version, amount_kop и term_months, не auto даёт 409.
+}
