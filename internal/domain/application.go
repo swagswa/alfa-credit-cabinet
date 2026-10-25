@@ -169,4 +169,6 @@ type Event struct {
 	Attempt     int         `json:"attempt"`
 	Attempts    int         `json:"attempts"`
 	CheckError  string      `json:"error"`
+	// у события notification: кому уведомление, остальным его не шлём
+	NotificationUser uuid.UUID `json:"notification_user"`
 }
