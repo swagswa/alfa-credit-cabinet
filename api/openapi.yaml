@@ -1106,6 +1106,8 @@ components:
         - R_MANUAL_RISK
         - R_GRADE_E
         - R_LIMIT_TOO_LOW
+        - R_FIX_TAX
+        - R_FIX_OVERDUE
         - R_AGE_PRODUCT
         - SF_STATUS_INACTIVE
         - SF_BANKRUPTCY
@@ -1774,6 +1776,13 @@ components:
         text:
           type: string
           example: Заявка одобрена на запрошенных условиях
+        kind:
+          type: string
+          description: |
+            Для плана после отказа: plus и minus это плюсы и минусы скоринга, fix что клиент
+            может исправить сам. У остальных причин поля нет
+          enum: [plus, minus, fix]
+          example: minus
 
     ScoreFactor:
       type: object

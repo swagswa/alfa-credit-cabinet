@@ -109,6 +109,6 @@ reasons:
   SC_TAX_CLEAN: {sign: plus, text: Налоговых долгов нет}
   SC_TAX_ARREARS: {sign: minus, text: Есть налоговый долг от 50 тыс. руб.}
   SC_NO_BANK_HISTORY: {sign: minus, text: У компании пока нет истории с нашим банком}
-  SC_BANK_HISTORY: {sign: plus, text: Счёт у нас больше года и кредит погашен без просрочек}
+  SC_BANK_HISTORY: {sign: plus, text: Счёт у нас больше года и кредит в нашем банке погашен без просрочек}
   SC_INDUSTRY_HIGH: {sign: minus, text: Отрасль с повышенным риском}
   SC_INDUSTRY_LOW: {sign: plus, text: Отрасль с низким риском}

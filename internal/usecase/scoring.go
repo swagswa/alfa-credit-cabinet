@@ -75,7 +75,12 @@ func (u *decisionUseCase) scoreReasons(s *domain.Score) []domain.Reason {
 	n := u.scoring.TopReasons
 	out := []domain.Reason{}
 	for _, fs := range slices.Concat(plus[:min(n, len(plus))], minus[:min(n, len(minus))]) {
-		out = append(out, domain.Reason{Code: fs.Reason, Text: u.scoring.Reasons[fs.Reason].Text})
+		r := u.scoring.Reasons[fs.Reason]
+		kind := domain.KindMinus
+		if r.Plus {
+			kind = domain.KindPlus
+		}
+		out = append(out, domain.Reason{Code: fs.Reason, Text: r.Text, Kind: kind})
 	}
 	return out
 }

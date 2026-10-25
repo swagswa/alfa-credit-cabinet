@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -23,7 +24,7 @@ func TestDecision(t *testing.T) {
 			d := uc.Check(&f)
 			if d.Outcome == "" {
 				s := uc.Score(&f)
-				d = uc.Policy(c.application(), &f, &d, &s)
+				d = uc.Policy(c.application(), &f, &d, &s, now)
 			}
 			want := c.Decision
 			require.Equal(t, want.Outcome, d.Outcome)
@@ -50,6 +51,35 @@ func TestDecision(t *testing.T) {
 			}
 		})
 	}
+}
+
+var now = time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+
+// отказ стройке: что помешало, что в её пользу, что исправить и когда приходить снова
+func TestRejectPlan(t *testing.T) {
+	uc := decisions(t)
+	var build demoCase
+	for _, c := range demoCases(t) {
+		if c.Name == "стройка" {
+			build = c
+		}
+	}
+	f := build.facts()
+	s := uc.Score(&f)
+	d := uc.Policy(build.application(), &f, &domain.Decision{}, &s, now)
+
+	kinds := map[string]string{}
+	texts := map[string]string{}
+	for _, r := range d.Reasons {
+		kinds[r.Code], texts[r.Code] = r.Kind, r.Text
+	}
+	require.Contains(t, texts["R_GRADE_E"], "Подать снова можно с 24.01.2027")
+	require.Equal(t, "Погасите налоговый долг 250 000 ₽", texts["R_FIX_TAX"])
+	require.Equal(t, map[string]string{
+		"R_GRADE_E": "", "R_FIX_TAX": domain.KindFix,
+		"SC_AGE_MATURE":   domain.KindPlus,
+		"SC_REVENUE_DROP": domain.KindMinus, "SC_TURNOVER_VOLATILE": domain.KindMinus, "SC_DSR_HIGH": domain.KindMinus,
+	}, kinds)
 }
 
 // одна кофейня класса A на разных продуктах (как в scoring_cases.yaml) и крайние случаи политики
@@ -149,7 +179,7 @@ func TestPolicy(t *testing.T) {
 				f.MonthlyTurnoverKop = 0
 			}
 			s := domain.Score{Grade: tt.grade}
-			d := uc.Policy(&domain.Application{Draft: tt.app}, &f, &domain.Decision{}, &s)
+			d := uc.Policy(&domain.Application{Draft: tt.app}, &f, &domain.Decision{}, &s, now)
 			require.Equal(t, tt.outcome, d.Outcome)
 			require.ElementsMatch(t, tt.codes, d.Codes())
 

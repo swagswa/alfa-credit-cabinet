@@ -18,6 +18,7 @@ type policyFile struct {
 	StopFactors       []stopYAML                   `yaml:"stop_factors"`
 	Reasons           map[string]string            `yaml:"reasons"`
 	DocumentNames     map[string]string            `yaml:"document_names"`
+	ReapplyMonths     int                          `yaml:"reapply_months"`
 }
 
 type productPolicyYAML struct {
@@ -59,9 +60,10 @@ func (f *policyFile) rules() (domain.PolicyRules, error) {
 		LimitRoundKop:     f.LimitRoundRub * domain.KopInRub,
 		Texts:             f.Reasons,
 		DocumentNames:     f.DocumentNames,
+		ReapplyMonths:     f.ReapplyMonths,
 	}
-	if !share(f.SwitchAgeMinShare) || f.LimitRoundRub <= 0 {
-		return p, errors.New("switch_age_min_share должен быть в (0, 1], limit_round_rub больше 0")
+	if !share(f.SwitchAgeMinShare) || f.LimitRoundRub <= 0 || f.ReapplyMonths <= 0 {
+		return p, errors.New("switch_age_min_share должен быть в (0, 1], limit_round_rub и reapply_months больше 0")
 	}
 	for g, v := range f.DSRMax {
 		if !share(v) {

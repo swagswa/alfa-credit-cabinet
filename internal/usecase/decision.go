@@ -18,7 +18,13 @@ type DecisionUseCase interface {
 	Check(f *domain.Facts) domain.Decision
 	Score(f *domain.Facts) domain.Score
 	// Policy даёт итог по классу, продукту и лимитам; checks это результат Check.
-	Policy(app *domain.Application, f *domain.Facts, checks *domain.Decision, s *domain.Score) domain.Decision
+	Policy(
+		app *domain.Application,
+		f *domain.Facts,
+		checks *domain.Decision,
+		s *domain.Score,
+		now time.Time,
+	) domain.Decision
 }
 
 type decisionUseCase struct {
@@ -41,5 +47,5 @@ func (u *decisionUseCase) Decide(app *domain.Application, now time.Time) (domain
 		return d, nil
 	}
 	s := u.Score(&f)
-	return u.Policy(app, &f, &d, &s), nil
+	return u.Policy(app, &f, &d, &s, now), nil
 }

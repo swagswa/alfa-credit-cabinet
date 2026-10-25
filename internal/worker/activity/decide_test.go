@@ -123,7 +123,7 @@ func TestDecide(t *testing.T) {
 			},
 			[]domain.Document{file("passport"), file(domain.DocFinancials)},
 			domain.StatusRejected,
-			[]string{"R_GRADE_E"},
+			[]string{"R_GRADE_E", "R_FIX_TAX"},
 			0,
 		},
 	}
