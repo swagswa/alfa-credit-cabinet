@@ -84,6 +84,10 @@ test.describe('стройка', () => {
     await expect(page.getByRole('heading', { name: 'Банк не одобрил заявку' })).toBeVisible();
     await expect(page.getByText('высокая долговая нагрузка и нестабильная выручка')).toBeVisible();
     await expect(page.getByText('R_GRADE_E')).toHaveCount(0);
+    await expect(page.getByText(/Подать снова можно с \d\d\.\d\d\.\d{4}/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Что можно сделать' })).toBeVisible();
+    await expect(page.getByText(/Погасите налоговый долг [\d\s]+ ₽/)).toBeVisible();
+    await expect(page.getByText('Заявка отправлена в банк.')).toHaveCount(0);
   });
 });
 

@@ -26,7 +26,7 @@ import {
   StatusText,
   useMotionDisabled,
 } from '../motion';
-import { BottomNotice, notify } from '../BottomNotice';
+import { BottomNotice, dismiss, notify } from '../BottomNotice';
 import { Progress } from './Progress';
 import { BankDetails } from './BankDetails';
 import { Cancel, Decision } from './Decision';
@@ -127,6 +127,14 @@ export function Applications({
       () => setCatalogError('Нет связи с каталогом продуктов. Обновите страницу.'),
     );
   }, [bank, cache]);
+  const submitted = useRef('');
+  // решение приходит за доли секунды, «отправлена» поверх него только мешает
+  useEffect(() => {
+    if (submitted.current && card && !['submitted', 'checking', 'scoring'].includes(card.status)) {
+      dismiss(submitted.current);
+      submitted.current = '';
+    }
+  }, [card]);
   const lookupVersion = useRef(0);
   const recommendationVersion = useRef(0);
   const key = useRef<string | null>(null);
@@ -332,7 +340,7 @@ export function Applications({
       if (data) {
         cache.rememberApplication(data);
         setCard(data);
-        notify('Заявка отправлена в банк.');
+        submitted.current = notify('Заявка отправлена в банк.');
       } else setError(errorText(problem, 'Не удалось отправить заявку.'));
     } catch {
       setError('Нет связи с сервером. Проверьте статус перед повторной отправкой.');
