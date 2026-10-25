@@ -2,8 +2,8 @@ import { Table } from '@alfalab/core-components/table';
 import { Typography } from '@alfalab/core-components/typography';
 import { InlineNotice } from '../ui/InlineNotice';
 import { Disclosure } from '../ui/Disclosure';
-import { useState } from 'react';
-import { Button } from '../motion';
+import { useEffect, useRef, useState } from 'react';
+import { notify } from '../BottomNotice';
 import { BankActions } from './BankActions';
 import { useHistory } from '../api/client';
 import { isCompleted } from '../api/dashboard';
@@ -18,6 +18,21 @@ export function BankDetails({
 }) {
   const [revision, setRevision] = useState(0);
   const { history, state } = useHistory(card.id, card.version, revision);
+  // журнал живёт от того же потока, что и карточка: эскалация версию не меняет, а событие пишет
+  useEffect(() => {
+    const reload = () => setRevision((v) => v + 1);
+    window.addEventListener('application-refresh', reload);
+    return () => window.removeEventListener('application-refresh', reload);
+  }, []);
+  // форма решения пересоздаётся при смене этапа; если этап сменил коллега, введённое пропадает молча
+  const shown = useRef({ status: card.status, form: !!card.allowed_next.length });
+  const own = useRef(false);
+  useEffect(() => {
+    if (shown.current.status === card.status) return;
+    if (shown.current.form && !own.current) notify(`Этап сменился: «${labels[card.status]}». Форма закрыта.`, 'error');
+    shown.current = { status: card.status, form: !!card.allowed_next.length };
+    own.current = false;
+  }, [card.status, card.allowed_next.length]);
   const finished = isCompleted(card.status);
   const lastDecision = [...history].reverse().find((event) => event.to_status === card.status);
   const texts = new Map(card.reasons.map((r) => [r.code, r.text]));
@@ -61,6 +76,7 @@ export function BankDetails({
           card={card}
           role={role}
           refresh={() => {
+            own.current = true;
             setRevision((v) => v + 1);
             window.dispatchEvent(new Event('application-refresh'));
           }}
@@ -212,9 +228,6 @@ export function BankDetails({
         История заявки
       </Typography.Title>
       {state === 'error' && <InlineNotice>Не удалось загрузить историю.</InlineNotice>}
-      <Button size={40} onClick={() => setRevision((value) => value + 1)}>
-        Обновить историю
-      </Button>
       {state === 'ready' && !history.length && (
         <Typography.Text tag="p" view="primary-small">
           Событий пока нет.
