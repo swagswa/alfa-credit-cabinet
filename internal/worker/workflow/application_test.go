@@ -408,3 +408,23 @@ func TestApplicationWorkflowRetry(t *testing.T) {
 	e.run()
 	require.NoError(t, e.GetWorkflowError())
 }
+
+// ответ источника не разобрать: процесс не падает, заявку смотрит специалист и может повторить проверки
+func TestDecideBroken(t *testing.T) {
+	e := newEnv(t)
+	e.expect(domain.StatusChecking, domain.RoleSystem)
+	e.round(nil)
+	broken := temporal.NewNonRetryableApplicationError("ответ bki: битый json", usecase.InvalidErrorType, nil)
+	e.OnActivity(e.apps.Decide, mock.Anything, e.id).Return(domain.Decision{}, broken).Once()
+	e.expect(domain.StatusManualReview, domain.RoleSystem, domain.CodeSourceUnavailable).Run(func(args mock.Arguments) {
+		require.Contains(t, args.Get(2).(domain.Move).Comment, "битый json", "причина видна банку в журнале")
+	})
+	got := e.act(time.Minute, usecase.UpdateRetryChecks, domain.Action{Actor: manager})
+	e.expect(domain.StatusChecking, domain.RoleManager)
+	e.round(nil)
+	e.approves()
+
+	e.run()
+	require.NoError(t, e.GetWorkflowError())
+	require.NoError(t, got.err)
+}

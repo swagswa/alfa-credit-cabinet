@@ -186,6 +186,15 @@ func (p *process) decide(ctx workflow.Context) error {
 	p.busy = true
 	err := workflow.ExecuteActivity(WithDBActivityOptions(ctx), a.Decide, p.id).Get(ctx, &d)
 	p.busy = false
+	if appErr, ok := errors.AsType[*temporal.ApplicationError](err); ok && appErr.Type() == usecase.InvalidErrorType {
+		// ответ источника не разобрать: решит специалист, после починки источника повторит проверки
+		return p.move(ctx, domain.Move{
+			To:      domain.StatusManualReview,
+			Actor:   system,
+			Codes:   []string{domain.CodeSourceUnavailable},
+			Comment: reason(err),
+		})
+	}
 	if err != nil {
 		return fmt.Errorf("decide: %w", err)
 	}

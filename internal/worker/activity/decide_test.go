@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/sdk/temporal"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 	"github.com/swagswa/alfa-credit-cabinet/internal/integration/source"
@@ -181,4 +182,20 @@ func confirmed(t *testing.T, inn string) []domain.Document {
 		{Kind: domain.DocStatement, Status: domain.DocConfirmed, Confirmed: &domain.DocValues{Statement: st}},
 		{Kind: domain.DocFinancials, Status: domain.DocConfirmed, Confirmed: &domain.DocValues{Financials: fin}},
 	}
+}
+
+// битый ответ источника повторять бесполезно
+func TestDecideNonRetryable(t *testing.T) {
+	policy, err := rules.Policy(filepath.Join("..", "..", "..", "rules", "policy.yaml"))
+	require.NoError(t, err)
+	app := domain.Application{Checks: []domain.CheckResult{
+		{Source: domain.SourceEGRUL, Status: domain.CheckOK, Payload: []byte(`{"registered_at": "вчера"}`)},
+	}}
+	decisions := usecase.NewDecision(domain.Catalog{}, domain.ScoringRules{}, policy)
+	a := activity.NewApplicationActivities(cardApps{app: app}, decisions, nil, domain.Deadlines{})
+	_, err = a.Decide(t.Context(), uuid.New())
+	appErr, ok := errors.AsType[*temporal.ApplicationError](err)
+	require.True(t, ok, "%v", err)
+	require.True(t, appErr.NonRetryable())
+	require.Equal(t, usecase.InvalidErrorType, appErr.Type())
 }

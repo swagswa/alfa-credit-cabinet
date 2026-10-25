@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -40,7 +41,12 @@ func NewDecision(c domain.Catalog, s domain.ScoringRules, p domain.PolicyRules) 
 func (u *decisionUseCase) Decide(app *domain.Application, now time.Time) (domain.Decision, error) {
 	f, err := u.Facts(app, app.Checks, now)
 	if err != nil {
-		return domain.Decision{}, err
+		// Facts падает только на ответе источника, который не разобрать: повтор не поможет
+		return domain.Decision{}, fmt.Errorf("%w: %w", domain.ErrInvalid, err)
+	}
+	if !f.EGRULFound {
+		// без выписки стоп-факторы по статусу и возрасту отказали бы любой компании
+		return domain.Decision{}, fmt.Errorf("%w: нет ответа ЕГРЮЛ, решать не по чему", domain.ErrInvalid)
 	}
 	d := u.Check(&f)
 	if d.Outcome != "" {

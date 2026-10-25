@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"errors"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -150,4 +151,30 @@ func TestFactsWithoutSources(t *testing.T) {
 	// сверить не с чем, остаётся заявленная выручка
 	require.Equal(t, int64(500_000_00), f.MonthlyRevenueKop)
 	require.Equal(t, []string{"passport", "statement", "power_of_attorney"}, f.MissingDocuments)
+}
+
+// битый ответ или решение без выписки ЕГРЮЛ: повтор не поможет, ErrInvalid
+func TestDecideInvalid(t *testing.T) {
+	d := decisions(t)
+	app := &domain.Application{}
+	ok := fetch(t, "0000100012")
+	tests := []struct {
+		name   string
+		checks []domain.CheckResult
+	}{
+		{"бки прислало не то", append(slices.Clip(ok), domain.CheckResult{
+			Source: domain.SourceBKI, Status: domain.CheckOK, Payload: []byte(`{"loans": "нет"}`),
+		})},
+		{"егрюл без даты регистрации", []domain.CheckResult{
+			{Source: domain.SourceEGRUL, Status: domain.CheckOK, Payload: []byte(`{"status": "active"}`)},
+		}},
+		{"нет ответа егрюл", ok[1:]},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app.Checks = tt.checks
+			_, err := d.Decide(app, time.Now())
+			require.ErrorIs(t, err, domain.ErrInvalid)
+		})
+	}
 }

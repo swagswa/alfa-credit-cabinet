@@ -43,7 +43,8 @@ func (a *ApplicationActivities) Decide(ctx context.Context, id uuid.UUID) (domai
 	if err != nil {
 		return domain.Decision{}, classify(err)
 	}
-	return a.decisions.Decide(&app, time.Now())
+	d, err := a.decisions.Decide(&app, time.Now())
+	return d, classify(err)
 }
 
 func (a *ApplicationActivities) Escalate(ctx context.Context, id uuid.UUID) error {
