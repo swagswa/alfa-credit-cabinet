@@ -614,7 +614,6 @@ func (q *Queries) SetMember(ctx context.Context, arg SetMemberParams) error {
 const setRevenue = `-- name: SetRevenue :execrows
 UPDATE applications
 SET monthly_revenue_kop = $1::bigint,
-    version             = version + 1,
     updated_at          = now()
 WHERE id = $2 AND status = 'need_info'
 `
@@ -624,7 +623,8 @@ type SetRevenueParams struct {
 	ID                uuid.UUID
 }
 
-// выручку после подачи клиент уточняет только в ответ на запрос банка
+// выручку после подачи клиент уточняет только в ответ на запрос банка;
+// зовётся в транзакции перехода, версию поднимет сам переход
 func (q *Queries) SetRevenue(ctx context.Context, arg SetRevenueParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setRevenue, arg.MonthlyRevenueKop, arg.ID)
 	if err != nil {

@@ -52,6 +52,7 @@ type ApplicationRepository interface {
 	// SaveDraft пишет анкету, если заявка всё ещё draft той же версии, иначе ErrConflict.
 	SaveDraft(ctx context.Context, id uuid.UUID, version int, d domain.Draft) error
 	// SetRevenue пишет уточнённую выручку, пока заявка в need_info, иначе ErrIllegalTransition.
+	// Версию не поднимает: зовётся только вместе с переходом.
 	SetRevenue(ctx context.Context, id uuid.UUID, kop int64) error
 	// AddBKIConsent делает согласие из анкеты записью, повтор ничего не меняет.
 	AddBKIConsent(ctx context.Context, id uuid.UUID) error

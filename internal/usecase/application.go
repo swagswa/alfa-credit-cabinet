@@ -55,7 +55,7 @@ type ApplicationUseCase interface {
 	// Cancel отменяет черновик сам, поданную заявку через её процесс.
 	Cancel(ctx context.Context, actor domain.Actor, id uuid.UUID, reason string) (domain.Application, error)
 	// ProvideInfo принимает ответ клиента на запрос банка. Документы годятся подтверждённые
-	// или те, что не распознаём (паспорт, доверенность). Выручку пишем до перехода.
+	// или те, что не распознаём (паспорт, доверенность). Выручка ляжет вместе с переходом.
 	ProvideInfo(ctx context.Context, actor domain.Actor, id uuid.UUID, a Answer) error
 	// Decide для андеррайтера, заявка на ручном рассмотрении. Условия проверяем
 	// по продукту, как анкету при подаче, платёж считаем сами. К месту ли решение, решает процесс.
@@ -127,10 +127,8 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		case !domain.CanTransition(app.Status, m.To, m.Actor.Role):
 			return fmt.Errorf("%w: из %s в %s ролью %s", domain.ErrIllegalTransition, app.Status, m.To, m.Actor.Role)
 		}
-		if m.Decision != nil {
-			if err := apps.SaveDecision(ctx, id, &m); err != nil {
-				return err
-			}
+		if err := beforeMove(ctx, apps, id, &m); err != nil {
+			return err
 		}
 		if err := apps.Move(ctx, app, m); err != nil {
 			return err
@@ -140,6 +138,20 @@ func (u *applicationUseCase) Transition(ctx context.Context, id uuid.UUID, m dom
 		}
 		return u.notifier.Status(ctx, tx, id, m.To)
 	})
+}
+
+// beforeMove: что пишется вместе с переходом, пока статус ещё прежний
+func beforeMove(ctx context.Context, apps repo.ApplicationRepository, id uuid.UUID, m *domain.Move) error {
+	if m.Decision != nil {
+		if err := apps.SaveDecision(ctx, id, m); err != nil {
+			return err
+		}
+	}
+	// выручку репозиторий принимает только в need_info
+	if m.RevenueKop != nil {
+		return apps.SetRevenue(ctx, id, *m.RevenueKop)
+	}
+	return nil
 }
 
 // afterMove: что ещё меняется вместе с переходом, в той же транзакции
@@ -369,14 +381,8 @@ func (u *applicationUseCase) ProvideInfo(ctx context.Context, actor domain.Actor
 	if errs != nil {
 		return errs
 	}
-	if a.RevenueKop != nil {
-		if err := u.apps.SetRevenue(ctx, id, *a.RevenueKop); err != nil {
-			return err
-		}
-	}
-	return fromProcess(
-		u.workflows.Update(ctx, id.String(), UpdateProvideInfo, domain.Action{Actor: actor, Comment: a.Comment}),
-	)
+	act := domain.Action{Actor: actor, Comment: a.Comment, RevenueKop: a.RevenueKop}
+	return fromProcess(u.workflows.Update(ctx, id.String(), UpdateProvideInfo, act))
 }
 
 func (u *applicationUseCase) Decide(ctx context.Context, id uuid.UUID, a domain.Action) error {

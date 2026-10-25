@@ -92,13 +92,8 @@ func (u *documentUseCase) Upload(
 	case kind == domain.DocLoanAgreement:
 		return domain.Document{}, fmt.Errorf("%w: договор формирует банк", domain.ErrInvalid)
 	}
-	app, err := u.apps.Card(ctx, appID, owner(actor))
-	if err != nil {
+	if err := u.open(ctx, actor, appID); err != nil {
 		return domain.Document{}, err
-	}
-	if app.Status != domain.StatusDraft && app.Status != domain.StatusNeedInfo {
-		return domain.Document{}, fmt.Errorf("%w: документы принимаем в черновике или по запросу банка",
-			domain.ErrIllegalTransition)
 	}
 
 	f := domain.DocFile{Kind: kind, Status: domain.DocUploaded, FileName: name, ContentType: ct, Content: file}
@@ -114,7 +109,8 @@ func (u *documentUseCase) Upload(
 	}
 	if f.Status == domain.DocRecognizing {
 		// заявка от распознавания не зависит: Temporal недоступен, клиент вводит итоги руками,
-		// а что Temporal лежит, видно в health
+		// а что Temporal лежит, видно в health. Повторный старт с тем же id Temporal отклонит,
+		// так что дважды один файл модель не читает
 		err = u.workflows.Start(ctx, QueueDocs, "doc-"+id.String(), RecognizeWorkflowName, id)
 		if err != nil {
 			err = u.docs.SetStatus(ctx, id, domain.DocFailed, "распознавание сейчас недоступно, введите итоги вручную")
@@ -124,6 +120,18 @@ func (u *documentUseCase) Upload(
 		}
 	}
 	return u.Get(ctx, actor, id)
+}
+
+// open: документы заявки меняются только в черновике или по запросу банка
+func (u *documentUseCase) open(ctx context.Context, actor domain.Actor, appID uuid.UUID) error {
+	app, err := u.apps.Card(ctx, appID, owner(actor))
+	if err != nil {
+		return err
+	}
+	if app.Status != domain.StatusDraft && app.Status != domain.StatusNeedInfo {
+		return fmt.Errorf("%w: документы принимаем в черновике или по запросу банка", domain.ErrIllegalTransition)
+	}
+	return nil
 }
 
 func (u *documentUseCase) Get(ctx context.Context, actor domain.Actor, id uuid.UUID) (domain.Document, error) {
@@ -138,6 +146,9 @@ func (u *documentUseCase) Confirm(
 	ctx context.Context, actor domain.Actor, id uuid.UUID, v domain.DocValues,
 ) (domain.Document, error) {
 	d, err := u.Get(ctx, actor, id)
+	if err == nil {
+		err = u.open(ctx, actor, d.ApplicationID)
+	}
 	switch {
 	case err != nil:
 		return d, err

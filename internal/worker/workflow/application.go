@@ -186,6 +186,15 @@ func (p *process) decide(ctx workflow.Context) error {
 	p.busy = true
 	err := workflow.ExecuteActivity(WithDBActivityOptions(ctx), a.Decide, p.id).Get(ctx, &d)
 	p.busy = false
+	if appErr, ok := errors.AsType[*temporal.ApplicationError](err); ok && appErr.Type() == usecase.InvalidErrorType {
+		// ответ источника не разобрать: решит специалист, после починки источника повторит проверки
+		return p.move(ctx, domain.Move{
+			To:      domain.StatusManualReview,
+			Actor:   system,
+			Codes:   []string{domain.CodeSourceUnavailable},
+			Comment: reason(err),
+		})
+	}
 	if err != nil {
 		return fmt.Errorf("decide: %w", err)
 	}
@@ -293,6 +302,7 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 	}
 	m := domain.Move{
 		To: u.target(a), Actor: a.Actor, Version: a.Version, Codes: a.Codes, Comment: a.Comment, Documents: a.Documents,
+		RevenueKop: a.RevenueKop,
 	}
 	switch u.name {
 	case usecase.UpdateDecide:
@@ -311,8 +321,8 @@ func (p *process) act(ctx workflow.Context, u update, a domain.Action) error {
 }
 
 // verdict это решение андеррайтера поверх расчёта, который он видел. Тексты причин
-// берём из расчёта: они там с числами заявки. Причину, которой в расчёте не было,
-// клиент не увидит, банк увидит код.
+// берём из расчёта: они там с числами заявки. Причине, которой в расчёте не было,
+// общий текст допишет activity перехода.
 func (p *process) verdict(a domain.Action) *domain.Decision {
 	var d domain.Decision
 	if p.decision != nil {

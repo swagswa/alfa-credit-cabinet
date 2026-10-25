@@ -1,15 +1,21 @@
 // docgen пишет синтетические документы и эталоны к ним. Без -inn собирает
-// набор для testdata/documents: демо-компании, две из генератора, ловушку
-// и один скан в PDF.
+// набор для testdata/documents: демо-компании, две из генератора, ловушку,
+// один скан в PDF и образцы паспортов руководителей демо-компаний.
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"flag"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/docgen"
+	"github.com/swagswa/alfa-credit-cabinet/internal/mocks"
 )
 
 func main() {
@@ -42,7 +48,41 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	if *inn == "" {
+		passports(*out, filePerm)
+	}
 	log.Printf("%d документов в %s", len(docs), *out)
+}
+
+// passports: ФИО берём из выписки ЕГРЮЛ мока, чтобы паспорт сходился с компанией.
+// У ИП руководителя в выписке нет, он сам и есть компания.
+func passports(out string, perm os.FileMode) {
+	ctx := context.Background()
+	egrul := mocks.New()
+	for _, inn := range []string{"0000100012", "000020001010", "0000300011", "0000400016", "0000500010", "0000700010"} {
+		rec := httptest.NewRecorder()
+		egrul.ServeHTTP(rec, httptest.NewRequestWithContext(ctx, http.MethodGet, "/egrul/"+inn, http.NoBody))
+		var r struct {
+			FullName string `json:"full_name"`
+			Director *struct {
+				FIO string `json:"fio"`
+			} `json:"director"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &r); err != nil {
+			log.Fatalf("егрюл %s: %v", inn, err)
+		}
+		fio := strings.TrimPrefix(r.FullName, "Индивидуальный предприниматель ")
+		if r.Director != nil {
+			fio = r.Director.FIO
+		}
+		file, err := docgen.PassportPDF(fio, inn)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(out, inn+"_passport.pdf"), file, perm); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func set() []docgen.Doc {

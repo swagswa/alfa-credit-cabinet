@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
@@ -25,6 +26,9 @@ type DecisionUseCase interface {
 		s *domain.Score,
 		now time.Time,
 	) domain.Decision
+	// Explain дописывает текст причинам андеррайтера, которых не было в расчёте:
+	// без расчёта (источник не ответил) клиент иначе не узнал бы, почему так решили.
+	Explain(d *domain.Decision)
 }
 
 type decisionUseCase struct {
@@ -40,7 +44,12 @@ func NewDecision(c domain.Catalog, s domain.ScoringRules, p domain.PolicyRules) 
 func (u *decisionUseCase) Decide(app *domain.Application, now time.Time) (domain.Decision, error) {
 	f, err := u.Facts(app, app.Checks, now)
 	if err != nil {
-		return domain.Decision{}, err
+		// Facts падает только на ответе источника, который не разобрать: повтор не поможет
+		return domain.Decision{}, fmt.Errorf("%w: %w", domain.ErrInvalid, err)
+	}
+	if !f.EGRULFound {
+		// без выписки стоп-факторы по статусу и возрасту отказали бы любой компании
+		return domain.Decision{}, fmt.Errorf("%w: нет ответа ЕГРЮЛ, решать не по чему", domain.ErrInvalid)
 	}
 	d := u.Check(&f)
 	if d.Outcome != "" {
@@ -48,4 +57,12 @@ func (u *decisionUseCase) Decide(app *domain.Application, now time.Time) (domain
 	}
 	s := u.Score(&f)
 	return u.Policy(app, &f, &d, &s, now), nil
+}
+
+func (u *decisionUseCase) Explain(d *domain.Decision) {
+	for i := range d.Reasons {
+		if r := &d.Reasons[i]; r.Text == "" {
+			r.Text = u.policy.UnderwriterTexts[r.Code]
+		}
+	}
 }

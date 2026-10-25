@@ -3,6 +3,7 @@ package rules
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/swagswa/alfa-credit-cabinet/internal/domain"
 )
@@ -77,16 +78,28 @@ func (f *scoringFile) rules() (domain.ScoringRules, error) {
 	if total != scale {
 		return s, fmt.Errorf("максимумы факторов в сумме %d, а шкала 0-%d", total, scale)
 	}
+	var err error
+	s.Grades, err = f.gradeRules()
+	return s, err
+}
+
+func (f *scoringFile) gradeRules() ([]domain.GradeRule, error) {
+	var out []domain.GradeRule
+	seen := map[string]bool{}
 	for i, g := range f.Grades {
-		if i > 0 && g.Min >= f.Grades[i-1].Min {
-			return s, errors.New("классы должны идти по убыванию min")
+		switch {
+		case !slices.Contains(grades, g.Grade) || seen[g.Grade]:
+			return nil, fmt.Errorf("класс %q: нужны разные классы из A-E, как в политике", g.Grade)
+		case i > 0 && g.Min >= f.Grades[i-1].Min:
+			return nil, errors.New("классы должны идти по убыванию min")
 		}
-		s.Grades = append(s.Grades, domain.GradeRule(g))
+		seen[g.Grade] = true
+		out = append(out, domain.GradeRule(g))
 	}
-	if len(s.Grades) == 0 || s.Grades[len(s.Grades)-1].Min != 0 {
-		return s, errors.New("у последнего класса должен быть min 0")
+	if len(out) == 0 || out[len(out)-1].Min != 0 {
+		return nil, errors.New("у последнего класса должен быть min 0")
 	}
-	return s, nil
+	return out, nil
 }
 
 func (fy *factorYAML) factor(reasons map[string]domain.ScoreReason) (domain.Factor, error) {

@@ -81,6 +81,8 @@ const (
 	accountNewMonths  = 3
 	accountYearMonths = 12
 	halfYear          = 6
+	// попадает в средний бин F3 в rules/scoring.yaml
+	neutralCV = 0.4
 )
 
 // уровни истории с банком, вход F8, описаны в rules/scoring.yaml
@@ -92,7 +94,7 @@ const (
 )
 
 // Facts раскладывает последние ответы источников по фактам. Источник без ответа
-// оставляет свои факты нулевыми, недоступные считаем для SF_SOURCE_UNAVAILABLE.
+// оставляет свои факты нулевыми.
 func (u *decisionUseCase) Facts(
 	app *domain.Application,
 	checks []domain.CheckResult,
@@ -109,16 +111,13 @@ func (u *decisionUseCase) Facts(
 		domain.SourceEGRUL: &eg, domain.SourceFNS: &fns, domain.SourceBKI: &bki, domain.SourceInternal: &bank,
 	}
 	for _, c := range checks {
-		switch c.Status {
-		case domain.CheckUnavailable:
-			f.SourcesUnavailable++
-		case domain.CheckOK:
-			if err := json.Unmarshal(c.Payload, replies[c.Source]); err != nil {
-				return f, fmt.Errorf("ответ %s: %w", c.Source, err)
-			}
-			f.EGRULFound = f.EGRULFound || c.Source == domain.SourceEGRUL
-		case domain.CheckNotFound:
+		if c.Status != domain.CheckOK {
+			continue
 		}
+		if err := json.Unmarshal(c.Payload, replies[c.Source]); err != nil {
+			return f, fmt.Errorf("ответ %s: %w", c.Source, err)
+		}
+		f.EGRULFound = f.EGRULFound || c.Source == domain.SourceEGRUL
 	}
 
 	if err := eg.apply(&f, now); err != nil {
@@ -217,7 +216,7 @@ func (b *bankReply) history(now time.Time) (int, error) {
 }
 
 // revenue считает выручку и обороты. Помесячный ряд берём с нашего счёта, без него
-// из подтверждённой выписки. M консервативно: меньшее из ФНС / 12 и оборота (4.4).
+// из подтверждённой выписки. M консервативно: меньшее из ФНС / 12 и оборота.
 func (u *decisionUseCase) revenue(
 	f *domain.Facts,
 	app *domain.Application,
@@ -231,6 +230,8 @@ func (u *decisionUseCase) revenue(
 	t := mean(series)
 	f.MonthlyTurnoverKop = t
 	f.RevenueTrend = 1 // по ряду короче года тренд не видно, ставим нейтральный
+	// без ряда тоже нейтрально: средний бин F3, а не "стабильные обороты" за пустоту
+	f.TurnoverCV = neutralCV
 	if n := len(series); n >= 2*halfYear {
 		f.RevenueTrend = float64(sum(series[n-halfYear:])) / float64(sum(series[n-2*halfYear:n-halfYear]))
 	}

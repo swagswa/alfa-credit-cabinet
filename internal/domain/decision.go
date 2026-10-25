@@ -57,12 +57,10 @@ type Facts struct {
 	DocRevenueMismatch float64  // из CheckRevenue
 	DocRevenueKop      int64    // обе цифры сверки, для текста SF_DOC_MISMATCH
 	FNSRevenueKop      int64
-	SourcesUnavailable int
 }
 
 // inputs: имя input из rules/*.yaml -> значение факта, float64, bool или string.
 var inputs = map[string]func(f *Facts) any{
-	"egrul_found":                func(f *Facts) any { return f.EGRULFound },
 	"egrul_status":               func(f *Facts) any { return f.EGRULStatus },
 	"business_age_months":        func(f *Facts) any { return float64(f.BusinessAgeMonths) },
 	"okved_group":                func(f *Facts) any { return f.OKVEDGroup },
@@ -88,7 +86,6 @@ var inputs = map[string]func(f *Facts) any{
 	"revenue_mismatch":           func(f *Facts) any { return f.RevenueMismatch },
 	"missing_documents":          func(f *Facts) any { return float64(len(f.MissingDocuments)) },
 	"doc_revenue_mismatch":       func(f *Facts) any { return f.DocRevenueMismatch },
-	"sources_unavailable":        func(f *Facts) any { return float64(f.SourcesUnavailable) },
 }
 
 // Input отдаёт значение по имени input из rules/*.yaml. false значит, что такого
@@ -289,6 +286,8 @@ type PolicyRules struct {
 	StopFactors       []StopRule
 	// Texts шаблоны клиенту по коду, подстановки в фигурных скобках
 	Texts map[string]string
+	// UnderwriterTexts для причин андеррайтера, которых не было в расчёте
+	UnderwriterTexts map[string]string
 	// DocumentNames для подстановки {doc}: вид документа -> как его назвать клиенту
 	DocumentNames map[string]string
 	ReapplyMonths int // через сколько после отказа по классу E подавать снова
