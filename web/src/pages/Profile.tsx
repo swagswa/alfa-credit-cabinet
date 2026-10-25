@@ -94,11 +94,7 @@ function CompanyBlocks({ company: c }: { company: Company }) {
               <Field label="Выдан">{day(l.issued_at)}</Field>
               {l.contract_id && (
                 <Field label="Договор">
-                  <a
-                    href={`/api/documents/${encodeURIComponent(l.contract_id)}/file`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <a href={`/api/documents/${encodeURIComponent(l.contract_id)}/file`} target="_blank" rel="noreferrer">
                     Открыть PDF
                   </a>
                 </Field>

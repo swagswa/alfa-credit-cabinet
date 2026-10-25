@@ -5,7 +5,11 @@ import type { components } from '../api/schema.gen';
 import { motion, useMotionDisabled } from '../motion';
 import { springs } from '../motion/tokens';
 
-export function Icon({ name }: { name: 'back' | 'overview' | 'applications' | 'new' | 'refresh' | 'check' | 'profile' }) {
+export function Icon({
+  name,
+}: {
+  name: 'back' | 'overview' | 'applications' | 'new' | 'refresh' | 'check' | 'profile';
+}) {
   const paths = {
     back: 'm14 6-6 6 6 6M8 12h12',
     overview: 'm3.5 10 7-6a2.3 2.3 0 0 1 3 0l7 6M5.5 9v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V9M9.5 20v-5a2.5 2.5 0 0 1 5 0v5',
