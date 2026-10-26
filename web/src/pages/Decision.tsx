@@ -10,6 +10,7 @@ import { isCompleted } from '../api/dashboard';
 import { repeatApplication } from '../api/repeatApplication';
 import { CounterOfferComparison } from './CounterOfferComparison';
 import { OfferVariants, type Choice } from './OfferVariants';
+import { Improvements } from './CreditGuidance';
 import { Value } from '../motion/Value';
 import { Button, motion, useMotionDisabled } from '../motion';
 import { OutcomePanel } from '../motion/OutcomePanel';
@@ -106,7 +107,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
       setBusy(false);
     }
   }
-  if (card.status === 'need_info') return null;
+  if (card.status === 'draft' || card.status === 'need_info') return null;
   if (card.status === 'expired' || card.status === 'cancelled_by_client') {
     const expired = card.status === 'expired';
     return (
@@ -152,40 +153,43 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
       ['Что можно сделать', group('fix')],
     ] as const;
     return (
-      <OutcomePanel rejected>
-        <Typography.Title tag="h2" view="small" font="system" defaultMargins id="rejection-title">
-          Банк не одобрил заявку
-        </Typography.Title>
-        {card.reasons.length ? (
-          group(undefined).map((text) => (
-            <Typography.Text tag="p" view="primary-small" key={text}>
-              {text}
+      <>
+        <OutcomePanel rejected>
+          <Typography.Title tag="h2" view="small" font="system" defaultMargins id="rejection-title">
+            Банк не одобрил заявку
+          </Typography.Title>
+          {card.reasons.length ? (
+            group(undefined).map((text) => (
+              <Typography.Text tag="p" view="primary-small" key={text}>
+                {text}
+              </Typography.Text>
+            ))
+          ) : (
+            <Typography.Text tag="p" view="primary-small">
+              Банк пока не передал подробное объяснение.
             </Typography.Text>
-          ))
-        ) : (
-          <Typography.Text tag="p" view="primary-small">
-            Банк пока не передал подробное объяснение.
-          </Typography.Text>
-        )}
-        {plan.map(
-          ([title, texts]) =>
-            !!texts.length && (
-              <div key={title} className="reject-plan">
-                <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
-                  {title}
-                </Typography.Title>
-                <ul>
-                  {texts.map((text) => (
-                    <li key={text}>{text}</li>
-                  ))}
-                </ul>
-              </div>
-            ),
-        )}
-        <Link className="primary-link" to="/client/new">
-          Подать новую заявку
-        </Link>
-      </OutcomePanel>
+          )}
+          {plan.map(
+            ([title, texts]) =>
+              !!texts.length && (
+                <div key={title} className="reject-plan">
+                  <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+                    {title}
+                  </Typography.Title>
+                  <ul>
+                    {texts.map((text) => (
+                      <li key={text}>{text}</li>
+                    ))}
+                  </ul>
+                </div>
+              ),
+          )}
+          <Link className="primary-link" to="/client/new">
+            Подать новую заявку
+          </Link>
+        </OutcomePanel>
+        <Improvements key={`${card.id}:${card.version}`} id={card.id} />
+      </>
     );
   }
   if (['issued', 'closed'].includes(card.status))
@@ -241,10 +245,10 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         </>
       ) : (
         <>
-          {!!card.reasons.length && (
+          {card.status === 'manual_review' && !!card.reasons.length && (
             <>
               <Typography.Title tag="h2" view="small" font="system" defaultMargins>
-                {card.status === 'manual_review' ? 'Что учитывает специалист' : 'Почему принято такое решение'}
+                Что учитывает специалист
               </Typography.Title>
               {card.reasons.map((reason, index) => (
                 <Typography.Text tag="p" view="primary-small" key={`${reason.code}-${index}`}>

@@ -89,10 +89,11 @@ export async function acceptAndSign(page: Page) {
   await page.getByRole('button', { name: 'Принять условия' }).click();
   await page.getByRole('button', { name: 'Получить код' }).click();
   // в колокольчике лежат коды прошлых прогонов, берём код своей заявки
-  const number = (await page.getByRole('heading', { name: /^Заявка № \d+$/ }).textContent())!.replace(/\D/g, '');
+  const id = new URL(page.url()).pathname.split('/').pop();
   const sent = await page
     .getByRole('dialog', { name: 'Уведомления' })
-    .getByText(new RegExp(`^Код \\d{6} .*заявке №${number}\\.`))
+    .locator(`[data-signing-application="${id}"]`)
+    .getByLabel('Код подписания', { exact: true })
     .first()
     .textContent();
   await page.getByLabel('Код 1 из 6', { exact: true }).pressSequentially(sent!.match(/\d{6}/)![0]);

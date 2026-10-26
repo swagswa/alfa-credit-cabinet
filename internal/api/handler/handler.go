@@ -24,6 +24,7 @@ type Handler struct {
 	faults        usecase.FaultUseCase
 	profile       usecase.ProfileUseCase
 	notifications usecase.NotificationUseCase
+	guidance      usecase.GuidanceUseCase
 
 	sessionTTL   time.Duration
 	cookieSecure bool
@@ -45,6 +46,7 @@ type Deps struct {
 	Faults        usecase.FaultUseCase
 	Profile       usecase.ProfileUseCase
 	Notifications usecase.NotificationUseCase
+	Guidance      usecase.GuidanceUseCase
 
 	// SessionTTL задаёт срок cookie, он совпадает со сроком сессии
 	SessionTTL   time.Duration
@@ -66,6 +68,7 @@ func New(d Deps) *Handler {
 		faults:        d.Faults,
 		profile:       d.Profile,
 		notifications: d.Notifications,
+		guidance:      d.Guidance,
 		sessionTTL:    d.SessionTTL,
 		cookieSecure:  d.CookieSecure,
 	}

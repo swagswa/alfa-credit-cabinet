@@ -18,6 +18,7 @@ import type { components } from '../api/schema.gen';
 import { Feed } from './Feed';
 
 type Summary = components['schemas']['ApplicationSummary'];
+type Profile = components['schemas']['Profile'];
 function nextAction(status: Summary['status']) {
   if (status === 'need_info')
     return {
@@ -59,6 +60,7 @@ function nextStep(status: Summary['status']) {
 export function Dashboard() {
   const cache = useCabinetCache();
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | undefined>(() => cache.get('dashboard'));
+  const [profile, setProfile] = useState<Profile | undefined>(() => cache.get('profile'));
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   useEffect(() => {
@@ -134,10 +136,30 @@ export function Dashboard() {
       window.removeEventListener('application-refresh', changed);
     };
   }, [cache, revision]);
+  useEffect(() => {
+    let active = true;
+    settle(
+      api.GET('/profile'),
+      ({ data }) => {
+        if (active && data) {
+          cache.set('profile', data);
+          setProfile(data);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [cache, revision]);
   const recent = snapshot?.page.items.slice(0, 3) ?? [];
+  const activeLoans =
+    profile?.companies?.flatMap((company) =>
+      company.loans.filter((loan) => ['issued', 'closed'].includes(loan.status)).map((loan) => ({ company, loan })),
+    ) ?? [];
   const groups = snapshot
     ? (Object.keys(applicationGroups) as ApplicationGroup[]).filter(
-        (group) => group !== 'completed' && snapshot.counts[group] > 0,
+        (group) => group !== 'completed' && group !== 'response' && group !== 'drafts' && snapshot.counts[group] > 0,
       )
     : [];
   return (
@@ -268,6 +290,27 @@ export function Dashboard() {
             </Link>
           ))}
         </nav>
+      )}
+      {!!activeLoans.length && (
+        <section className="dashboard-loans" aria-labelledby="dashboard-loans-heading">
+          <SectionHeading title={<span id="dashboard-loans-heading">Действующие кредиты</span>}>
+            <Link to="/client/profile">Все кредиты →</Link>
+          </SectionHeading>
+          <ul className="dashboard-loan-list">
+            {activeLoans.map(({ company, loan }) => (
+              <li className="dashboard-loan" key={loan.application_id}>
+                <div className="dashboard-loan-main">
+                  <span className="dashboard-loan-company">{company.company.short_name}</span>
+                  <Link to={`/client/applications/${loan.application_id}`}>Заявка № {loan.number}</Link>
+                </div>
+                <div className="dashboard-loan-payment">
+                  <strong>{money(loan.monthly_payment_kop, true)}</strong>
+                  <span>в месяц · {loan.term_months} мес.</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {!!recent.length && (
         <section className="dashboard-recent" aria-labelledby="recent-heading">

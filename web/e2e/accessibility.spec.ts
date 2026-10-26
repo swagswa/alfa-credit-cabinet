@@ -51,53 +51,58 @@ async function cabinet(page: Page, path: string) {
             user: { id: 'user', role: bank ? 'manager' : 'client', login: 'test', full_name: 'Тест' },
             companies: bank ? [] : [{ company: card.company, representative_role: 'director' }],
           }
-        : url.pathname === '/api/stats'
+        : url.pathname === '/api/profile'
           ? {
-              days: Number(url.searchParams.get('days')),
-              submitted: 1234567,
-              decided: 50,
-              auto_decided: 40,
-              approved: 30,
-              decision_time: { median_sec: 5400, p90_sec: 10800 },
-              issued_kop: 999999999900,
-              by_status: [
-                { status: 'need_info', count: 30, overdue: 5 },
-                { status: 'manual_review', count: 5, overdue: 1 },
-              ],
+              user: { id: 'user', role: 'client', login: 'test', full_name: 'Тест', phone: '', email: '' },
+              companies: [{ company: card.company, loans: [] }],
             }
-          : url.pathname === '/api/applications'
-            ? { items: [card], total: 1 }
-            : url.pathname === '/api/products'
-              ? [
-                  {
-                    code: 'working_capital',
-                    name: 'Оборотный кредит',
-                    amount_min_kop: 30000000,
-                    amount_max_kop: 1000000000,
-                    term_min_months: 3,
-                    term_max_months: 36,
-                    rate_min_bp: 1900,
-                    rate_max_bp: 2500,
-                    min_business_age_months: 12,
-                    requirements: [],
-                    documents: [],
-                    repayment: 'annuity',
-                  },
-                ]
-              : url.pathname === '/api/feed'
+          : url.pathname === '/api/stats'
+            ? {
+                days: Number(url.searchParams.get('days')),
+                submitted: 1234567,
+                decided: 50,
+                auto_decided: 40,
+                approved: 30,
+                decision_time: { median_sec: 5400, p90_sec: 10800 },
+                issued_kop: 999999999900,
+                by_status: [
+                  { status: 'need_info', count: 30, overdue: 5 },
+                  { status: 'manual_review', count: 5, overdue: 1 },
+                ],
+              }
+            : url.pathname === '/api/applications'
+              ? { items: [card], total: 1 }
+              : url.pathname === '/api/products'
                 ? [
                     {
-                      id: 'event',
-                      kind: 'event',
-                      title: 'Банк одобрил заявку',
-                      text: 'Проверьте условия финансирования',
-                      application_id: card.id,
-                      created_at: card.updated_at,
+                      code: 'working_capital',
+                      name: 'Оборотный кредит',
+                      amount_min_kop: 30000000,
+                      amount_max_kop: 1000000000,
+                      term_min_months: 3,
+                      term_max_months: 36,
+                      rate_min_bp: 1900,
+                      rate_max_bp: 2500,
+                      min_business_age_months: 12,
+                      requirements: [],
+                      documents: [],
+                      repayment: 'annuity',
                     },
                   ]
-                : url.pathname.endsWith('/history')
-                  ? []
-                  : card;
+                : url.pathname === '/api/feed'
+                  ? [
+                      {
+                        id: 'event',
+                        kind: 'event',
+                        title: 'Банк одобрил заявку',
+                        text: 'Проверьте условия финансирования',
+                        application_id: card.id,
+                        created_at: card.updated_at,
+                      },
+                    ]
+                  : url.pathname.endsWith('/history')
+                    ? []
+                    : card;
     return route.fulfill({ json });
   });
   await page.goto(path);

@@ -26,13 +26,17 @@ func (u *decisionUseCase) Score(f *domain.Facts) domain.Score {
 		s.Points += fs.Points
 		s.Factors = append(s.Factors, fs)
 	}
-	for _, g := range u.scoring.Grades {
-		if s.Points >= g.Min {
-			s.Grade, s.PD = g.Grade, g.PD
-			break
+	s.Grade, s.PD = scoreGrade(u.scoring.Grades, s.Points)
+	return s
+}
+
+func scoreGrade(grades []domain.GradeRule, points int) (grade, pd string) {
+	for _, g := range grades {
+		if points >= g.Min {
+			return g.Grade, g.PD
 		}
 	}
-	return s
+	return "", ""
 }
 
 // бины идут сверху вниз, последний без границы ловит всё, в том числе +Inf у нагрузки без выручки

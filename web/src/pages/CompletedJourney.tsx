@@ -237,31 +237,6 @@ export function CompletedJourney({ card }: { card: App }) {
           <>
             <Decision card={{ ...card, allowed_next: [] }} refresh={() => undefined} />
             {issued && (
-              <section className="archive-panel repayment-summary">
-                <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
-                  {(card.offer?.product ?? card.product) === 'overdraft' ? 'Погашение овердрафта' : 'Первый платёж'}
-                </Typography.Title>
-                {(card.offer?.product ?? card.product) === 'overdraft' ? (
-                  <Typography.Text tag="p" view="primary-small">
-                    Задолженность погашается поступлениями на расчётный счёт. Фиксированного ежемесячного платежа нет.
-                  </Typography.Text>
-                ) : (
-                  <>
-                    {card.offer && card.offer.monthly_payment_kop > 0 ? (
-                      <strong className="repayment-amount">{money(card.offer.monthly_payment_kop)}</strong>
-                    ) : (
-                      <Typography.Text tag="p" view="primary-small">
-                        Сумма платежа пока не передана банком.
-                      </Typography.Text>
-                    )}
-                    <Typography.Text tag="p" view="primary-small" className="hint">
-                      Дата первого платежа пока не передана банком.
-                    </Typography.Text>
-                  </>
-                )}
-              </section>
-            )}
-            {issued && (
               <section className="archive-panel" aria-label="Документы заявки">
                 <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
                   Документы заявки

@@ -1,4 +1,5 @@
 import { DocumentUpload } from './DocumentUpload';
+import { Icon } from '../ui/Workspace';
 import { Disclosure } from '../ui/Disclosure';
 import { MoneyField } from '../ui/MoneyField';
 import { Typography } from '@alfalab/core-components/typography';
@@ -49,6 +50,7 @@ export function Documents({
   ];
   const editable = !bank && ['draft', 'need_info'].includes(card.status);
   const draft = card.status === 'draft';
+  const statementMonths = card.product === 'overdraft' ? 6 : 12;
   const checklist = [...new Set(draft ? requiredDocs(card, product) : required)];
   const choices = draft
     ? (Object.keys(kinds) as Kind[]).filter((k) => k !== 'loan_agreement' && !checklist.includes(k))
@@ -207,12 +209,30 @@ export function Documents({
           {checklist.map((type) => {
             const doc = card.documents.find((d) => d.kind === type);
             return (
-              <div className="document-task document-upload-task" role="group" aria-label={kinds[type]} key={type}>
+              <div
+                className={`document-task document-upload-task${doc?.status === 'uploaded' ? ' document-upload-success' : ''}`}
+                role="group"
+                aria-label={kinds[type]}
+                key={type}
+              >
                 <div>
                   <strong>{kinds[type]}</strong>
-                  <Typography.Text tag="p" view="primary-small">
-                    {doc ? statuses[doc.status] : 'Нужно загрузить'}
-                  </Typography.Text>
+                  {type === 'statement' && (
+                    <Typography.Text tag="p" view="primary-small">
+                      Приложите выписку из другого банка за последние {statementMonths} месяцев. После загрузки
+                      проверьте и подтвердите финансовые данные.
+                    </Typography.Text>
+                  )}
+                  {doc?.status === 'uploaded' ? (
+                    <div className="document-attached" role="status">
+                      <Icon name="check" />
+                      <span>Успешно прикреплён</span>
+                    </div>
+                  ) : (
+                    <Typography.Text tag="p" view="primary-small">
+                      {doc ? statuses[doc.status] : 'Нужно загрузить'}
+                    </Typography.Text>
+                  )}
                 </div>
                 <DocumentUpload kind={type} busy={busy} uploaded={!!doc} onUpload={send} />
               </div>
@@ -251,10 +271,28 @@ export function Documents({
           />
         ))}
       {error && <BottomNotice message={error} onClose={() => setError('')} />}
-      {editable && (draft || financialRequested) && choices.includes('statement') && (
+      {editable && !draft && financialRequested && choices.includes('statement') && (
         <Button loading={busy} onClick={sample}>
           Загрузить пример выписки
         </Button>
+      )}
+      {editable && draft && choices.includes('statement') && (
+        <div className="statement-guidance">
+          <Typography.Title tag="h3" view="xsmall" font="system" defaultMargins>
+            Когда стоит приложить выписку
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-small">
+            Приложите выписку из другого банка, если у компании нет счёта в нашем банке или через него проходит меньше
+            50% указанной в заявке выручки. Так банк сможет проверить остальные поступления.
+          </Typography.Text>
+          <Typography.Text tag="p" view="primary-small">
+            Для выбранного продукта нужен период за последние {statementMonths} месяцев. После загрузки проверьте и
+            подтвердите финансовые данные.
+          </Typography.Text>
+          <Typography.Text tag="p" view="primary-small" color="secondary">
+            Если этих данных не хватит, банк запросит выписку в этой карточке и укажет срок ответа.
+          </Typography.Text>
+        </div>
       )}
       {editable && draft && choices.length > 0 && (
         <Disclosure label="Загрузить дополнительный документ">
@@ -271,6 +309,16 @@ export function Documents({
                 disabled={busy}
                 onChange={({ selected }) => setKind(selected!.key as Kind)}
               />
+            )}
+            {(choices.includes(kind) ? kind : choices[0]) === 'statement' && (
+              <div className="statement-demo">
+                <Typography.Text tag="p" view="secondary-small" color="secondary">
+                  Для проверки прототипа можно использовать демонстрационную выписку вместо своего файла.
+                </Typography.Text>
+                <Button type="button" size={32} view="secondary" loading={busy} onClick={sample}>
+                  Загрузить пример выписки
+                </Button>
+              </div>
             )}
             <Attach
               aria-label="Файл документа"

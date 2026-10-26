@@ -149,6 +149,37 @@ export function mockApi(): Plugin {
           res.statusCode = 204;
           return res.end();
         }
+        if (pathname === '/api/profile' && req.method === 'GET' && actor) {
+          const profile = sample(spec.components.schemas.Profile) as components['schemas']['Profile'];
+          profile.user = { ...profile.user, ...actor.user };
+          profile.companies = actor.companies.map((membership) => {
+            const company = sample(spec.components.schemas.ProfileCompany) as components['schemas']['ProfileCompany'];
+            return {
+              ...company,
+              company: membership.company,
+              representative_role: membership.representative_role,
+              loans: [...applications.values()]
+                .filter(
+                  (entry) =>
+                    entry.owner === actor.user.login &&
+                    entry.app.company.id === membership.company.id &&
+                    ['issued', 'closed'].includes(entry.app.status),
+                )
+                .map(({ app }) => ({
+                  application_id: app.id,
+                  number: app.number,
+                  status: app.status as 'issued' | 'closed',
+                  issued_at: app.updated_at,
+                  amount_kop: app.offer?.amount_kop ?? app.amount_kop,
+                  term_months: app.offer?.term_months ?? app.term_months,
+                  rate_bp: app.offer?.rate_bp ?? 0,
+                  monthly_payment_kop: app.offer?.monthly_payment_kop ?? 0,
+                  contract_id: app.documents.find((document) => document.kind === 'loan_agreement')?.id,
+                })),
+            };
+          });
+          return json(200, profile);
+        }
         if (pathname !== '/api/health' && !actor) return problem(401, 'Войдите в кабинет');
         if (pathname === '/api/logout' && req.method === 'POST') {
           if (token) {
@@ -162,6 +193,13 @@ export function mockApi(): Plugin {
           res.setHeader('Set-Cookie', 'mock_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
           res.statusCode = 204;
           return res.end();
+        }
+        if (pathname.endsWith('/preliminary') && req.method === 'GET' && actor) {
+          const inn = pathname.split('/')[3];
+          if (actor.user.role !== 'client') return problem(403, 'Ориентир доступен клиенту');
+          if (!actor.companies.some((c) => c.company.inn === inn)) return problem(404, 'Компания не найдена');
+          if (inn !== '0000100012') return problem(503, 'Демо-ориентир доступен для кофейни');
+          return json(200, sample(spec.components.schemas.PreliminaryEstimate));
         }
         if (pathname.startsWith('/api/companies/') && req.method === 'GET') {
           const inn = pathname.split('/').pop()!;
@@ -476,6 +514,12 @@ export function mockApi(): Plugin {
                       : [],
           });
           if (id && (!entry || !visible(entry))) return problem(404, 'Заявка не найдена');
+          if (entry && action === 'improvements' && req.method === 'GET') {
+            if (actor.user.role !== 'client') return problem(403, 'Сценарии доступны клиенту');
+            if (entry.owner === 'build' && entry.app.status === 'rejected')
+              return json(200, sample(spec.components.schemas.ImprovementPlan));
+            return json(200, { available: false, score: 0, grade: '', version: '2026-10-26.1', items: [] });
+          }
           if (entry && action === 'history')
             return json(
               200,

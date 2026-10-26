@@ -71,7 +71,7 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
-	decisions, err := newDecisions(cfg.RulesDir, catalog)
+	decisions, guidance, err := newCalculations(&cfg, catalog, users)
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
@@ -92,7 +92,7 @@ func main() {
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
 		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)),
 		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)),
-		usecase.NewNotification(notifications))
+		usecase.NewNotification(notifications), guidance)
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -120,6 +120,7 @@ func newServer(
 	faultPanel usecase.FaultUseCase,
 	profile usecase.ProfileUseCase,
 	notifications usecase.NotificationUseCase,
+	guidance usecase.GuidanceUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -141,6 +142,7 @@ func newServer(
 			Faults:        faultPanel,
 			Profile:       profile,
 			Notifications: notifications,
+			Guidance:      guidance,
 			SessionTTL:    cfg.TTL,
 			CookieSecure:  cfg.CookieSecure,
 		}),
@@ -158,15 +160,31 @@ func needReader(cfg *config.API) (usecase.NeedReader, error) {
 	return ollama.New(cfg.OllamaURL, cfg.OllamaModel, cfg.NeedTimeout)
 }
 
-// newDecisions: свои условия под встречным api считает той же политикой, что и воркер
-func newDecisions(dir string, catalog domain.Catalog) (usecase.DecisionUseCase, error) {
+// Оба расчёта используют одну загруженную версию скоринга.
+func newCalculations(
+	cfg *config.API,
+	catalog domain.Catalog,
+	users repo.UserRepository,
+) (usecase.DecisionUseCase, usecase.GuidanceUseCase, error) {
+	dir := cfg.RulesDir
 	scoring, err := rules.Scoring(filepath.Join(dir, "scoring.yaml"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	policy, err := rules.Policy(filepath.Join(dir, "policy.yaml"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return usecase.NewDecision(catalog, scoring, policy), nil
+	guidanceRules, err := rules.Guidance(filepath.Join(dir, "guidance.yaml"))
+	if err != nil {
+		return nil, nil, err
+	}
+	guidance := usecase.NewGuidance(
+		users,
+		source.New(source.URLs{FNS: cfg.FNSURL, Bank: cfg.BankURL}, cfg.Timeout),
+		catalog,
+		scoring,
+		guidanceRules,
+	)
+	return usecase.NewDecision(catalog, scoring, policy), guidance, nil
 }
