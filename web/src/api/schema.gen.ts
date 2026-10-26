@@ -4,6 +4,52 @@
  */
 
 export interface paths {
+    "/companies/{inn}/preliminary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 10 цифр у юрлица, 12 у ИП. Контрольные цифры проверяет сервер */
+                inn: components["parameters"]["INN"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Ориентир суммы для своей компании без запроса БКИ
+         * @description Только ФНС и данные банка. Не является одобрением, не создаёт заявку и не влияет на решение. Пустой список означает, что ориентир суммы показать нельзя.
+         */
+        get: operations["preliminaryEstimate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/improvements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41 */
+                id: components["parameters"]["ApplicationID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Независимые сценарии улучшения балла после отказа
+         * @description Расчёт по снимку скоринга и той же версии правил. Каждый шаг меняет один фактор, эффекты не складываются. Не обещает одобрения и не изменяет заявку.
+         */
+        get: operations["applicationImprovements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/login": {
         parameters: {
             query?: never;
@@ -818,6 +864,87 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @example {
+         *       "version": "2026-10-26.1",
+         *       "monthly_revenue_kop": 120000000,
+         *       "sources": [
+         *         "fns",
+         *         "internal"
+         *       ],
+         *       "items": [
+         *         {
+         *           "product": "working_capital",
+         *           "amount_kop": 240000000
+         *         },
+         *         {
+         *           "product": "overdraft",
+         *           "amount_kop": 60000000
+         *         },
+         *         {
+         *           "product": "equipment",
+         *           "amount_kop": 360000000
+         *         }
+         *       ]
+         *     }
+         */
+        PreliminaryEstimate: {
+            version: string;
+            /** Format: int64 */
+            monthly_revenue_kop: number;
+            sources: ("fns" | "internal")[];
+            items: components["schemas"]["PreliminaryAmount"][];
+        };
+        PreliminaryAmount: {
+            product: components["schemas"]["ProductCode"];
+            /** Format: int64 */
+            amount_kop: number;
+        };
+        /**
+         * @example {
+         *       "available": true,
+         *       "score": 25,
+         *       "grade": "E",
+         *       "version": "2026-10-26.1",
+         *       "items": [
+         *         {
+         *           "input": "tax_arrears_rub",
+         *           "title": "Погасить налоговую задолженность",
+         *           "detail": "Расчёт при отсутствии недоимки, пеней и штрафов после обновления данных ФНС.",
+         *           "target": 0,
+         *           "delta": 8,
+         *           "score": 33,
+         *           "grade": "E"
+         *         },
+         *         {
+         *           "input": "current_dsr",
+         *           "title": "Снизить платежи по текущим кредитам",
+         *           "detail": "Расчёт для платежей не выше 9% среднемесячной выручки.",
+         *           "target": 0.09,
+         *           "delta": 14,
+         *           "score": 39,
+         *           "grade": "D"
+         *         }
+         *       ]
+         *     }
+         */
+        ImprovementPlan: {
+            available: boolean;
+            score: number;
+            grade: string;
+            version: string;
+            items: components["schemas"]["Improvement"][];
+        };
+        Improvement: {
+            input: string;
+            title: string;
+            detail: string;
+            /** Format: double */
+            target: number;
+            delta: number;
+            score: number;
+            grade: components["schemas"]["Grade"];
+        };
         /**
          * @description Статусы из docs/state-diagram.md
          * @example approved
@@ -1998,6 +2125,60 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    preliminaryEstimate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 10 цифр у юрлица, 12 у ИП. Контрольные цифры проверяет сервер */
+                inn: components["parameters"]["INN"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Предварительный ориентир */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreliminaryEstimate"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    applicationImprovements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 0192b6f4-7c1e-7a3d-9b2a-5f0c1d2e3a41 */
+                id: components["parameters"]["ApplicationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сценарии, available=false если сохранённого скоринга нет или версия правил изменилась */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementPlan"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     login: {
         parameters: {
             query?: never;
