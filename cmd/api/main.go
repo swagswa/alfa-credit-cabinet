@@ -63,6 +63,21 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
+	scoring, err := rules.Scoring(filepath.Join(cfg.RulesDir, "scoring.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("scoring", zap.Error(err))
+	}
+	guidanceRules, err := rules.Guidance(filepath.Join(cfg.RulesDir, "guidance.yaml"))
+	if err != nil {
+		lg.Zap.Fatal("guidance", zap.Error(err))
+	}
+	guidance := usecase.NewGuidance(
+		users,
+		source.New(source.URLs{FNS: cfg.FNSURL, Bank: cfg.BankURL}, cfg.Timeout),
+		catalog,
+		scoring,
+		guidanceRules,
+	)
 	feedRules, err := rules.Feed(filepath.Join(cfg.RulesDir, "feed.yaml"))
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
@@ -92,7 +107,7 @@ func main() {
 		usecase.NewEvent(events, users), docs, usecase.NewFeed(repo.NewFeed(dbq.New(db)), feedRules), issue,
 		usecase.NewStats(db, repo.NewStats(dbq.New(db))), usecase.NewFault(faults.New(cfg.MocksURL, cfg.Timeout)),
 		usecase.NewProfile(users, source.New(source.URLs{Bank: cfg.BankURL}, cfg.Timeout)),
-		usecase.NewNotification(notifications))
+		usecase.NewNotification(notifications), guidance)
 	if err != nil {
 		lg.Zap.Fatal("api", zap.Error(err))
 	}
@@ -120,6 +135,7 @@ func newServer(
 	faultPanel usecase.FaultUseCase,
 	profile usecase.ProfileUseCase,
 	notifications usecase.NotificationUseCase,
+	guidance usecase.GuidanceUseCase,
 ) (*echo.Echo, error) {
 	enf, err := rbac.New()
 	if err != nil {
@@ -141,6 +157,7 @@ func newServer(
 			Faults:        faultPanel,
 			Profile:       profile,
 			Notifications: notifications,
+			Guidance:      guidance,
 			SessionTTL:    cfg.TTL,
 			CookieSecure:  cfg.CookieSecure,
 		}),
