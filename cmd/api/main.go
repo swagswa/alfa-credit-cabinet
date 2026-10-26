@@ -63,21 +63,6 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
-	scoring, err := rules.Scoring(filepath.Join(cfg.RulesDir, "scoring.yaml"))
-	if err != nil {
-		lg.Zap.Fatal("scoring", zap.Error(err))
-	}
-	guidanceRules, err := rules.Guidance(filepath.Join(cfg.RulesDir, "guidance.yaml"))
-	if err != nil {
-		lg.Zap.Fatal("guidance", zap.Error(err))
-	}
-	guidance := usecase.NewGuidance(
-		users,
-		source.New(source.URLs{FNS: cfg.FNSURL, Bank: cfg.BankURL}, cfg.Timeout),
-		catalog,
-		scoring,
-		guidanceRules,
-	)
 	feedRules, err := rules.Feed(filepath.Join(cfg.RulesDir, "feed.yaml"))
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
@@ -86,7 +71,7 @@ func main() {
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
-	decisions, err := newDecisions(cfg.RulesDir, catalog)
+	decisions, guidance, err := newCalculations(&cfg, catalog, users)
 	if err != nil {
 		lg.Zap.Fatal("rules", zap.Error(err))
 	}
@@ -175,15 +160,31 @@ func needReader(cfg *config.API) (usecase.NeedReader, error) {
 	return ollama.New(cfg.OllamaURL, cfg.OllamaModel, cfg.NeedTimeout)
 }
 
-// newDecisions: свои условия под встречным api считает той же политикой, что и воркер
-func newDecisions(dir string, catalog domain.Catalog) (usecase.DecisionUseCase, error) {
+// Оба расчёта используют одну загруженную версию скоринга.
+func newCalculations(
+	cfg *config.API,
+	catalog domain.Catalog,
+	users repo.UserRepository,
+) (usecase.DecisionUseCase, usecase.GuidanceUseCase, error) {
+	dir := cfg.RulesDir
 	scoring, err := rules.Scoring(filepath.Join(dir, "scoring.yaml"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	policy, err := rules.Policy(filepath.Join(dir, "policy.yaml"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return usecase.NewDecision(catalog, scoring, policy), nil
+	guidanceRules, err := rules.Guidance(filepath.Join(dir, "guidance.yaml"))
+	if err != nil {
+		return nil, nil, err
+	}
+	guidance := usecase.NewGuidance(
+		users,
+		source.New(source.URLs{FNS: cfg.FNSURL, Bank: cfg.BankURL}, cfg.Timeout),
+		catalog,
+		scoring,
+		guidanceRules,
+	)
+	return usecase.NewDecision(catalog, scoring, policy), guidance, nil
 }
