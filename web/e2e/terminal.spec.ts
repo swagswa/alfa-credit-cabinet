@@ -76,9 +76,37 @@ async function cabinet(page: Page, status: App['status'], changes: Partial<App> 
                 min_business_age_months: 12,
               },
             ]
-          : path.endsWith('/history')
-            ? []
-            : card;
+          : path === '/api/profile'
+            ? {
+                user: { id: 'client', login: 'coffee', full_name: 'Анна', role: 'client', phone: '', email: '' },
+                companies: [
+                  {
+                    company,
+                    loans: ['issued', 'closed'].includes(status)
+                      ? [
+                          {
+                            application_id: card.id,
+                            number: card.number,
+                            status,
+                            issued_at: card.updated_at,
+                            amount_kop: card.offer?.amount_kop ?? card.amount_kop,
+                            term_months: card.offer?.term_months ?? card.term_months,
+                            rate_bp: card.offer?.rate_bp ?? 0,
+                            monthly_payment_kop: card.offer?.monthly_payment_kop ?? 0,
+                            contract_id: 'contract',
+                          },
+                        ]
+                      : [],
+                  },
+                ],
+              }
+            : path === '/api/feed'
+              ? []
+              : path === '/api/applications'
+                ? { items: [card], total: 1 }
+                : path.endsWith('/history')
+                  ? []
+                  : card;
     return route.fulfill({ json: data });
   });
   await page.goto('/client/applications/original');
@@ -86,20 +114,23 @@ async function cabinet(page: Page, status: App['status'], changes: Partial<App> 
 }
 
 for (const status of ['issued', 'closed'] as const) {
-  test(`${status}: договор и платёж сразу в результате, архив без изменений`, async ({ page }) => {
+  test(`${status}: документы в результате, платёж на обзоре`, async ({ page }) => {
     const writes = await cabinet(page, status);
     await expect(page.getByRole('heading', { name: 'Всё готово. Деньги на счёте!' })).toBeVisible();
     const documents = page.getByRole('region', { name: 'Документы заявки', exact: true });
     const contract = documents.getByRole('link', { name: 'Договор.pdf' });
     await expect(contract).toHaveAttribute('href', '/api/documents/contract/file');
-    await expect(page.locator('.repayment-summary')).toContainText('119 720,00 ₽');
-    await expect(page.locator('.repayment-summary')).toContainText('Дата первого платежа пока не передана банком.');
+    await expect(page.locator('.repayment-summary')).toHaveCount(0);
     expect(await page.evaluate(async () => (await fetch('/api/documents/contract/file')).text())).toContain('%PDF');
     await page.getByRole('button', { name: '4. Документы и подпись', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Договор.pdf' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Подписать', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '5. Результат', exact: true }).click();
     await expect(page.locator('.outcome-content')).toHaveCSS('opacity', '1');
+    await page.goto('/client');
+    await expect(page.getByRole('heading', { name: 'Действующие кредиты' })).toBeVisible();
+    await expect(page.locator('.dashboard-loan')).toContainText(/119\s?720\s?₽/);
+    await expect(page.locator('.dashboard-loan')).toContainText('в месяц');
     await page.setViewportSize({ width: 375, height: 812 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     await page.screenshot({ path: `test-results/terminal-${status}-375.png`, fullPage: true });
@@ -170,9 +201,8 @@ test('истечение без предложения: новый чернов�
   expect(writes).toEqual([]);
 });
 
-test('овердрафт не обещает фиксированного платежа', async ({ page }) => {
+test('овердрафт не показывает отдельное напоминание о платеже на странице заявки', async ({ page }) => {
   await cabinet(page, 'issued', { product: 'overdraft', offer: undefined, documents: [] });
-  await expect(page.getByRole('heading', { name: 'Погашение овердрафта' })).toBeVisible();
-  await expect(page.locator('.repayment-summary')).toContainText('Фиксированного ежемесячного платежа нет.');
+  await expect(page.locator('.repayment-summary')).toHaveCount(0);
   await expect(page.getByText('Прикреплённых документов нет.', { exact: true })).toBeVisible();
 });

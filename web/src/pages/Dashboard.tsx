@@ -153,11 +153,10 @@ export function Dashboard() {
     };
   }, [cache, revision]);
   const recent = snapshot?.page.items.slice(0, 3) ?? [];
-  const activeLoans = profile?.companies.flatMap((company) =>
-    company.loans
-      .filter((loan) => ['issued', 'closed'].includes(loan.status))
-      .map((loan) => ({ company, loan })),
-  ) ?? [];
+  const activeLoans =
+    profile?.companies?.flatMap((company) =>
+      company.loans.filter((loan) => ['issued', 'closed'].includes(loan.status)).map((loan) => ({ company, loan })),
+    ) ?? [];
   const groups = snapshot
     ? (Object.keys(applicationGroups) as ApplicationGroup[]).filter(
         (group) => group !== 'completed' && group !== 'response' && group !== 'drafts' && snapshot.counts[group] > 0,
@@ -299,16 +298,16 @@ export function Dashboard() {
           </SectionHeading>
           <ul className="dashboard-loan-list">
             {activeLoans.map(({ company, loan }) => (
-                <li className="dashboard-loan" key={loan.application_id}>
-                  <div className="dashboard-loan-main">
-                    <span className="dashboard-loan-company">{company.company.short_name}</span>
-                    <Link to={`/client/applications/${loan.application_id}`}>Заявка № {loan.number}</Link>
-                  </div>
-                  <div className="dashboard-loan-payment">
-                    <strong>{money(loan.monthly_payment_kop, true)}</strong>
-                    <span>в месяц · {loan.term_months} мес.</span>
-                  </div>
-                </li>
+              <li className="dashboard-loan" key={loan.application_id}>
+                <div className="dashboard-loan-main">
+                  <span className="dashboard-loan-company">{company.company.short_name}</span>
+                  <Link to={`/client/applications/${loan.application_id}`}>Заявка № {loan.number}</Link>
+                </div>
+                <div className="dashboard-loan-payment">
+                  <strong>{money(loan.monthly_payment_kop, true)}</strong>
+                  <span>в месяц · {loan.term_months} мес.</span>
+                </div>
+              </li>
             ))}
           </ul>
         </section>
