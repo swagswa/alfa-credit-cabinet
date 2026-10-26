@@ -1313,3 +1313,53 @@ section .rejection-result {
   justify-items: start;
   margin-bottom: 16px;
 }
+/* Прогнозы отделены от согласованных условий заявки. */
+.credit-guidance {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-light-border-primary, #dcdde0);
+  text-align: left;
+}
+.guidance-steps {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.guidance-steps li {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-light-border-primary, #dcdde0);
+}
+.guidance-step-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.guidance-delta {
+  color: #15764a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+section.preliminary-estimate {
+  padding: 20px;
+  margin: 20px 0 28px;
+  border: 1px solid #dcdde0;
+  border-radius: 20px;
+  background: #f7f8fa;
+}
+.preliminary-amounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 16px;
+}
+.preliminary-amounts dt {
+  color: #5c6068;
+  font-size: 14px;
+}
+.preliminary-amounts dd {
+  margin: 6px 0 0;
+  font-weight: 600;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}

@@ -163,6 +163,13 @@ export function mockApi(): Plugin {
           res.statusCode = 204;
           return res.end();
         }
+        if (pathname.endsWith('/preliminary') && req.method === 'GET' && actor) {
+          const inn = pathname.split('/')[3];
+          if (actor.user.role !== 'client') return problem(403, 'Ориентир доступен клиенту');
+          if (!actor.companies.some((c) => c.company.inn === inn)) return problem(404, 'Компания не найдена');
+          if (inn !== '0000100012') return problem(503, 'Демо-ориентир доступен для кофейни');
+          return json(200, sample(spec.components.schemas.PreliminaryEstimate));
+        }
         if (pathname.startsWith('/api/companies/') && req.method === 'GET') {
           const inn = pathname.split('/').pop()!;
           if (!/^\d{10}(\d{2})?$/.test(inn)) return problem(400, 'Проверьте ИНН');
@@ -476,6 +483,12 @@ export function mockApi(): Plugin {
                       : [],
           });
           if (id && (!entry || !visible(entry))) return problem(404, 'Заявка не найдена');
+          if (entry && action === 'improvements' && req.method === 'GET') {
+            if (actor.user.role !== 'client') return problem(403, 'Сценарии доступны клиенту');
+            if (entry.owner === 'build' && entry.app.status === 'rejected')
+              return json(200, sample(spec.components.schemas.ImprovementPlan));
+            return json(200, { available: false, score: 0, grade: '', version: '2026-10-26.1', items: [] });
+          }
           if (entry && action === 'history')
             return json(
               200,

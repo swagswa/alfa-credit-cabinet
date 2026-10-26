@@ -4,6 +4,7 @@ import { Typography } from '@alfalab/core-components/typography';
 import { InlineNotice } from '../ui/InlineNotice';
 import { Disclosure } from '../ui/Disclosure';
 import { CheckProgress } from './CheckProgress';
+import { PreliminaryEstimate } from './CreditGuidance';
 import { parseCheckEvent, updateCheckProgress, type CheckProgressState } from '../api/checkProgress';
 import {
   goals,
@@ -792,6 +793,7 @@ export function Applications({
                     </Typography.Text>
                   </div>
                 )}
+                {company?.inn === inn && known && <PreliminaryEstimate key={inn} inn={inn} />}
                 <Typography.Title tag="h2" view="small" font="system" defaultMargins>
                   2. Финансирование
                 </Typography.Title>
