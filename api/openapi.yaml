@@ -42,6 +42,54 @@ tags:
     description: Пульт сбоев стенда
 
 paths:
+  /companies/{inn}/preliminary:
+    parameters:
+      - $ref: '#/components/parameters/INN'
+    get:
+      tags: [companies]
+      operationId: preliminaryEstimate
+      summary: Ориентир суммы для своей компании без запроса БКИ
+      description: Только ФНС и данные банка. Не является одобрением, не создаёт заявку и не влияет на решение. Пустой список означает, что ориентир суммы показать нельзя.
+      responses:
+        '200':
+          description: Предварительный ориентир
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreliminaryEstimate'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+
+  /applications/{id}/improvements:
+    parameters:
+      - $ref: '#/components/parameters/ApplicationID'
+    get:
+      tags: [applications]
+      operationId: applicationImprovements
+      summary: Независимые сценарии улучшения балла после отказа
+      description: Расчёт по снимку скоринга и той же версии правил. Каждый шаг меняет один фактор, эффекты не складываются. Не обещает одобрения и не изменяет заявку.
+      responses:
+        '200':
+          description: Сценарии, available=false если сохранённого скоринга нет или версия правил изменилась
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImprovementPlan'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+
   /login:
     post:
       tags: [auth]
@@ -1288,6 +1336,111 @@ components:
             $ref: '#/components/schemas/Problem'
 
   schemas:
+    PreliminaryEstimate:
+      type: object
+      additionalProperties: false
+      required: [version, monthly_revenue_kop, sources, items]
+      example:
+        version: 2026-10-26.1
+        monthly_revenue_kop: 120000000
+        sources: [fns, internal]
+        items:
+          - {product: working_capital, amount_kop: 240000000}
+          - {product: overdraft, amount_kop: 60000000}
+          - {product: equipment, amount_kop: 360000000}
+      properties:
+        version:
+          type: string
+        monthly_revenue_kop:
+          type: integer
+          format: int64
+          minimum: 0
+        sources:
+          type: array
+          items:
+            type: string
+            enum: [fns, internal]
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreliminaryAmount'
+
+    PreliminaryAmount:
+      type: object
+      additionalProperties: false
+      required: [product, amount_kop]
+      properties:
+        product:
+          $ref: '#/components/schemas/ProductCode'
+        amount_kop:
+          type: integer
+          format: int64
+          minimum: 1
+
+    ImprovementPlan:
+      type: object
+      additionalProperties: false
+      required: [available, score, grade, version, items]
+      example:
+        available: true
+        score: 25
+        grade: E
+        version: 2026-10-26.1
+        items:
+          - input: tax_arrears_rub
+            title: Погасить налоговую задолженность
+            detail: Расчёт при отсутствии недоимки, пеней и штрафов после обновления данных ФНС.
+            target: 0
+            delta: 8
+            score: 33
+            grade: E
+          - input: current_dsr
+            title: Снизить платежи по текущим кредитам
+            detail: Расчёт для платежей не выше 9% среднемесячной выручки.
+            target: 0.09
+            delta: 14
+            score: 39
+            grade: D
+      properties:
+        available:
+          type: boolean
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        grade:
+          type: string
+        version:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Improvement'
+
+    Improvement:
+      type: object
+      additionalProperties: false
+      required: [input, title, detail, target, delta, score, grade]
+      properties:
+        input:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        target:
+          type: number
+          format: double
+        delta:
+          type: integer
+          minimum: 1
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        grade:
+          $ref: '#/components/schemas/Grade'
+
     ApplicationStatus:
       type: string
       description: Статусы из docs/state-diagram.md
