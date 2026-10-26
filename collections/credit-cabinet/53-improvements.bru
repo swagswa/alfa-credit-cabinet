@@ -1,0 +1,26 @@
+meta {
+  name: 53 Сценарии улучшения
+  type: http
+  seq: 53
+}
+
+get {
+  url: {{baseUrl}}/applications/{{appId}}/improvements
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.available: isBoolean
+}
+
+docs {
+  На выданной заявке available=false. Для проверки числовых сценариев замените appId
+  на отказ своей компании с сохранённым скорингом, например стройки.
+  Каждый items меняет один фактор, эффекты не складываются. Чужая заявка возвращает 404.
+}

@@ -1,0 +1,32 @@
+meta {
+  name: 52 Предварительный ориентир
+  type: http
+  seq: 52
+}
+
+get {
+  url: {{baseUrl}}/companies/{{clientInn}}/preliminary
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{clientCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.monthly_revenue_kop: isNumber
+}
+
+tests {
+  test("без БКИ и только ориентир", function () {
+    expect(res.body.sources).to.deep.equal(["fns", "internal"]);
+    expect(res.body.items.every((i) => i.amount_kop > 0)).to.equal(true);
+  });
+}
+
+docs {
+  Только своя компания. Запрос ничего не записывает, БКИ не вызывается.
+  Пустой items не является отказом, сбой источника возвращает 503.
+}
