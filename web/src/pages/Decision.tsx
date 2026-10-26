@@ -107,7 +107,7 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
       setBusy(false);
     }
   }
-  if (card.status === 'need_info') return null;
+  if (card.status === 'draft' || card.status === 'need_info') return null;
   if (card.status === 'expired' || card.status === 'cancelled_by_client') {
     const expired = card.status === 'expired';
     return (
@@ -245,10 +245,10 @@ export function Decision({ card, refresh }: { card: App; refresh: () => void }) 
         </>
       ) : (
         <>
-          {!!card.reasons.length && (
+          {card.status === 'manual_review' && !!card.reasons.length && (
             <>
               <Typography.Title tag="h2" view="small" font="system" defaultMargins>
-                {card.status === 'manual_review' ? 'Что учитывает специалист' : 'Почему принято такое решение'}
+                Что учитывает специалист
               </Typography.Title>
               {card.reasons.map((reason, index) => (
                 <Typography.Text tag="p" view="primary-small" key={`${reason.code}-${index}`}>

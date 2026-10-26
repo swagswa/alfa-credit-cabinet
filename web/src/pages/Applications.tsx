@@ -550,18 +550,6 @@ export function Applications({
                         />
                       </Disclosure>
                     )}
-                    {!bank && card.allowed_next.includes('submitted') && (
-                      <>
-                        {warning && (
-                          <Typography.Text tag="p" view="primary-small" role="note">
-                            {warning}
-                          </Typography.Text>
-                        )}
-                        <Button view="primary" loading={busy} onClick={submit}>
-                          Отправить в банк
-                        </Button>
-                      </>
-                    )}
                     <CheckProgress card={card} bank={bank} live={checkProgress} disconnected={connectionFailed} />
                     {!bank && <Decision key={card.id} card={card} refresh={() => setRevision((value) => value + 1)} />}
                     {bank && <BankDetails key={`bank-${card.id}`} card={card} role={role} />}
@@ -572,6 +560,25 @@ export function Applications({
                       product={cardProduct}
                       refresh={() => setRevision((value) => value + 1)}
                     />
+                    {!bank && card.allowed_next.includes('submitted') && (
+                      <div className="application-submit" role="region" aria-label="Отправка заявки">
+                        <div className={!warning && cardProduct ? 'application-submit-ready' : undefined}>
+                          {!warning && cardProduct && <Icon name="check" />}
+                          <Typography.Text tag="p" view="primary-small" role="status">
+                            <strong>
+                              {warning || !cardProduct ? 'Проверьте перед отправкой' : 'Заявка готова к отправке'}
+                            </strong>
+                          </Typography.Text>
+                        </div>
+                        <Typography.Text tag="p" view="primary-small">
+                          {warning ||
+                            'Проверьте данные и приложенные документы. После отправки банк начнёт рассмотрение заявки.'}
+                        </Typography.Text>
+                        <Button view="primary" loading={busy} onClick={submit}>
+                          Отправить в банк
+                        </Button>
+                      </div>
+                    )}
                     {!bank && (
                       <Cancel key={`cancel-${card.id}`} card={card} refresh={() => setRevision((value) => value + 1)} />
                     )}

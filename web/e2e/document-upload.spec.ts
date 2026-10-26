@@ -54,10 +54,10 @@ test('паспорт и доверенность загружаются из с�
     .locator('input[type=file]')
     .setInputFiles({ name: 'power.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 power') });
   await passport.getByRole('button', { name: 'Загрузить: Паспорт', exact: true }).click();
-  await expect(passport.getByText('Загружен', { exact: true })).toBeVisible();
+  await expect(passport.getByRole('status')).toHaveText('Успешно прикреплён');
   await expect(power).toContainText('power.pdf');
   await power.getByRole('button', { name: 'Загрузить: Доверенность', exact: true }).click();
-  await expect(power.getByText('Загружен', { exact: true })).toBeVisible();
+  await expect(power.getByRole('status')).toHaveText('Успешно прикреплён');
   expect(uploads).toEqual(['passport', 'power_of_attorney']);
   await expect(page.getByRole('button', { name: 'Отправить сведения банку', exact: true })).toBeEnabled();
   await expect(page.locator('#document-upload')).toHaveCount(0);

@@ -421,6 +421,50 @@ section.dashboard-attention {
   padding-top: 14px;
   margin-top: auto;
 }
+.dashboard-loans {
+  display: grid;
+  gap: 14px;
+}
+.dashboard-loan-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.dashboard-loan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid #e7e9ee;
+  border-radius: 18px;
+  background: #fff;
+}
+.dashboard-loan-main,
+.dashboard-loan-payment {
+  display: grid;
+  gap: 5px;
+}
+.dashboard-loan-company,
+.dashboard-loan-payment span {
+  color: var(--ink-secondary);
+  font-size: 12px;
+}
+.dashboard-loan-main > a {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dashboard-loan-payment {
+  text-align: right;
+  white-space: nowrap;
+}
+.dashboard-loan-payment strong {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.4px;
+}
 .dashboard-onboarding {
   position: relative;
   background: #f0edfa;
@@ -623,6 +667,14 @@ section.dashboard-attention {
   }
   .dashboard-application-grid {
     grid-template-columns: 1fr;
+  }
+  .dashboard-loan {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .dashboard-loan-payment {
+    text-align: left;
   }
   .dashboard-onboarding {
     padding: 24px;
@@ -1362,4 +1414,41 @@ section.preliminary-estimate {
   font-weight: 600;
   font-size: 18px;
   font-variant-numeric: tabular-nums;
+}
+.document-task.document-upload-success {
+  background: #f0f9f4;
+  border-color: #b9dfc9;
+}
+.document-attached {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #126b42;
+  font-size: 14px;
+  font-weight: 500;
+}
+.statement-guidance {
+  max-width: 680px;
+  margin: 24px 0 8px;
+}
+.statement-demo {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin: 4px 0 12px;
+}
+.application-submit {
+  margin: 24px 0 16px;
+  padding-top: 24px;
+  border-top: 1px solid #e7e9ed;
+}
+.application-submit-ready {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #126b42;
+}
+.application-submit-ready p {
+  margin: 0;
 }

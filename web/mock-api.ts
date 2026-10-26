@@ -149,6 +149,37 @@ export function mockApi(): Plugin {
           res.statusCode = 204;
           return res.end();
         }
+        if (pathname === '/api/profile' && req.method === 'GET' && actor) {
+          const profile = sample(spec.components.schemas.Profile) as components['schemas']['Profile'];
+          profile.user = { ...profile.user, ...actor.user };
+          profile.companies = actor.companies.map((membership) => {
+            const company = sample(spec.components.schemas.ProfileCompany) as components['schemas']['ProfileCompany'];
+            return {
+              ...company,
+              company: membership.company,
+              representative_role: membership.representative_role,
+              loans: [...applications.values()]
+                .filter(
+                  (entry) =>
+                    entry.owner === actor.user.login &&
+                    entry.app.company.id === membership.company.id &&
+                    ['issued', 'closed'].includes(entry.app.status),
+                )
+                .map(({ app }) => ({
+                  application_id: app.id,
+                  number: app.number,
+                  status: app.status as 'issued' | 'closed',
+                  issued_at: app.updated_at,
+                  amount_kop: app.offer?.amount_kop ?? app.amount_kop,
+                  term_months: app.offer?.term_months ?? app.term_months,
+                  rate_bp: app.offer?.rate_bp ?? 0,
+                  monthly_payment_kop: app.offer?.monthly_payment_kop ?? 0,
+                  contract_id: app.documents.find((document) => document.kind === 'loan_agreement')?.id,
+                })),
+            };
+          });
+          return json(200, profile);
+        }
         if (pathname !== '/api/health' && !actor) return problem(401, 'Войдите в кабинет');
         if (pathname === '/api/logout' && req.method === 'POST') {
           if (token) {
