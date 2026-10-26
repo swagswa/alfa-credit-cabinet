@@ -160,7 +160,7 @@ export function Dashboard() {
   ) ?? [];
   const groups = snapshot
     ? (Object.keys(applicationGroups) as ApplicationGroup[]).filter(
-        (group) => group !== 'completed' && group !== 'response' && snapshot.counts[group] > 0,
+        (group) => group !== 'completed' && group !== 'response' && group !== 'drafts' && snapshot.counts[group] > 0,
       )
     : [];
   return (
